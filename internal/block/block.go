@@ -39,3 +39,16 @@ func (b *Block) CalculateHash() string {
 	hashedBytes := h.Sum(nil)
 	return hex.EncodeToString(hashedBytes)
 }
+
+func (b *Block) Mine(difficulty int) {
+	target := strings.Repeat("0", difficulty)
+	for {
+		b.Hash = b.CalculateHash()
+
+		if strings.HasPrefix(b.Hash, target) {
+			break
+		} else {
+			b.Nonce++
+		}
+	}
+}
