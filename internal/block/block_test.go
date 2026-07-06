@@ -21,17 +21,17 @@ func TestCalculateHash(t *testing.T) {
 	block := &Block{
 		Height:       1,
 		Timestamp:    1720211552,
-		Transactions: []string{"Alice pays Bob 10 USD"},
+		Transactions: []Transaction{{Sender: "Alice", Recipient: "Bob", Amount: 10}},
 		PrevHash:     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 		Nonce:        12345,
 	}
 
 	hash1 := block.CalculateHash()
 
-	block.Transactions = []string{"Alice pays Bob 100 USD"}
+	block.Transactions = []Transaction{{Sender: "Alice", Recipient: "Bob", Amount: 100}}
 	hash2 := block.CalculateHash()
 
-	block.Transactions = []string{"Alice pays Bob 10 USD"}
+	block.Transactions = []Transaction{{Sender: "Alice", Recipient: "Bob", Amount: 10}}
 	hash3 := block.CalculateHash()
 
 	if hash1 == hash2 {
@@ -47,7 +47,7 @@ func TestMine(t *testing.T) {
 	block := &Block{
 		Height:       1,
 		Timestamp:    1627890123,
-		Transactions: []string{"Alice pays Bob 10 USD"},
+		Transactions: []Transaction{{Sender: "Alice", Recipient: "Bob", Amount: 100}},
 		PrevHash:     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 		Nonce:        0,
 	}
@@ -62,7 +62,7 @@ func TestMine(t *testing.T) {
 	}
 
 	// now nonce is set to a value where blocks hash is starting with {difficulty} zeros.
-	// recalculate the hash with the found Nonce
+	// recalculate the hash with the found Nonce amd check is it same with the Mined value
 	expectedHash := block.CalculateHash()
 	if block.Hash != expectedHash {
 		t.Errorf("Hash does not match recalculated hash with found nonce")

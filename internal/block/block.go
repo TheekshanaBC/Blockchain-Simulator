@@ -8,10 +8,16 @@ import (
 	"time"
 )
 
+type Transaction struct {
+	Sender    string
+	Recipient string
+	Amount    float64
+}
+
 type Block struct {
 	Height       int
 	Timestamp    int64
-	Transactions []string
+	Transactions []Transaction
 	PrevHash     string
 	Nonce        int
 	Hash         string
@@ -23,7 +29,7 @@ func NewGenesisBlock() *Block {
 	block := &Block{
 		Height:       0,
 		Timestamp:    time.Now().Unix(),
-		Transactions: []string{"Genesis Block"},
+		Transactions: []Transaction{{Sender: "FAUCET", Recipient: "Genesis", Amount: 0}},
 		PrevHash:     GenesisPrevHash,
 		Nonce:        0,
 	}
@@ -32,7 +38,13 @@ func NewGenesisBlock() *Block {
 }
 
 func (b *Block) CalculateHash() string {
-	txData := strings.Join(b.Transactions, "") // In real project Merkle tree data structure can be used
+	txData := ""
+
+	for _, tx := range b.Transactions {
+		txData += fmt.Sprintf("%s%s%f", tx.Sender, tx.Recipient, tx.Amount)
+	}
+
+	// txData := strings.Join(b.Transactions, "") // In real project Merkle tree data structure can be used
 	record := fmt.Sprintf("%d%d%s%s%d", b.Height, b.Timestamp, txData, b.PrevHash, b.Nonce)
 	h := sha256.New()
 	h.Write([]byte(record))
