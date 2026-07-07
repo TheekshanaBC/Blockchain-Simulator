@@ -1,7 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"blockchain-simulator/internal/chain"
+	"blockchain-simulator/internal/cli"
+)
 
 func main() {
-	fmt.Println("Hello BC")
+	difficulty := 3
+
+	myChain := chain.NewChain(difficulty)
+	cli.StartCLI(myChain)
 }
