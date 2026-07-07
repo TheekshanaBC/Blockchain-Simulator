@@ -20,7 +20,7 @@ func CalculateBalances(chain []*block.Block) map[string]float64 {
 	return balances
 }
 
-func validateTransaction(tx block.Transaction, balances map[string]float64) error {
+func ValidateTransaction(tx block.Transaction, balances map[string]float64) error {
 	if tx.Amount <= 0 {
 		return errors.New("Amount must be Greater than 0!")
 	}
