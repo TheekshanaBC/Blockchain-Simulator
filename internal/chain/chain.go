@@ -4,6 +4,7 @@ import (
 	"blockchain-simulator/internal/block"
 	"blockchain-simulator/internal/ledger"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -56,4 +57,32 @@ func (c *Chain) MinePendingTransactions() error {
 
 	return nil
 
+}
+
+type ValidationResult struct {
+	IsValid        bool
+	FailedAtHeight int
+	Reason         string
+}
+
+func (c *Chain) Validate() ValidationResult {
+	target := strings.Repeat("0", c.Difficulty)
+	for i := 1; i < len(c.Blocks); i++ {
+		currentBlock := c.Blocks[i]
+		previousBlock := c.Blocks[i-1]
+
+		if currentBlock.Hash != currentBlock.CalculateHash() {
+			return ValidationResult{false, currentBlock.Height, "Hash mismatch"}
+		}
+
+		if currentBlock.PrevHash != previousBlock.Hash {
+			return ValidationResult{false, currentBlock.Height, "Previous Hash mismatch"}
+		}
+
+		if !strings.HasPrefix(currentBlock.Hash, target) {
+			return ValidationResult{false, currentBlock.Height, "Proof of work failed"}
+		}
+	}
+
+	return ValidationResult{true, -1, "Chain is Valid"}
 }
