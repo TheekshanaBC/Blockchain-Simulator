@@ -1,6 +1,6 @@
 # Blockchain Simulator
 
-A simple blockchain simulator written in Go. This simulator allows you to understand the fundamental concepts of blockchain such as transactions, mining blocks, and validating the chain via an interactive Command Line Interface (CLI).
+A simple blockchain simulator written in Go. Learn the fundamental concepts of blockchain such as transactions, mining blocks, and validating the chain via an interactive Command Line Interface (CLI).
 
 ## Prerequisites
 
