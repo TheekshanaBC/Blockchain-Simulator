@@ -5,25 +5,19 @@ import (
 	"blockchain-simulator/internal/chain"
 	"blockchain-simulator/internal/ledger"
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 )
 
-// ANSI Color codes
 const (
-	ColorReset  = "\033[0m"
-	ColorRed    = "\033[31m"
-	ColorGreen  = "\033[32m"
-	ColorYellow = "\033[33m"
-	ColorBlue   = "\033[34m"
-	ColorCyan   = "\033[36m"
-)
-
-// Text Formatting
-const (
+	Reset           = "\033[0m"
+	ColorRed        = "\033[31m"
+	ColorGreen      = "\033[32m"
+	ColorYellow     = "\033[33m"
+	ColorBlue       = "\033[34m"
+	ColorCyan       = "\033[36m"
 	FormatBold      = "\033[1m"
 	FormatDim       = "\033[2m"
 	FormatItalic    = "\033[3m"
@@ -31,26 +25,27 @@ const (
 )
 
 func printHelp() {
-	fmt.Println(ColorBlue + FormatItalic + "\nAvailable Commands" + ColorReset)
-	fmt.Println(ColorYellow + "  addtx " + FormatDim + "<from> <to> <amount>" + ColorReset + " - Add a new transaction to the pending pool")
-	fmt.Println(ColorYellow + "  mine" + ColorReset + "                       - Mine pending transactions into a new block")
-	fmt.Println(ColorYellow + "  pool" + ColorReset + "                       - View all pending transactions")
-	fmt.Println(ColorYellow + "  balances" + ColorReset + "                   - View account balances")
-	fmt.Println(ColorYellow + "  validate" + ColorReset + "                   - Validate the integrity of the blockchain")
-	fmt.Println(ColorYellow + "  print" + ColorReset + "                      - Visualize the blockchain structure")
-	fmt.Println(ColorYellow + "  help" + ColorReset + "                       - Display available commands")
-	fmt.Println(ColorYellow + "  exit" + ColorReset + "                       - Exit the Blockchain CLI")
+	fmt.Println(ColorBlue + FormatItalic + "\nAvailable Commands" + Reset)
+	fmt.Println(ColorYellow + "  addtx " + FormatDim + "<from> <to> <amount>" + Reset + " - Add a new transaction to the pending pool")
+	fmt.Println(ColorYellow + "  mine" + Reset + "                       - Mine pending transactions into a new block")
+	fmt.Println(ColorYellow + "  pool" + Reset + "                       - View all pending transactions")
+	fmt.Println(ColorYellow + "  balances" + Reset + "                   - View account balances")
+	fmt.Println(ColorYellow + "  validate" + Reset + "                   - Validate the integrity of the blockchain")
+	fmt.Println(ColorYellow + "  print" + Reset + "                      - Visualize the blockchain structure")
+	fmt.Println(ColorYellow + "  help" + Reset + "                       - Display available commands")
+	fmt.Println(ColorYellow + "  clear" + Reset + "                      - Clear the terminal screen")
+	fmt.Println(ColorYellow + "  exit" + Reset + "                       - Exit the Blockchain CLI")
 }
 
 func StartCLI(c *chain.Chain) {
 	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Println(ColorBlue + "=========================================" + ColorReset)
-	fmt.Println(FormatBold + "         BlockChain Simulator CLI        " + ColorReset)
-	fmt.Println(ColorBlue + "=========================================" + ColorReset)
+	fmt.Println(ColorBlue + "=========================================" + Reset)
+	fmt.Println(FormatBold + "         BlockChain Simulator CLI        " + Reset)
+	fmt.Println(ColorBlue + "=========================================" + Reset)
 	printHelp()
 
 	for {
-		fmt.Print("\n" + ColorBlue + "Blockchain> " + ColorReset)
+		fmt.Print("\n" + ColorBlue + "Blockchain> " + Reset)
 		if !scanner.Scan() {
 			break
 		}
@@ -65,14 +60,15 @@ func StartCLI(c *chain.Chain) {
 		command := args[0]
 
 		switch command {
+
 		case "addtx":
 			if len(args) != 4 {
-				fmt.Println("Usage: addtx <from> <to> <amount>")
+				fmt.Println(ColorRed + "Error: " + Reset + "Invalid arguments!" + Reset + "\nTry again using correct format:" + ColorGreen + FormatDim + " addtx <from> <to> <amount>" + Reset)
 				continue
 			}
 			amount, err := strconv.ParseFloat(args[3], 64)
 			if err != nil {
-				fmt.Println("Error: Amount must be a number")
+				fmt.Println(ColorRed + "Error: " + Reset + "Amount must be a number" + Reset)
 				continue
 			}
 
@@ -80,49 +76,103 @@ func StartCLI(c *chain.Chain) {
 
 			err = c.AddTransaction(tx)
 			if err != nil {
-				fmt.Println("Error: Failed to add Transaction:", err)
+				fmt.Println(ColorRed+"Error: "+Reset+"Failed to add Transaction:", err)
 			} else {
-				fmt.Println("Transaction added to the pending pool!")
+				fmt.Println(ColorGreen + "Transaction added to the pending pool!" + Reset)
 			}
 
 		case "mine":
-			fmt.Println("Mining new block...")
+			fmt.Println(ColorYellow + FormatDim + "Mining new block..." + Reset)
 			err := c.MinePendingTransactions()
 			if err != nil {
-				fmt.Println("Mine error!", err)
+				fmt.Println(ColorRed+"Error: "+Reset+"Failed to mine block:", err)
 			} else {
-				fmt.Println("Block mined successfully!")
+				fmt.Println(ColorGreen + "Block mined successfully!" + Reset)
+			}
+
+		case "pool":
+			if len(c.PendingPool) == 0 {
+				fmt.Println(ColorYellow + "No pending transactions!" + Reset)
+			} else {
+				fmt.Println(ColorCyan + "--- Pending Transactions ---\n" + Reset)
+				for i, tx := range c.PendingPool {
+					fmt.Printf("%s%d.%s %s --> %s : %.2f\n", ColorYellow, i+1, Reset, tx.Sender, tx.Recipient, tx.Amount)
+				}
 			}
 
 		case "balances":
 			balances := ledger.CalculateBalances(c.Blocks)
-			fmt.Println("--- Account Balances ---")
+			fmt.Println(ColorCyan + "--- Account Balances ---" + Reset)
 			for acc, bal := range balances {
 				fmt.Printf("%s : %.2f\n", acc, bal)
 			}
+
 		case "validate":
 			result := c.Validate()
 			if result.IsValid {
-				fmt.Println("Chain is valid!")
+				fmt.Println(ColorGreen + "Chain is valid!" + Reset)
 			} else {
-				fmt.Printf("Chain is INVALID!. Failed at Block %d: %s\n", result.FailedAtHeight, result.Reason)
+				fmt.Printf(ColorRed+"Error"+Reset+"Chain is INVALID!. Failed at Block %d: %s\n", result.FailedAtHeight, result.Reason)
 			}
 
 		case "print":
-			chainJSON, _ := json.MarshalIndent(c.Blocks, "", "  ")
-			fmt.Println(string(chainJSON))
+			printBlockchain(c)
+
+		case "help":
+			printHelp()
+
+		case "clear":
+			fmt.Print("\033[H\033[2J")
 
 		case "exit":
-			fmt.Println("Existing...")
+			fmt.Println(ColorYellow + "Exiting..." + Reset)
 			return
 
 		default:
-			fmt.Println("Unknown Command. Available: addtx, mine, balances, validate, print, exit")
+			fmt.Println(ColorRed + "Unknown Command" + Reset + " Available: addtx, mine, pool, balances, validate, print, help, clear, exit")
 		}
 
 	}
 
 	if err := scanner.Err(); err != nil {
 		fmt.Println("Error reading input:", err)
+	}
+}
+
+func printLine(text string, color string, innerW int) {
+	if len(text) > innerW {
+		text = text[:innerW-3] + "..."
+	}
+
+	padding := innerW - len(text)
+	fmt.Printf("%s| %s%s%s%s %s|\n", ColorBlue, color, text, Reset, strings.Repeat(" ", padding), ColorBlue)
+}
+
+func printBlockchain(c *chain.Chain) {
+	fmt.Println(ColorCyan + "--- Blockchain Visualizer ---" + Reset)
+	boxWidth := 74
+	innerW := boxWidth - 4
+
+	for i, b := range c.Blocks {
+		fmt.Println(ColorBlue + "+" + strings.Repeat("-", boxWidth-2) + "+" + Reset)
+		printLine(fmt.Sprintf("Block %d", b.Height), ColorCyan, innerW)
+		printLine(fmt.Sprintf("Hash: %s", b.Hash), ColorYellow, innerW)
+		printLine(fmt.Sprintf("Prev: %s", b.PrevHash), Reset, innerW)
+		printLine(fmt.Sprintf("Nonce: %d", b.Nonce), Reset, innerW)
+		printLine(fmt.Sprintf("Tx Count: %d", len(b.Transactions)), ColorGreen, innerW)
+		if len(b.Transactions) > 0 {
+			printLine("Transactions:", ColorCyan, innerW)
+			for j, tx := range b.Transactions {
+				txStr := fmt.Sprintf("  %d. %s -> %s : %.2f", j+1, tx.Sender, tx.Recipient, tx.Amount)
+				printLine(txStr, Reset, innerW)
+			}
+		}
+		fmt.Println(ColorBlue + "+" + strings.Repeat("-", boxWidth-2) + "+" + Reset)
+		if i < len(c.Blocks)-1 {
+			spaces := strings.Repeat(" ", boxWidth/2)
+			fmt.Printf("%s%s|\n", ColorBlue, spaces)
+			fmt.Printf("%s%sv%s\n", ColorBlue, spaces, Reset)
+		}
+		fmt.Println()
 	}
 }

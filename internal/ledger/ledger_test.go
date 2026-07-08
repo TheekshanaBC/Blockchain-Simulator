@@ -1,9 +1,8 @@
 package ledger
 
 import (
-	"testing"
-
 	"blockchain-simulator/internal/block"
+	"testing"
 )
 
 func TestValidateTransaction(t *testing.T) {
