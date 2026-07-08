@@ -12,13 +12,45 @@ import (
 	"strings"
 )
 
+// ANSI Color codes
+const (
+	ColorReset  = "\033[0m"
+	ColorRed    = "\033[31m"
+	ColorGreen  = "\033[32m"
+	ColorYellow = "\033[33m"
+	ColorBlue   = "\033[34m"
+	ColorCyan   = "\033[36m"
+)
+
+// Text Formatting
+const (
+	FormatBold      = "\033[1m"
+	FormatDim       = "\033[2m"
+	FormatItalic    = "\033[3m"
+	FormatUnderline = "\033[4m"
+)
+
+func printHelp() {
+	fmt.Println(ColorBlue + FormatItalic + "\nAvailable Commands" + ColorReset)
+	fmt.Println(ColorYellow + "  addtx " + FormatDim + "<from> <to> <amount>" + ColorReset + " - Add a new transaction to the pending pool")
+	fmt.Println(ColorYellow + "  mine" + ColorReset + "                       - Mine pending transactions into a new block")
+	fmt.Println(ColorYellow + "  pool" + ColorReset + "                       - View all pending transactions")
+	fmt.Println(ColorYellow + "  balances" + ColorReset + "                   - View account balances")
+	fmt.Println(ColorYellow + "  validate" + ColorReset + "                   - Validate the integrity of the blockchain")
+	fmt.Println(ColorYellow + "  print" + ColorReset + "                      - Visualize the blockchain structure")
+	fmt.Println(ColorYellow + "  help" + ColorReset + "                       - Display available commands")
+	fmt.Println(ColorYellow + "  exit" + ColorReset + "                       - Exit the Blockchain CLI")
+}
+
 func StartCLI(c *chain.Chain) {
 	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Println("==== BlockChain Simulator CLI ====")
-	fmt.Println("Commands: addtx <from> <to> <amount> | mine | balances | validate | print | exit")
+	fmt.Println(ColorBlue + "=========================================" + ColorReset)
+	fmt.Println(FormatBold + "         BlockChain Simulator CLI        " + ColorReset)
+	fmt.Println(ColorBlue + "=========================================" + ColorReset)
+	printHelp()
 
 	for {
-		fmt.Print("\n>")
+		fmt.Print("\n" + ColorBlue + "Blockchain> " + ColorReset)
 		if !scanner.Scan() {
 			break
 		}
@@ -90,4 +122,7 @@ func StartCLI(c *chain.Chain) {
 
 	}
 
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading input:", err)
+	}
 }

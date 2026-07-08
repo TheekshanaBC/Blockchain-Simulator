@@ -19,12 +19,13 @@ type Block struct {
 	Timestamp    int64
 	Transactions []Transaction
 	PrevHash     string
-	Nonce        int
+	Nonce        uint64
 	Hash         string
 }
 
 const GenesisPrevHash = "0000000000000000000000000000000000000000000000000000000000000000"
 
+// create and return the first block of the blockchain
 func NewGenesisBlock() *Block {
 	block := &Block{
 		Height:       0,
@@ -37,21 +38,23 @@ func NewGenesisBlock() *Block {
 	return block
 }
 
+// calculate hash for a block
 func (b *Block) CalculateHash() string {
-	txData := ""
+	var txDataBuilder strings.Builder
 
 	for _, tx := range b.Transactions {
-		txData += fmt.Sprintf("%s%s%f", tx.Sender, tx.Recipient, tx.Amount)
+		fmt.Fprintf(&txDataBuilder, "%s|%s|%f", tx.Sender, tx.Recipient, tx.Amount)
 	}
+	txData := txDataBuilder.String()
 
-	// txData := strings.Join(b.Transactions, "") // In real project Merkle tree data structure can be used
-	record := fmt.Sprintf("%d%d%s%s%d", b.Height, b.Timestamp, txData, b.PrevHash, b.Nonce)
+	record := fmt.Sprintf("%d|%d|%s|%s|%d", b.Height, b.Timestamp, txData, b.PrevHash, b.Nonce)
 	h := sha256.New()
 	h.Write([]byte(record))
 	hashedBytes := h.Sum(nil)
 	return hex.EncodeToString(hashedBytes)
 }
 
+// proof of work algorithm
 func (b *Block) Mine(difficulty int) {
 	target := strings.Repeat("0", difficulty)
 	for {
