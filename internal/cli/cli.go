@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -83,18 +84,20 @@ func StartCLI(c *chain.Chain) {
 
 		case "mine":
 			fmt.Println(ColorYellow + FormatDim + "Mining new block..." + Reset)
+			startTime := time.Now()
 			err := c.MinePendingTransactions()
+			miningTime := time.Since(startTime)
 			if err != nil {
 				fmt.Println(ColorRed+"Error: "+Reset+"Failed to mine block:", err)
 			} else {
-				fmt.Println(ColorGreen + "Block mined successfully!" + Reset)
+				fmt.Printf(ColorGreen+"Block mined successfully! Time: %s\n"+Reset, miningTime.Round(time.Millisecond))
 			}
 
 		case "pool":
 			if len(c.PendingPool) == 0 {
 				fmt.Println(ColorYellow + "No pending transactions!" + Reset)
 			} else {
-				fmt.Println(ColorCyan + "--- Pending Transactions ---\n" + Reset)
+				fmt.Println(ColorCyan + "--- Pending Transactions ---" + Reset)
 				for i, tx := range c.PendingPool {
 					fmt.Printf("%s%d.%s %s --> %s : %.2f\n", ColorYellow, i+1, Reset, tx.Sender, tx.Recipient, tx.Amount)
 				}
