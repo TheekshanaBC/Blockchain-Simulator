@@ -11,7 +11,7 @@ A simple blockchain simulator written in Go. Learn the fundamental concepts of b
 To start the interactive Blockchain Simulator CLI, run the following command from the root of the project:
 
 ```bash
-go run cmd/blockchainsimulator/main.go
+go run ./cmd/blockchainsimulator
 ```
 
 ## Available Commands
