@@ -1,0 +1,34 @@
+{
+ "Blocks": [
+  {
+   "Height": 0,
+   "Timestamp": 1783492375,
+   "Transactions": [
+    {
+     "Sender": "FAUCET",
+     "Recipient": "Genesis",
+     "Amount": 0
+    }
+   ],
+   "PrevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+   "Nonce": 0,
+   "Hash": "cf956c151ba5cfc2378e07dc6f4e95b5d608878db1d38e4e914ead0572caac85"
+  },
+  {
+   "Height": 1,
+   "Timestamp": 1783492476,
+   "Transactions": [
+    {
+     "Sender": "FAUCET",
+     "Recipient": "Theekshana",
+     "Amount": 1000
+    }
+   ],
+   "PrevHash": "cf956c151ba5cfc2378e07dc6f4e95b5d608878db1d38e4e914ead0572caac85",
+   "Nonce": 1515738,
+   "Hash": "00000f5c8ce6eb9098bde95835a13db295e9e9a105940078057621592127b322"
+  }
+ ],
+ "Difficulty": 5,
+ "PendingPool": []
+}
