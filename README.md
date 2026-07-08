@@ -27,3 +27,35 @@ Once the CLI is running, you can interact with the blockchain using the followin
 - `help`                       - Display available commands
 - `clear`                      - Clear the terminal screen
 - `exit`                       - Exit the Blockchain CLI
+
+## Simulating a Transaction
+
+If you are starting with an empty chain, your accounts will have no balance. You can get initial funds using the special `FAUCET` account, which has an unlimited balance.
+
+1. **Get money from the FAUCET:**
+   ```text
+   addtx FAUCET Alice 100
+   ```
+
+2. **View the pending transaction pool:**
+   ```text
+   pool
+   ```
+
+3. **Mine the transaction into a block:**
+   ```text
+   mine
+   ```
+
+4. **Check your balance:**
+   ```text
+   balances
+   ```
+
+5. **Send money to someone else:**
+   ```text
+   addtx Alice Bob 50
+   pool
+   mine
+   balances
+   ```

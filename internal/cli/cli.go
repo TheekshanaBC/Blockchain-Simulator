@@ -129,7 +129,7 @@ func StartCLI(c *chain.Chain) {
 			return
 
 		default:
-			fmt.Println(ColorRed + "Unknown Command" + Reset + " Available: addtx, mine, pool, balances, validate, print, help, clear, exit")
+			fmt.Println(ColorRed + "Unknown Command!\n" + Reset + "Available Commands: addtx, mine, pool, balances, validate, print, help, clear, exit")
 		}
 
 	}
