@@ -24,6 +24,10 @@ func NewChain(difficulty int) *Chain {
 }
 
 func (c *Chain) AddTransaction(tx block.Transaction) error {
+	if tx.Sender == "COINBASE" {
+		return fmt.Errorf("Transaction Rejected: COINBASE is reserved for block mining rewards only")
+	}
+
 	balances := ledger.CalculateBalances(c.Blocks)
 
 	err := ledger.ValidateTransaction(tx, balances)
