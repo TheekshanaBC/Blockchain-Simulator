@@ -43,11 +43,13 @@ func (c *Chain) MinePendingTransactions() error {
 	lastBlock := c.Blocks[len(c.Blocks)-1]
 
 	newBlock := &block.Block{
+		Header: block.BlockHeader{
+			PrevHash:  lastBlock.Hash,
+			Timestamp: time.Now().Unix(),
+			Nonce:     0,
+		},
 		Height:       lastBlock.Height + 1,
-		Timestamp:    time.Now().Unix(),
 		Transactions: c.PendingPool,
-		PrevHash:     lastBlock.Hash,
-		Nonce:        0,
 	}
 
 	newBlock.Mine(c.Difficulty)
@@ -75,7 +77,11 @@ func (c *Chain) Validate() ValidationResult {
 			return ValidationResult{false, currentBlock.Height, "Hash mismatch"}
 		}
 
-		if currentBlock.PrevHash != previousBlock.Hash {
+		if currentBlock.Header.MerkleRoot != block.CalculateMerkleRoot(currentBlock.Transactions) {
+			return ValidationResult{false, currentBlock.Height, "Merkle Root mismatch"}
+		}
+
+		if currentBlock.Header.PrevHash != previousBlock.Hash {
 			return ValidationResult{false, currentBlock.Height, "Previous Hash mismatch"}
 		}
 

@@ -12,44 +12,51 @@ func TestNewGenesisBlock(t *testing.T) {
 		t.Errorf("Expected Height 0, got %d", block.Height)
 	}
 
-	if block.PrevHash != GenesisPrevHash {
-		t.Errorf("Expected PrevHash %s, got %s", GenesisPrevHash, block.PrevHash)
+	if block.Header.PrevHash != GenesisPrevHash {
+		t.Errorf("Expected PrevHash %s, got %s", GenesisPrevHash, block.Header.PrevHash)
 	}
 }
 
 func TestCalculateHash(t *testing.T) {
 	block := &Block{
+		Header: BlockHeader{
+			Timestamp: 1720211552,
+			PrevHash:  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			Nonce:     12345,
+		},
 		Height:       1,
-		Timestamp:    1720211552,
 		Transactions: []Transaction{{Sender: "Alice", Recipient: "Bob", Amount: 10}},
-		PrevHash:     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-		Nonce:        12345,
 	}
 
+	block.Header.MerkleRoot = CalculateMerkleRoot(block.Transactions)
 	hash1 := block.CalculateHash()
 
 	block.Transactions = []Transaction{{Sender: "Alice", Recipient: "Bob", Amount: 100}}
+	block.Header.MerkleRoot = CalculateMerkleRoot(block.Transactions)
 	hash2 := block.CalculateHash()
 
 	block.Transactions = []Transaction{{Sender: "Alice", Recipient: "Bob", Amount: 10}}
+	block.Header.MerkleRoot = CalculateMerkleRoot(block.Transactions)
 	hash3 := block.CalculateHash()
 
 	if hash1 == hash2 {
-		t.Errorf("Hashes should be different for different Transactions")
+		t.Errorf("Hashes should be different for different Merkle Roots")
 	}
 
 	if hash1 != hash3 {
-		t.Errorf("Hashes should be same for same Transactions")
+		t.Errorf("Hashes should be same for same Merkle Roots")
 	}
 }
 
 func TestMine(t *testing.T) {
 	block := &Block{
+		Header: BlockHeader{
+			PrevHash:  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			Timestamp: 1627890123,
+			Nonce:     0,
+		},
 		Height:       1,
-		Timestamp:    1627890123,
 		Transactions: []Transaction{{Sender: "Alice", Recipient: "Bob", Amount: 100}},
-		PrevHash:     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-		Nonce:        0,
 	}
 
 	difficulty := 4

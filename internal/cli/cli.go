@@ -115,7 +115,7 @@ func StartCLI(c *chain.Chain) {
 			if result.IsValid {
 				fmt.Println(ColorGreen + "Chain is valid!" + Reset)
 			} else {
-				fmt.Printf(ColorRed+"Error"+Reset+"Chain is INVALID!. Failed at Block %d: %s\n", result.FailedAtHeight, result.Reason)
+				fmt.Printf(ColorRed+"Error: "+Reset+"Chain is INVALID. Failed at Block %d: %s\n", result.FailedAtHeight, result.Reason)
 			}
 
 		case "print":
@@ -160,8 +160,9 @@ func printBlockchain(c *chain.Chain) {
 		fmt.Println(ColorBlue + "+" + strings.Repeat("-", boxWidth-2) + "+" + Reset)
 		printLine(fmt.Sprintf("Block %d", b.Height), ColorCyan, innerW)
 		printLine(fmt.Sprintf("Hash: %s", b.Hash), ColorYellow, innerW)
-		printLine(fmt.Sprintf("Prev: %s", b.PrevHash), Reset, innerW)
-		printLine(fmt.Sprintf("Nonce: %d", b.Nonce), Reset, innerW)
+		printLine(fmt.Sprintf("Prev: %s", b.Header.PrevHash), Reset, innerW)
+		printLine(fmt.Sprintf("Merkle Root: %s", b.Header.MerkleRoot), Reset, innerW)
+		printLine(fmt.Sprintf("Nonce: %d", b.Header.Nonce), Reset, innerW)
 		printLine(fmt.Sprintf("Tx Count: %d", len(b.Transactions)), ColorGreen, innerW)
 		if len(b.Transactions) > 0 {
 			printLine("Transactions:", ColorCyan, innerW)

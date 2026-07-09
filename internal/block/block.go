@@ -1,8 +1,6 @@
 package block
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -14,12 +12,18 @@ type Transaction struct {
 	Amount    float64
 }
 
+type BlockHeader struct {
+	PrevHash   string
+	MerkleRoot string
+	Timestamp  int64
+	Difficulty int
+	Nonce      uint32
+}
+
 type Block struct {
+	Header       BlockHeader
 	Height       int
-	Timestamp    int64
 	Transactions []Transaction
-	PrevHash     string
-	Nonce        uint64
 	Hash         string
 }
 
@@ -28,34 +32,30 @@ const GenesisPrevHash = "0000000000000000000000000000000000000000000000000000000
 // create and return the first block of the blockchain
 func NewGenesisBlock() *Block {
 	block := &Block{
+		Header: BlockHeader{
+			PrevHash:  GenesisPrevHash,
+			Timestamp: time.Now().Unix(),
+			Nonce:     0,
+		},
 		Height:       0,
-		Timestamp:    time.Now().Unix(),
 		Transactions: []Transaction{{Sender: "FAUCET", Recipient: "Genesis", Amount: 0}},
-		PrevHash:     GenesisPrevHash,
-		Nonce:        0,
 	}
+	block.Header.MerkleRoot = CalculateMerkleRoot(block.Transactions)
 	block.Hash = block.CalculateHash()
 	return block
 }
 
 // calculate hash for a block
 func (b *Block) CalculateHash() string {
-	var txDataBuilder strings.Builder
-
-	for _, tx := range b.Transactions {
-		fmt.Fprintf(&txDataBuilder, "%s|%s|%f", tx.Sender, tx.Recipient, tx.Amount)
-	}
-	txData := txDataBuilder.String()
-
-	record := fmt.Sprintf("%d|%d|%s|%s|%d", b.Height, b.Timestamp, txData, b.PrevHash, b.Nonce)
-	h := sha256.New()
-	h.Write([]byte(record))
-	hashedBytes := h.Sum(nil)
-	return hex.EncodeToString(hashedBytes)
+	record := fmt.Sprintf("%s|%s|%d|%d|%d", b.Header.PrevHash, b.Header.MerkleRoot, b.Header.Timestamp, b.Header.Difficulty, b.Header.Nonce)
+	doubleHash := doubleSHA256(record)
+	return doubleHash
 }
 
 // proof of work algorithm
 func (b *Block) Mine(difficulty int) {
+	b.Header.Difficulty = difficulty
+	b.Header.MerkleRoot = CalculateMerkleRoot(b.Transactions)
 	target := strings.Repeat("0", difficulty)
 	for {
 		b.Hash = b.CalculateHash()
@@ -63,7 +63,7 @@ func (b *Block) Mine(difficulty int) {
 		if strings.HasPrefix(b.Hash, target) {
 			break
 		} else {
-			b.Nonce++
+			b.Header.Nonce++
 		}
 	}
 }

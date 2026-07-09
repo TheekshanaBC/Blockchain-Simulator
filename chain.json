@@ -1,48 +1,83 @@
 {
- "Blocks": [
-  {
-   "Height": 0,
-   "Timestamp": 1783492375,
-   "Transactions": [
-    {
-     "Sender": "FAUCET",
-     "Recipient": "Genesis",
-     "Amount": 0
-    }
-   ],
-   "PrevHash": "0000000000000000000000000000000000000000000000000000000000000000",
-   "Nonce": 0,
-   "Hash": "cf956c151ba5cfc2378e07dc6f4e95b5d608878db1d38e4e914ead0572caac85"
-  },
-  {
-   "Height": 1,
-   "Timestamp": 1783492476,
-   "Transactions": [
-    {
-     "Sender": "FAUCET",
-     "Recipient": "Theekshana",
-     "Amount": 1000
-    }
-   ],
-   "PrevHash": "cf956c151ba5cfc2378e07dc6f4e95b5d608878db1d38e4e914ead0572caac85",
-   "Nonce": 1515738,
-   "Hash": "00000f5c8ce6eb9098bde95835a13db295e9e9a105940078057621592127b322"
-  },
-  {
-   "Height": 2,
-   "Timestamp": 1783500511,
-   "Transactions": [
-    {
-     "Sender": "Theekshana",
-     "Recipient": "alice",
-     "Amount": 100
-    }
-   ],
-   "PrevHash": "00000f5c8ce6eb9098bde95835a13db295e9e9a105940078057621592127b322",
-   "Nonce": 459716,
-   "Hash": "00000e7dd7c44d8cb7f0ad60ca42d7ae31982e81292fd9db6eb7c55948b939cf"
-  }
- ],
- "Difficulty": 5,
- "PendingPool": []
+    "Blocks": [
+        {
+            "Header": {
+                "PrevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "MerkleRoot": "edfed44b776511d59d7112699db64b8b5a2eca5df970fc82b1df63c672dc9957",
+                "Timestamp": 1783577487,
+                "Difficulty": 0,
+                "Nonce": 0
+            },
+            "Height": 0,
+            "Transactions": [
+                {
+                    "Sender": "FAUCET",
+                    "Recipient": "Genesis",
+                    "Amount": 0
+                }
+            ],
+            "Hash": "de0179245504a655079ac786ffe7cc721ad16b77f2fd3624dfa9a2e8b1719f5f"
+        },
+        {
+            "Header": {
+                "PrevHash": "de0179245504a655079ac786ffe7cc721ad16b77f2fd3624dfa9a2e8b1719f5f",
+                "MerkleRoot": "73d96e29eb3d90c7bfb72e398a5da68a386b548fcfbef99fb970f0128cdff9e5",
+                "Timestamp": 1783577510,
+                "Difficulty": 5,
+                "Nonce": 663541
+            },
+            "Height": 1,
+            "Transactions": [
+                {
+                    "Sender": "FAUCET",
+                    "Recipient": "Theek",
+                    "Amount": 1000
+                }
+            ],
+            "Hash": "00000c3db739272bef234f7e0a2ecd89a5c56bfed449b9a960efa780564a2b4e"
+        },
+        {
+            "Header": {
+                "PrevHash": "00000c3db739272bef234f7e0a2ecd89a5c56bfed449b9a960efa780564a2b4e",
+                "MerkleRoot": "293ad4a49399de887c970f8cbb6282e1c572e19cd3e6247c14057454b01d6375",
+                "Timestamp": 1783577556,
+                "Difficulty": 5,
+                "Nonce": 864756
+            },
+            "Height": 2,
+            "Transactions": [
+                {
+                    "Sender": "Theek",
+                    "Recipient": "bob",
+                    "Amount": 100
+                }
+            ],
+            "Hash": "00000f0d60053be8459a36a86d57e93c1c90f8f6e5276cd473671dbb29a70417"
+        },
+        {
+            "Header": {
+                "PrevHash": "00000f0d60053be8459a36a86d57e93c1c90f8f6e5276cd473671dbb29a70417",
+                "MerkleRoot": "695cb83bc98c914e9347b531ecfe24c3f0ff4c8825f6fc4fa12d9cca3e53c847",
+                "Timestamp": 1783577585,
+                "Difficulty": 5,
+                "Nonce": 793424
+            },
+            "Height": 3,
+            "Transactions": [
+                {
+                    "Sender": "bob",
+                    "Recipient": "alice",
+                    "Amount": 10
+                },
+                {
+                    "Sender": "bob",
+                    "Recipient": "Theek",
+                    "Amount": 5
+                }
+            ],
+            "Hash": "00000e793d4ca8733b56c1f5b2896287df462c8ea59b87919fa1668669e7d5e0"
+        }
+    ],
+    "Difficulty": 5,
+    "PendingPool": []
 }
