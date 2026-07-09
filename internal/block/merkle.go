@@ -19,6 +19,7 @@ func CalculateMerkleRoot(txs []Transaction) string {
 	}
 
 	for len(hashes) > 1 {
+		// If number of transactions is odd duplicate last hash
 		if len(hashes)%2 != 0 {
 			hashes = append(hashes, hashes[len(hashes)-1])
 		}
