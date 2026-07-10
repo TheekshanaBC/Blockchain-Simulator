@@ -132,7 +132,7 @@ func StartCLI(c *chain.Chain) {
 			return
 
 		default:
-			fmt.Println(ColorRed + "Unknown Command!\n" + Reset + "Available Commands: addtx, mine, pool, balances, validate, print, help, clear, exit")
+			fmt.Println(ColorRed + "Unknown Command\n" + Reset + "Available Commands: addtx, mine, pool, balances, validate, print, help, clear, exit")
 		}
 
 	}
@@ -153,7 +153,7 @@ func printLine(text string, color string, innerW int) {
 
 func printBlockchain(c *chain.Chain) {
 	fmt.Println(ColorCyan + "--- Blockchain Visualizer ---" + Reset)
-	boxWidth := 74
+	boxWidth := 85
 	innerW := boxWidth - 4
 
 	for i, b := range c.Blocks {
