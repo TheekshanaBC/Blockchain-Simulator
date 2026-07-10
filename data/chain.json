@@ -1,25 +1,81 @@
 {
- "blocks": [
-  {
-   "header": {
-    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-    "merkle_root": "2b4918f5b1c5333fcb63ece2ba7aec37e15b1a18f63d6b6d984de5e65dc605d3",
-    "timestamp": 1700000000,
-    "difficulty": 0,
-    "nonce": 0
-   },
-   "height": 0,
-   "transactions": [
-    {
-     "sender": "COINBASE",
-     "recipient": "Genesis",
-     "amount": 0,
-     "extra_nonce": 0
-    }
-   ],
-   "hash": "789703793eb36690afd4cfb3fc0b7cb69f2c55a310f48453b28d992ef13f6bfa"
-  }
- ],
- "difficulty": 5,
- "pending_pool": []
+    "blocks": [
+        {
+            "header": {
+                "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "merkle_root": "78bb70c612f34392c604e66344963ba88e5eed5c535d6ba8a1a964622efc9717",
+                "timestamp": 1710000000,
+                "difficulty": 0,
+                "nonce": 0
+            },
+            "height": 0,
+            "transactions": [
+                {
+                    "sender": "COINBASE",
+                    "recipient": "Genesis",
+                    "amount": 0,
+                    "extra_nonce": 0
+                }
+            ],
+            "hash": "03884eeed6b6115380b8084d617e0927dca73860421d7d9c1ff63adbb9a66e55"
+        },
+        {
+            "header": {
+                "prev_hash": "03884eeed6b6115380b8084d617e0927dca73860421d7d9c1ff63adbb9a66e55",
+                "merkle_root": "1e6ed87ce1f5d301529812b9fca8de72c9087a9cc38cdd8a6f4a666316351fca",
+                "timestamp": 1783681038,
+                "difficulty": 5,
+                "nonce": 109343
+            },
+            "height": 1,
+            "transactions": [
+                {
+                    "sender": "COINBASE",
+                    "recipient": "Miner",
+                    "amount": 50,
+                    "extra_nonce": 0
+                },
+                {
+                    "sender": "FAUCET",
+                    "recipient": "Theekshana",
+                    "amount": 1000,
+                    "extra_nonce": 0
+                }
+            ],
+            "hash": "000007389f35c1076d2b6160b174b562f4be370bad7f964c7e55e3cab337a861"
+        },
+        {
+            "header": {
+                "prev_hash": "000007389f35c1076d2b6160b174b562f4be370bad7f964c7e55e3cab337a861",
+                "merkle_root": "8234bd951726c41bd7ec4f83ce0f695d6e68683346d4cee05a4b99f690b1c4ab",
+                "timestamp": 1783681107,
+                "difficulty": 5,
+                "nonce": 251958
+            },
+            "height": 2,
+            "transactions": [
+                {
+                    "sender": "COINBASE",
+                    "recipient": "Miner",
+                    "amount": 50,
+                    "extra_nonce": 0
+                },
+                {
+                    "sender": "Theekshana",
+                    "recipient": "Geesara",
+                    "amount": 200,
+                    "extra_nonce": 0
+                },
+                {
+                    "sender": "Theekshana",
+                    "recipient": "Kushan",
+                    "amount": 300,
+                    "extra_nonce": 0
+                }
+            ],
+            "hash": "0000016f7c9016e4ea1c6abb79e7bc1f61e35dce6b9d7584034a02f88afd84c0"
+        }
+    ],
+    "difficulty": 5,
+    "pending_pool": []
 }

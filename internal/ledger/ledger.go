@@ -11,6 +11,10 @@ func CalculateBalances(chain []*block.Block) map[string]uint64 {
 
 	for _, b := range chain {
 		for _, tx := range b.Transactions {
+			if tx.Amount == 0 {
+				continue
+			}
+			
 			if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
 				balances[tx.Sender] -= tx.Amount
 			}
