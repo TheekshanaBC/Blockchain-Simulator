@@ -24,7 +24,7 @@ func main() {
 
 	cli.StartCLI(myChain)
 
-	fmt.Println("Savin chain to disc...")
+	fmt.Println("Savin chain to disk...")
 	err = storage.SaveChain(myChain, dbFile)
 
 	if err != nil {

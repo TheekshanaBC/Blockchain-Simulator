@@ -29,12 +29,12 @@ func CalculateBalances(chain []*block.Block, pendingPool []block.Transaction) ma
 
 func ValidateTransaction(tx block.Transaction, balances map[string]float64) error {
 	if tx.Amount <= 0 {
-		return errors.New("Amount must be Greater than 0!")
+		return errors.New("Amount must be Greater than 0")
 	}
 
 	if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
 		if balances[tx.Sender] < tx.Amount {
-			return fmt.Errorf("Insufficent funds!: need %f, but have %f", tx.Amount, balances[tx.Sender])
+			return fmt.Errorf("Insufficent funds: need %f, but have %f", tx.Amount, balances[tx.Sender])
 		}
 	}
 	return nil

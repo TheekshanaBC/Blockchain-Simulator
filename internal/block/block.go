@@ -6,25 +6,25 @@ import (
 )
 
 type Transaction struct {
-	Sender     string
-	Recipient  string
-	Amount     float64
-	ExtraNonce int
+	Sender     string  `json:"sender"`
+	Recipient  string  `json:"recipient"`
+	Amount     float64 `json:"amount"`
+	ExtraNonce int     `json:"extra_nonce"`
 }
 
 type BlockHeader struct {
-	PrevHash   string
-	MerkleRoot string
-	Timestamp  int64
-	Difficulty int
-	Nonce      uint32
+	PrevHash   string `json:"prev_hash"`
+	MerkleRoot string `json:"merkle_root"`
+	Timestamp  int64  `json:"timestamp"`
+	Difficulty int    `json:"difficulty"`
+	Nonce      uint32 `json:"nonce"`
 }
 
 type Block struct {
-	Header       BlockHeader
-	Height       int
-	Transactions []Transaction
-	Hash         string
+	Header       BlockHeader   `json:"header"`
+	Height       int           `json:"height"`
+	Transactions []Transaction `json:"transactions"`
+	Hash         string        `json:"hash"`
 }
 
 const GenesisPrevHash = "0000000000000000000000000000000000000000000000000000000000000000"

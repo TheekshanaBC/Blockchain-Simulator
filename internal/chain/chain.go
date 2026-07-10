@@ -9,9 +9,9 @@ import (
 )
 
 type Chain struct {
-	Blocks      []*block.Block
-	Difficulty  int
-	PendingPool []block.Transaction
+	Blocks      []*block.Block      `json:"blocks"`
+	Difficulty  int                 `json:"difficulty"`
+	PendingPool []block.Transaction `json:"pending_pool"`
 }
 
 func NewChain(difficulty int) *Chain {
@@ -66,9 +66,9 @@ func (c *Chain) MinePendingTransactions() error {
 }
 
 type ValidationResult struct {
-	IsValid        bool
-	FailedAtHeight int
-	Reason         string
+	IsValid        bool   `json:"is_valid"`
+	FailedAtHeight int    `json:"failed_at_height"`
+	Reason         string `json:"reason,omitempty"`
 }
 
 func (c *Chain) Validate() ValidationResult {
