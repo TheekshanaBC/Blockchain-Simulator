@@ -3,7 +3,6 @@ package block
 import (
 	"fmt"
 	"strings"
-	"time"
 )
 
 type Transaction struct {
@@ -34,9 +33,10 @@ const GenesisPrevHash = "0000000000000000000000000000000000000000000000000000000
 func NewGenesisBlock() *Block {
 	block := &Block{
 		Header: BlockHeader{
-			PrevHash:  GenesisPrevHash,
-			Timestamp: time.Now().Unix(),
-			Nonce:     0,
+			PrevHash:   GenesisPrevHash,
+			Timestamp:  1700000000,
+			Difficulty: 0,
+			Nonce:      0,
 		},
 		Height:       0,
 		Transactions: []Transaction{{Sender: "COINBASE", Recipient: "Genesis", Amount: 0, ExtraNonce: 0}},
