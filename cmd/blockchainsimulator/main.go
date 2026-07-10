@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-const dbFile = "chain.json"
+const dbFile = "data/chain.json"
 
 func main() {
 	var myChain *chain.Chain

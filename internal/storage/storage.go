@@ -4,6 +4,7 @@ import (
 	"blockchain-simulator/internal/chain"
 	"encoding/json"
 	"os"
+	"path/filepath"
 )
 
 func SaveChain(c *chain.Chain, filename string) error {
@@ -11,6 +12,11 @@ func SaveChain(c *chain.Chain, filename string) error {
 	if err != nil {
 		return err
 	}
+	
+	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+		return err
+	}
+
 	return os.WriteFile(filename, data, 0644) // 0644 read,write permission for owner, read-only for others.
 }
 
