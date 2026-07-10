@@ -6,9 +6,9 @@ import (
 )
 
 func TestValidateTransaction(t *testing.T) {
-	balances := map[string]float64{
-		"Alice": 100.0,
-		"Bob":   50.0,
+	balances := map[string]uint64{
+		"Alice": 100,
+		"Bob":   50,
 	}
 
 	// Overspending

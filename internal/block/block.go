@@ -6,10 +6,10 @@ import (
 )
 
 type Transaction struct {
-	Sender     string  `json:"sender"`
-	Recipient  string  `json:"recipient"`
-	Amount     float64 `json:"amount"`
-	ExtraNonce int     `json:"extra_nonce"`
+	Sender     string `json:"sender"`
+	Recipient  string `json:"recipient"`
+	Amount     uint64 `json:"amount"`
+	ExtraNonce int    `json:"extra_nonce"`
 }
 
 type BlockHeader struct {

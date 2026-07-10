@@ -67,7 +67,7 @@ func StartCLI(c *chain.Chain) {
 				fmt.Println(ColorRed + "Error: " + Reset + "Invalid arguments!" + Reset + "\nTry again using correct format:" + ColorGreen + FormatDim + " addtx <from> <to> <amount>" + Reset)
 				continue
 			}
-			amount, err := strconv.ParseFloat(args[3], 64)
+			amount, err := strconv.ParseUint(args[3], 10, 64)
 			if err != nil {
 				fmt.Println(ColorRed + "Error: " + Reset + "Amount must be a number" + Reset)
 				continue
@@ -99,7 +99,7 @@ func StartCLI(c *chain.Chain) {
 			} else {
 				fmt.Println(ColorCyan + "--- Pending Transactions ---" + Reset)
 				for i, tx := range c.PendingPool {
-					fmt.Printf("%s%d.%s %s --> %s : %.2f\n", ColorYellow, i+1, Reset, tx.Sender, tx.Recipient, tx.Amount)
+					fmt.Printf("%s%d.%s %s --> %s : %d\n", ColorYellow, i+1, Reset, tx.Sender, tx.Recipient, tx.Amount)
 				}
 			}
 
@@ -107,7 +107,7 @@ func StartCLI(c *chain.Chain) {
 			balances := ledger.CalculateBalances(c.Blocks)
 			fmt.Println(ColorCyan + "--- Account Balances ---" + Reset)
 			for acc, bal := range balances {
-				fmt.Printf("%s : %.2f\n", acc, bal)
+				fmt.Printf("%s : %d\n", acc, bal)
 			}
 
 		case "validate":
@@ -167,7 +167,7 @@ func printBlockchain(c *chain.Chain) {
 		if len(b.Transactions) > 0 {
 			printLine("Transactions:", ColorCyan, innerW)
 			for j, tx := range b.Transactions {
-				txStr := fmt.Sprintf("  %d. %s -> %s : %.2f", j+1, tx.Sender, tx.Recipient, tx.Amount)
+				txStr := fmt.Sprintf("  %d. %s -> %s : %d", j+1, tx.Sender, tx.Recipient, tx.Amount)
 				printLine(txStr, Reset, innerW)
 			}
 		}

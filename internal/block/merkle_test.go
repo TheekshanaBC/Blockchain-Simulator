@@ -20,7 +20,7 @@ func TestCalculateMerkleRoot_Single(t *testing.T) {
 	root := CalculateMerkleRoot(txs)
 
 	// Since there's only 1 tx, it just doubleSHA256s the tx record once
-	record := fmt.Sprintf("%s|%s|%f", txs[0].Sender, txs[0].Recipient, txs[0].Amount)
+	record := fmt.Sprintf("%s|%s|%d|%d", txs[0].Sender, txs[0].Recipient, txs[0].Amount, txs[0].ExtraNonce)
 	expectedHash := doubleSHA256(record)
 
 	if root != expectedHash {
@@ -35,8 +35,8 @@ func TestCalculateMerkleRoot_Even(t *testing.T) {
 	}
 	root := CalculateMerkleRoot(txs)
 
-	record1 := fmt.Sprintf("%s|%s|%f", txs[0].Sender, txs[0].Recipient, txs[0].Amount)
-	record2 := fmt.Sprintf("%s|%s|%f", txs[1].Sender, txs[1].Recipient, txs[1].Amount)
+	record1 := fmt.Sprintf("%s|%s|%d|%d", txs[0].Sender, txs[0].Recipient, txs[0].Amount, txs[0].ExtraNonce)
+	record2 := fmt.Sprintf("%s|%s|%d|%d", txs[1].Sender, txs[1].Recipient, txs[1].Amount, txs[1].ExtraNonce)
 	
 	hash1 := doubleSHA256(record1)
 	hash2 := doubleSHA256(record2)
@@ -56,9 +56,9 @@ func TestCalculateMerkleRoot_Odd(t *testing.T) {
 	}
 	root := CalculateMerkleRoot(txs)
 
-	record1 := fmt.Sprintf("%s|%s|%f", txs[0].Sender, txs[0].Recipient, txs[0].Amount)
-	record2 := fmt.Sprintf("%s|%s|%f", txs[1].Sender, txs[1].Recipient, txs[1].Amount)
-	record3 := fmt.Sprintf("%s|%s|%f", txs[2].Sender, txs[2].Recipient, txs[2].Amount)
+	record1 := fmt.Sprintf("%s|%s|%d|%d", txs[0].Sender, txs[0].Recipient, txs[0].Amount, txs[0].ExtraNonce)
+	record2 := fmt.Sprintf("%s|%s|%d|%d", txs[1].Sender, txs[1].Recipient, txs[1].Amount, txs[1].ExtraNonce)
+	record3 := fmt.Sprintf("%s|%s|%d|%d", txs[2].Sender, txs[2].Recipient, txs[2].Amount, txs[2].ExtraNonce)
 	
 	hash1 := doubleSHA256(record1)
 	hash2 := doubleSHA256(record2)
