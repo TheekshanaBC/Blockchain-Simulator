@@ -72,7 +72,6 @@ type ValidationResult struct {
 }
 
 func (c *Chain) Validate() ValidationResult {
-	target := strings.Repeat("0", c.Difficulty)
 	for i := 1; i < len(c.Blocks); i++ {
 		currentBlock := c.Blocks[i]
 		previousBlock := c.Blocks[i-1]
@@ -89,6 +88,7 @@ func (c *Chain) Validate() ValidationResult {
 			return ValidationResult{false, currentBlock.Height, "Previous Hash mismatch"}
 		}
 
+		target := strings.Repeat("0", currentBlock.Header.Difficulty)
 		if !strings.HasPrefix(currentBlock.Hash, target) {
 			return ValidationResult{false, currentBlock.Height, "Proof of work failed"}
 		}
