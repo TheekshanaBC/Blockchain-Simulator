@@ -10,20 +10,20 @@ A simple, educational blockchain simulator written in Go. This project is design
 
 You can start the interactive CLI directly using the Go toolchain.
 
-### Option 1: Run Directly (Recommended)
-From the root of the project, run:
-```bash
-go run ./cmd/blockchainsimulator
-```
-
-### Option 2: Build and Run
+### Option 1: Build and Run
 If you prefer to compile the project into an executable binary:
 ```bash
 # Build the binary
-go build -o bsim ./cmd/blockchainsimulator
+go build -o bcsim.exe ./cmd/blockchainsimulator
 
 # Run the compiled binary
-./bsim
+bcsim.exe
+```
+
+### Option 2: Run Directly
+From the root of the project, run:
+```bash
+go run ./cmd/blockchainsimulator
 ```
 
 ## Available Commands
