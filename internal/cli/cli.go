@@ -104,7 +104,7 @@ func StartCLI(c *chain.Chain) {
 			}
 
 		case "balances":
-			balances := ledger.CalculateBalances(c.Blocks)
+			balances := ledger.CalculateBalances(c.Blocks, c.PendingPool)
 			fmt.Println(ColorCyan + "--- Account Balances ---" + Reset)
 			for acc, bal := range balances {
 				fmt.Printf("%s : %.2f\n", acc, bal)

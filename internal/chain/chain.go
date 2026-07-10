@@ -28,7 +28,7 @@ func (c *Chain) AddTransaction(tx block.Transaction) error {
 		return fmt.Errorf("Transaction Rejected: COINBASE is reserved for block mining rewards only")
 	}
 
-	balances := ledger.CalculateBalances(c.Blocks)
+	balances := ledger.CalculateBalances(c.Blocks, c.PendingPool)
 
 	err := ledger.ValidateTransaction(tx, balances)
 	if err != nil {
