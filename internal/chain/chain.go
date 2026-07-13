@@ -93,6 +93,14 @@ func (c *Chain) Validate() ValidationResult {
 		return ValidationResult{false, 0, "Genesis difficulty should be 0"}
 	}
 
+	balances := make(map[string]int64)
+	for _, tx := range genesisBlock.Transactions {
+		if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
+			balances[tx.Sender] -= tx.Amount
+		}
+		balances[tx.Recipient] += tx.Amount
+	}
+
 	// Validate All Other Blocks
 	for i := 1; i < len(c.Blocks); i++ {
 		currentBlock := c.Blocks[i]
@@ -126,6 +134,19 @@ func (c *Chain) Validate() ValidationResult {
 
 		if !strings.HasPrefix(currentBlock.Hash, target) {
 			return ValidationResult{false, currentBlock.Height, "Proof of work failed"}
+		}
+
+		for _, tx := range currentBlock.Transactions {
+			if tx.Amount <= 0 {
+				return ValidationResult{false, currentBlock.Height, "Transaction amount must be strictly positive"}
+			}
+			if tx.Sender != "COINBASE" && tx.Sender != "FAUCET" {
+				balances[tx.Sender] -= tx.Amount
+				if balances[tx.Sender] < 0 {
+					return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Ledger replay failed: negative balance for %s", tx.Sender)}
+				}
+			}
+			balances[tx.Recipient] += tx.Amount
 		}
 	}
 

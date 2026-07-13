@@ -28,7 +28,7 @@ func main() {
 		b.Mine(difficulty)
 		elapsed := time.Since(start)
 
-		totalHashes := (uint64(b.Transactions[0].ExtraNonce) * 4294967296) + uint64(b.Header.Nonce) + 1
+		totalHashes := (int64(b.Transactions[0].ExtraNonce) * 4294967296) + int64(b.Header.Nonce) + 1
 		fmt.Printf("%-12d | %-12v | %-12d\n", difficulty, elapsed, totalHashes)
 	}
 }

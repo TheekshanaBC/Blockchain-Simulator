@@ -6,7 +6,7 @@ import (
 )
 
 func TestValidateTransaction(t *testing.T) {
-	balances := map[string]uint64{
+	balances := map[string]int64{
 		"Alice": 100,
 		"Bob":   50,
 	}

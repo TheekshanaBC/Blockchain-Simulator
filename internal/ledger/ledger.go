@@ -6,8 +6,8 @@ import (
 	"fmt"
 )
 
-func CalculateBalances(chain []*block.Block) map[string]uint64 {
-	balances := make(map[string]uint64)
+func CalculateBalances(chain []*block.Block) map[string]int64 {
+	balances := make(map[string]int64)
 
 	for _, b := range chain {
 		for _, tx := range b.Transactions {
@@ -25,7 +25,7 @@ func CalculateBalances(chain []*block.Block) map[string]uint64 {
 }
 
 // CalculateAvailableBalances returns the balance available to spend (ledger minus pending outbounds)
-func CalculateAvailableBalances(chain []*block.Block, pendingPool []block.Transaction) map[string]uint64 {
+func CalculateAvailableBalances(chain []*block.Block, pendingPool []block.Transaction) map[string]int64 {
 	balances := CalculateBalances(chain)
 
 	// deduct the pending pool transactions to prevent double spending
@@ -37,7 +37,7 @@ func CalculateAvailableBalances(chain []*block.Block, pendingPool []block.Transa
 	return balances
 }
 
-func ValidateTransaction(tx block.Transaction, balances map[string]uint64) error {
+func ValidateTransaction(tx block.Transaction, balances map[string]int64) error {
 	if tx.Amount <= 0 {
 		return errors.New("Amount must be Greater than 0")
 	}

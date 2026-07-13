@@ -67,7 +67,7 @@ func StartCLI(c *chain.Chain) {
 				fmt.Println(ColorRed + "Error: " + Reset + "Invalid arguments!" + Reset + "\nTry again using correct format:" + ColorGreen + FormatDim + " addtx <from> <to> <amount>" + Reset)
 				continue
 			}
-			amount, err := strconv.ParseUint(args[3], 10, 64)
+			amount, err := strconv.ParseInt(args[3], 10, 64)
 			if err != nil {
 				fmt.Println(ColorRed + "Error: " + Reset + "Amount must be a number" + Reset)
 				continue
