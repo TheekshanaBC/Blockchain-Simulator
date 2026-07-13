@@ -48,7 +48,7 @@ func NewGenesisBlock() *Block {
 
 // calculate hash for a block
 func (b *Block) CalculateHash() string {
-	record := fmt.Sprintf("%s|%s|%d|%d|%d", b.Header.PrevHash, b.Header.MerkleRoot, b.Header.Timestamp, b.Header.Difficulty, b.Header.Nonce)
+	record := fmt.Sprintf("%d|%s|%s|%d|%d|%d", b.Height, b.Header.PrevHash, b.Header.MerkleRoot, b.Header.Timestamp, b.Header.Difficulty, b.Header.Nonce)
 	doubleHash := doubleSHA256(record)
 	return doubleHash
 }

@@ -94,6 +94,14 @@ func (c *Chain) Validate() ValidationResult {
 		currentBlock := c.Blocks[i]
 		previousBlock := c.Blocks[i-1]
 
+		if currentBlock.Height != previousBlock.Height+1 {
+			return ValidationResult{false, currentBlock.Height, "Block Height mismatch"}
+		}
+
+		if currentBlock.Header.Timestamp < previousBlock.Header.Timestamp {
+			return ValidationResult{false, currentBlock.Height, "Timestamp is earlier than the previous block"}
+		}
+
 		if currentBlock.Hash != currentBlock.CalculateHash() {
 			return ValidationResult{false, currentBlock.Height, "Hash mismatch"}
 		}
