@@ -73,16 +73,23 @@ type ValidationResult struct {
 
 func (c *Chain) Validate() ValidationResult {
 
+	// Validate Genesis Block
+	genesisBlock := c.Blocks[0]
 	expectedGenesisHash := "03884eeed6b6115380b8084d617e0927dca73860421d7d9c1ff63adbb9a66e55"
 
-	if c.Blocks[0].Header.MerkleRoot != block.CalculateMerkleRoot(c.Blocks[0].Transactions) {
+	if genesisBlock.Header.MerkleRoot != block.CalculateMerkleRoot(genesisBlock.Transactions) {
 		return ValidationResult{false, 0, "Genesis Merkle Root mismatch"}
 	}
 
-	if c.Blocks[0].CalculateHash() != expectedGenesisHash {
+	if genesisBlock.CalculateHash() != expectedGenesisHash {
 		return ValidationResult{false, 0, "Genesis Hash mismatch"}
 	}
 
+	if genesisBlock.Hash != genesisBlock.CalculateHash() {
+		return ValidationResult{false, 0, "Genesis Stored Hash Mismatch"}
+	}
+
+	// Validate All Other Blocks
 	for i := 1; i < len(c.Blocks); i++ {
 		currentBlock := c.Blocks[i]
 		previousBlock := c.Blocks[i-1]
