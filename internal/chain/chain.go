@@ -75,7 +75,7 @@ func (c *Chain) Validate() ValidationResult {
 
 	// Validate Genesis Block
 	genesisBlock := c.Blocks[0]
-	expectedGenesisHash := "03884eeed6b6115380b8084d617e0927dca73860421d7d9c1ff63adbb9a66e55"
+	expectedGenesisHash := "2dd398f92cc73575fe2c391ec9aaebfac1b4aed68e85829b362c84604d8f6cf2"
 
 	if genesisBlock.Header.MerkleRoot != block.CalculateMerkleRoot(genesisBlock.Transactions) {
 		return ValidationResult{false, 0, "Genesis Merkle Root mismatch"}
