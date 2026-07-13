@@ -14,7 +14,7 @@ func CalculateBalances(chain []*block.Block) map[string]uint64 {
 			if tx.Amount == 0 {
 				continue
 			}
-			
+
 			if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
 				balances[tx.Sender] -= tx.Amount
 			}
@@ -40,6 +40,10 @@ func CalculateAvailableBalances(chain []*block.Block, pendingPool []block.Transa
 func ValidateTransaction(tx block.Transaction, balances map[string]uint64) error {
 	if tx.Amount <= 0 {
 		return errors.New("Amount must be Greater than 0")
+	}
+
+	if tx.Recipient == "COINBASE" {
+		return errors.New("Cannot send funds to COINBASE address.")
 	}
 
 	if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
