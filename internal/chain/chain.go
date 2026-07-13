@@ -89,6 +89,10 @@ func (c *Chain) Validate() ValidationResult {
 		return ValidationResult{false, 0, "Genesis Stored Hash Mismatch"}
 	}
 
+	if genesisBlock.Header.Difficulty != 0 {
+		return ValidationResult{false, 0, "Genesis difficulty should be 0"}
+	}
+
 	// Validate All Other Blocks
 	for i := 1; i < len(c.Blocks); i++ {
 		currentBlock := c.Blocks[i]
@@ -114,7 +118,12 @@ func (c *Chain) Validate() ValidationResult {
 			return ValidationResult{false, currentBlock.Height, "Previous Hash mismatch"}
 		}
 
-		target := strings.Repeat("0", currentBlock.Header.Difficulty)
+		if currentBlock.Header.Difficulty != c.Difficulty {
+			return ValidationResult{false, currentBlock.Height, "Block difficulty does not match chain difficulty"}
+		}
+
+		target := strings.Repeat("0", c.Difficulty)
+
 		if !strings.HasPrefix(currentBlock.Hash, target) {
 			return ValidationResult{false, currentBlock.Height, "Proof of work failed"}
 		}
