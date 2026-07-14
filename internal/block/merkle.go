@@ -18,15 +18,15 @@ func CalculateMerkleRoot(txs []Transaction) string {
 	}
 
 	for len(hashes) > 1 {
-		// if number of transactions is odd duplicate last hash
-		if len(hashes)%2 != 0 {
-			hashes = append(hashes, hashes[len(hashes)-1])
-		}
-
 		var newLevel []string
 		for i := 0; i < len(hashes); i += 2 {
-			combined := hashes[i] + hashes[i+1]
-			newLevel = append(newLevel, doubleSHA256(combined))
+			if i+1 < len(hashes) {
+				combined := hashes[i] + hashes[i+1]
+				newLevel = append(newLevel, doubleSHA256(combined))
+			} else {
+				// odd node: promote unchanged to next level
+				newLevel = append(newLevel, hashes[i])
+			}
 		}
 
 		hashes = newLevel
