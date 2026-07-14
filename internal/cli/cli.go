@@ -28,20 +28,20 @@ const (
 
 func printHelp() {
 	fmt.Println(ColorBlue + FormatItalic + "\nAvailable Commands" + Reset)
-	fmt.Println(ColorYellow + "  createwallet " + FormatDim + "<name>" + Reset + "         - Create a new wallet and save it to disk")
-	fmt.Println(ColorYellow + "  loadwallet " + FormatDim + "<name>" + Reset + "           - Load an existing wallet from disk")
-	fmt.Println(ColorYellow + "  wallets" + Reset + "                    - List all saved wallets")
-	fmt.Println(ColorYellow + "  mywallet" + Reset + "                   - View your current wallet address and balance")
-	fmt.Println(ColorYellow + "  faucet " + FormatDim + "<amount>" + Reset + "              - Request free funds from the Faucet")
-	fmt.Println(ColorYellow + "  addtx " + FormatDim + "<to> <amount>" + Reset + "        - Send funds to an address (uses current wallet)")
-	fmt.Println(ColorYellow + "  mine" + Reset + "                       - Mine pending transactions into a new block")
-	fmt.Println(ColorYellow + "  pool" + Reset + "                       - View all pending transactions")
-	fmt.Println(ColorYellow + "  balances" + Reset + "                   - View all account balances")
-	fmt.Println(ColorYellow + "  validate" + Reset + "                   - Validate the integrity of the blockchain")
-	fmt.Println(ColorYellow + "  print" + Reset + "                      - Visualize the blockchain structure")
-	fmt.Println(ColorYellow + "  help" + Reset + "                       - Display available commands")
-	fmt.Println(ColorYellow + "  clear" + Reset + "                      - Clear the terminal screen")
-	fmt.Println(ColorYellow + "  exit" + Reset + "                       - Exit the Blockchain CLI")
+	fmt.Println(ColorYellow + "  createwallet " + FormatDim + "<name>" + Reset + "   - Create a new wallet and save it to disk")
+	fmt.Println(ColorYellow + "  loadwallet " + FormatDim + "<name>" + Reset + "     - Load an existing wallet from disk")
+	fmt.Println(ColorYellow + "  wallets" + Reset + "               - List all saved wallets")
+	fmt.Println(ColorYellow + "  mywallet" + Reset + "              - View your current wallet address and balance")
+	fmt.Println(ColorYellow + "  faucet " + FormatDim + "<amount>" + Reset + "       - Request free funds from the Faucet")
+	fmt.Println(ColorYellow + "  addtx " + FormatDim + "<to> <amount>" + Reset + "   - Send funds to an address (uses current wallet)")
+	fmt.Println(ColorYellow + "  mine" + Reset + "                  - Mine pending transactions into a new block")
+	fmt.Println(ColorYellow + "  pool" + Reset + "                  - View all pending transactions")
+	fmt.Println(ColorYellow + "  balances" + Reset + "              - View all account balances")
+	fmt.Println(ColorYellow + "  validate" + Reset + "              - Validate the integrity of the blockchain")
+	fmt.Println(ColorYellow + "  print" + Reset + "                 - Visualize the blockchain structure")
+	fmt.Println(ColorYellow + "  help" + Reset + "                  - Display available commands")
+	fmt.Println(ColorYellow + "  clear" + Reset + "                 - Clear the terminal screen")
+	fmt.Println(ColorYellow + "  exit" + Reset + "                  - Exit the Blockchain CLI")
 }
 
 func StartCLI(c *chain.Chain) {
@@ -218,17 +218,22 @@ func StartCLI(c *chain.Chain) {
 			if len(c.PendingPool) == 0 {
 				fmt.Println(ColorYellow + "No pending transactions!" + Reset)
 			} else {
+				wallets, _ := wallet.GetAllWallets(walletFile)
 				fmt.Println(ColorCyan + "--- Pending Transactions ---" + Reset)
 				for i, tx := range c.PendingPool {
-					fmt.Printf("%s%d.%s %s --> %s : %d\n", ColorYellow, i+1, Reset, tx.Sender, tx.Recipient, tx.Amount)
+					senderLabel := getAddressLabel(tx.Sender, wallets)
+					recipientLabel := getAddressLabel(tx.Recipient, wallets)
+					fmt.Printf("%s%d.%s %s --> %s : %d\n", ColorYellow, i+1, Reset, senderLabel, recipientLabel, tx.Amount)
 				}
 			}
 
 		case "balances":
 			balances := ledger.CalculateBalances(c.Blocks)
+			wallets, _ := wallet.GetAllWallets(walletFile)
 			fmt.Println(ColorCyan + "--- Account Balances ---" + Reset)
 			for acc, bal := range balances {
-				fmt.Printf("%s : %d\n", acc, bal)
+				label := getAddressLabel(acc, wallets)
+				fmt.Printf("%s : %d\n", label, bal)
 			}
 
 		case "validate":
@@ -240,7 +245,8 @@ func StartCLI(c *chain.Chain) {
 			}
 
 		case "print":
-			printBlockchain(c)
+			wallets, _ := wallet.GetAllWallets(walletFile)
+			printBlockchain(c, wallets)
 
 		case "help":
 			printHelp()
@@ -263,6 +269,25 @@ func StartCLI(c *chain.Chain) {
 	}
 }
 
+func getAddressLabel(addr string, wallets map[string]*wallet.Wallet) string {
+	if addr == "FAUCET" || addr == "COINBASE" || addr == "Genesis" || addr == "Miner" {
+		return addr
+	}
+	
+	// Default label is just the address truncated
+	label := addr
+	if len(addr) > 8 {
+		label = addr[:8] + "..."
+	}
+
+	for name, w := range wallets {
+		if wallet.AddressFromPublicKey(w.PublicKeyBytes) == addr {
+			return fmt.Sprintf("%s (%s)", name, label)
+		}
+	}
+	return fmt.Sprintf("Unknown (%s)", label)
+}
+
 func printLine(text string, color string, innerW int) {
 	if len(text) > innerW {
 		text = text[:innerW-3] + "..."
@@ -272,7 +297,7 @@ func printLine(text string, color string, innerW int) {
 	fmt.Printf("%s| %s%s%s%s %s|\n", ColorBlue, color, text, Reset, strings.Repeat(" ", padding), ColorBlue)
 }
 
-func printBlockchain(c *chain.Chain) {
+func printBlockchain(c *chain.Chain, wallets map[string]*wallet.Wallet) {
 	fmt.Println(ColorCyan + "--- Blockchain Visualizer ---" + Reset)
 	boxWidth := 85
 	innerW := boxWidth - 4
@@ -288,7 +313,9 @@ func printBlockchain(c *chain.Chain) {
 		if len(b.Transactions) > 0 {
 			printLine("Transactions:", ColorCyan, innerW)
 			for j, tx := range b.Transactions {
-				txStr := fmt.Sprintf("  %d. %s -> %s : %d", j+1, tx.Sender, tx.Recipient, tx.Amount)
+				senderLabel := getAddressLabel(tx.Sender, wallets)
+				recipientLabel := getAddressLabel(tx.Recipient, wallets)
+				txStr := fmt.Sprintf("  %d. %s -> %s : %d", j+1, senderLabel, recipientLabel, tx.Amount)
 				printLine(txStr, Reset, innerW)
 			}
 		}
