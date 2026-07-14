@@ -24,7 +24,7 @@ func NewChain(difficulty int) *Chain {
 }
 
 func (c *Chain) AddTransaction(tx block.Transaction) error {
-	if tx.Sender == "COINBASE" || tx.Sender == "FAUCET" {
+	if block.IsSystemAddress(tx.Sender) {
 		return fmt.Errorf("Transaction Rejected: %s is reserved for system use only", tx.Sender)
 	}
 
@@ -57,13 +57,13 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 	var totalReceived int64 = 0
 	for _, b := range c.Blocks {
 		for _, tx := range b.Transactions {
-			if tx.Sender == "FAUCET" && tx.Recipient == recipient {
+			if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
 				totalReceived += tx.Amount
 			}
 		}
 	}
 	for _, tx := range c.PendingPool {
-		if tx.Sender == "FAUCET" && tx.Recipient == recipient {
+		if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
 			totalReceived += tx.Amount
 		}
 	}
@@ -73,7 +73,7 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 	}
 
 	tx := block.Transaction{
-		Sender:    "FAUCET",
+		Sender:    block.SystemAddressFaucet,
 		Recipient: recipient,
 		Amount:    amount,
 		// FAUCET transactions don't need a signature or sequence
@@ -144,7 +144,7 @@ func (c *Chain) Validate() ValidationResult {
 	balances := make(map[string]int64)
 	sequences := make(map[string]uint64)
 	for _, tx := range genesisBlock.Transactions {
-		if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
+		if !block.IsSystemAddress(tx.Sender) {
 			balances[tx.Sender] -= tx.Amount
 			sequences[tx.Sender] = tx.Sequence
 		}
@@ -193,16 +193,20 @@ func (c *Chain) Validate() ValidationResult {
 		for i, tx := range currentBlock.Transactions {
 			// Enforce strict COINBASE rules
 			if i == 0 {
-				if tx.Sender != "COINBASE" {
+				if tx.Sender != block.SystemAddressCoinbase {
 					return ValidationResult{false, currentBlock.Height, "First transaction must be COINBASE"}
 				}
 				if tx.Amount != block.MiningReward {
 					return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Invalid COINBASE reward: expected %d, got %d", block.MiningReward, tx.Amount)}
 				}
 			} else {
-				if tx.Sender == "COINBASE" {
+				if tx.Sender == block.SystemAddressCoinbase {
 					return ValidationResult{false, currentBlock.Height, "COINBASE transaction can only be the first transaction in a block"}
 				}
+			}
+
+			if tx.Recipient == block.SystemAddressCoinbase {
+				return ValidationResult{false, currentBlock.Height, "Cannot send funds to COINBASE address."}
 			}
 
 			if tx.Amount <= 0 {
@@ -214,7 +218,7 @@ func (c *Chain) Validate() ValidationResult {
 			if !tx.Verify() {
 				return ValidationResult{false, currentBlock.Height, "Invalid transaction signature"}
 			}
-			if tx.Sender != "COINBASE" && tx.Sender != "FAUCET" {
+			if !block.IsSystemAddress(tx.Sender) {
 				expectedSeq := sequences[tx.Sender] + 1
 				if tx.Sequence != expectedSeq {
 					return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Ledger replay failed: invalid sequence for %s (expected %d, got %d)", tx.Sender, expectedSeq, tx.Sequence)}

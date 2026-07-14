@@ -38,6 +38,14 @@ type Block struct {
 const MiningReward int64 = 50
 const GenesisPrevHash = "0000000000000000000000000000000000000000000000000000000000000000"
 
+const (
+	SystemAddressCoinbase = "COINBASE"
+	SystemAddressFaucet   = "FAUCET"
+)
+
+func IsSystemAddress(addr string) bool {
+	return addr == SystemAddressCoinbase || addr == SystemAddressFaucet
+}
 // create and return the first block of the blockchain
 func NewGenesisBlock() *Block {
 	block := &Block{
@@ -48,7 +56,7 @@ func NewGenesisBlock() *Block {
 			Nonce:      0,
 		},
 		Height:       0,
-		Transactions: []Transaction{{Sender: "COINBASE", Recipient: "Genesis", Amount: 0, Signature: []byte("0")}},
+		Transactions: []Transaction{{Sender: SystemAddressCoinbase, Recipient: "Genesis", Amount: 0, Signature: []byte("0")}},
 	}
 	block.Header.MerkleRoot = CalculateMerkleRoot(block.Transactions)
 	block.Hash = block.CalculateHash()
@@ -69,8 +77,8 @@ func (b *Block) Mine(difficulty int) {
 	target := strings.Repeat("0", difficulty)
 
 	// add coinbase transaction for reward miner
-	if len(b.Transactions) == 0 || b.Transactions[0].Sender != "COINBASE" {
-		coinbaseTx := Transaction{Sender: "COINBASE", Recipient: "Miner", Amount: MiningReward, Signature: []byte("0")}
+	if len(b.Transactions) == 0 || b.Transactions[0].Sender != SystemAddressCoinbase {
+		coinbaseTx := Transaction{Sender: SystemAddressCoinbase, Recipient: "Miner", Amount: MiningReward, Signature: []byte("0")}
 		b.Transactions = append([]Transaction{coinbaseTx}, b.Transactions...)
 	}
 
@@ -139,7 +147,7 @@ func (tx *Transaction) Sign(privKey *ecdsa.PrivateKey) error {
 // Verify checks if the transaction signature is valid
 func (tx *Transaction) Verify() bool {
 	// System-generated transactions don't need signatures
-	if tx.Sender == "COINBASE" || tx.Sender == "FAUCET" {
+	if IsSystemAddress(tx.Sender) {
 		return true
 	}
 

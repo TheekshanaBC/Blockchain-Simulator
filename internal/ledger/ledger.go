@@ -19,7 +19,7 @@ func CalculateBalances(chain []*block.Block) map[string]int64 {
 				continue
 			}
 
-			if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
+			if !block.IsSystemAddress(tx.Sender) {
 				balances[tx.Sender] -= tx.Amount
 			}
 			balances[tx.Recipient] += tx.Amount
@@ -34,7 +34,7 @@ func CalculateAvailableBalances(chain []*block.Block, pendingPool []block.Transa
 
 	// deduct the pending pool transactions to prevent double spending
 	for _, tx := range pendingPool {
-		if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
+		if !block.IsSystemAddress(tx.Sender) {
 			balances[tx.Sender] -= tx.Amount
 		}
 	}
@@ -46,7 +46,7 @@ func CalculateSequences(chain []*block.Block) map[string]uint64 {
 	sequences := make(map[string]uint64)
 	for _, b := range chain {
 		for _, tx := range b.Transactions {
-			if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
+			if !block.IsSystemAddress(tx.Sender) {
 				if tx.Sequence > sequences[tx.Sender] {
 					sequences[tx.Sender] = tx.Sequence
 				}
@@ -60,7 +60,7 @@ func CalculateSequences(chain []*block.Block) map[string]uint64 {
 func CalculatePendingSequences(chain []*block.Block, pendingPool []block.Transaction) map[string]uint64 {
 	sequences := CalculateSequences(chain)
 	for _, tx := range pendingPool {
-		if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
+		if !block.IsSystemAddress(tx.Sender) {
 			if tx.Sequence > sequences[tx.Sender] {
 				sequences[tx.Sender] = tx.Sequence
 			}
@@ -77,7 +77,7 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 		return errors.New("Amount exceeds maximum allowed transaction size")
 	}
 
-	if tx.Recipient == "COINBASE" {
+	if tx.Recipient == block.SystemAddressCoinbase {
 		return errors.New("Cannot send funds to COINBASE address.")
 	}
 
@@ -85,7 +85,7 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 		return errors.New("Invalid transaction signature")
 	}
 
-	if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
+	if !block.IsSystemAddress(tx.Sender) {
 		// Sequence Validation (Replay Protection)
 		expectedSeq := sequences[tx.Sender] + 1
 		if tx.Sequence != expectedSeq {
