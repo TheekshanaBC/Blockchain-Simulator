@@ -2,6 +2,7 @@ package ledger
 
 import (
 	"blockchain-simulator/internal/block"
+	"blockchain-simulator/internal/wallet"
 	"testing"
 )
 
@@ -11,48 +12,62 @@ It checks three main scenarios: preventing overspending (sending more than the b
 preventing zero-amount transactions, and successfully validating a good transaction.
 */
 func TestValidateTransaction(t *testing.T) {
+	wAlice := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+
 	balances := map[string]int64{
-		"Alice": 100,
-		"Bob":   50,
+		addrAlice: 100,
+		"Bob":     50,
+	}
+
+	createTx := func(recipient string, amount int64) block.Transaction {
+		tx := block.Transaction{
+			Sender:    addrAlice,
+			Recipient: recipient,
+			Amount:    amount,
+			PublicKey: wAlice.PublicKeyBytes,
+		}
+		tx.Sign(wAlice.PrivateKey)
+		return tx
 	}
 
 	// Overspending
-	overTx := block.Transaction{Sender: "Alice", Recipient: "Bob", Amount: 150}
+	overTx := createTx("Bob", 150)
 	err := ValidateTransaction(overTx, balances)
 	if err == nil {
 		t.Errorf("Expected an error for overspending, but got nil")
 	}
 
 	// Zero amount transaction
-	zeroTx := block.Transaction{Sender: "Alice", Recipient: "Bob", Amount: 0}
+	zeroTx := createTx("Bob", 0)
 	err = ValidateTransaction(zeroTx, balances)
 	if err == nil {
 		t.Errorf("Expected an error for zero amount transaction, but got nil")
 	}
 
 	// Good Transaction
-	goodTx := block.Transaction{Sender: "Alice", Recipient: "Bob", Amount: 20}
+	goodTx := createTx("Bob", 20)
 	err = ValidateTransaction(goodTx, balances)
 	if err != nil {
 		t.Errorf("Did not expect an error for valid transaction, but got: %v", err)
 	}
 
 	// Send to COINBASE
-	coinbaseTx := block.Transaction{Sender: "Alice", Recipient: "COINBASE", Amount: 10}
+	coinbaseTx := createTx("COINBASE", 10)
 	err = ValidateTransaction(coinbaseTx, balances)
 	if err == nil {
 		t.Errorf("Expected an error for sending to COINBASE, but got nil")
 	}
 
 	// Negative amount transaction
-	negTx := block.Transaction{Sender: "Alice", Recipient: "Bob", Amount: -10}
+	negTx := createTx("Bob", -10)
 	err = ValidateTransaction(negTx, balances)
 	if err == nil {
 		t.Errorf("Expected an error for negative amount, but got nil")
 	}
 
 	// System Senders (FAUCET/COINBASE) bypassing limits
-	sysTx := block.Transaction{Sender: "FAUCET", Recipient: "Alice", Amount: 10000}
+	sysTx := block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 10000}
 	err = ValidateTransaction(sysTx, balances)
 	if err != nil {
 		t.Errorf("Expected FAUCET to bypass balance checks, but got error: %v", err)

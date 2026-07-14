@@ -2,10 +2,22 @@ package chain
 
 import (
 	"blockchain-simulator/internal/block"
+	"blockchain-simulator/internal/wallet"
 	"encoding/json"
 	"strings"
 	"testing"
 )
+
+func createSignedTx(w *wallet.Wallet, recipient string, amount int64) block.Transaction {
+	tx := block.Transaction{
+		Sender:    wallet.AddressFromPublicKey(w.PublicKeyBytes),
+		Recipient: recipient,
+		Amount:    amount,
+		PublicKey: w.PublicKeyBytes,
+	}
+	tx.Sign(w.PrivateKey)
+	return tx
+}
 
 /*
 TestValidationAndTamperDetection verifies that the blockchain can correctly
@@ -16,12 +28,16 @@ and successfully pinpoints the exact block height where the tampering occurred.
 */
 func TestValidationAndTamperDetection(t *testing.T) {
 	myChain := NewChain(2)
+	wAlice := wallet.NewWallet()
+	wBob := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrBob := wallet.AddressFromPublicKey(wBob.PublicKeyBytes)
 
-	tx1 := block.Transaction{Sender: "FAUCET", Recipient: "Alice", Amount: 100}
+	tx1 := block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100}
 	myChain.AddTransaction(tx1)
 	myChain.MinePendingTransactions()
 
-	tx2 := block.Transaction{Sender: "Alice", Recipient: "Bob", Amount: 20}
+	tx2 := createSignedTx(wAlice, addrBob, 20)
 	myChain.AddTransaction(tx2)
 	myChain.MinePendingTransactions()
 
@@ -80,13 +96,15 @@ rejection of invalid transactions (like overspending).
 */
 func TestAddTransaction(t *testing.T) {
 	myChain := NewChain(2)
+	wAlice := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
 
 	// Add money to Alice via FAUCET to test valid transfers later
-	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: "Alice", Amount: 100})
+	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
 	myChain.MinePendingTransactions()
 
 	// 1. Valid transaction
-	tx1 := block.Transaction{Sender: "Alice", Recipient: "Bob", Amount: 50}
+	tx1 := createSignedTx(wAlice, "Bob", 50)
 	err := myChain.AddTransaction(tx1)
 	if err != nil {
 		t.Errorf("Expected valid transaction to succeed, got error: %v", err)
@@ -97,14 +115,15 @@ func TestAddTransaction(t *testing.T) {
 	}
 
 	// 2. Reject COINBASE sender
-	tx2 := block.Transaction{Sender: "COINBASE", Recipient: "Alice", Amount: 100}
+	tx2 := createSignedTx(wAlice, "Alice", 100)
+	tx2.Sender = "COINBASE" // tamper to test rejection
 	err = myChain.AddTransaction(tx2)
 	if err == nil || !strings.Contains(err.Error(), "COINBASE is reserved") {
 		t.Errorf("Expected COINBASE transaction to be rejected, got: %v", err)
 	}
 
 	// 3. Reject overspending
-	tx3 := block.Transaction{Sender: "Alice", Recipient: "Charlie", Amount: 60}
+	tx3 := createSignedTx(wAlice, "Charlie", 60)
 	err = myChain.AddTransaction(tx3)
 	if err == nil {
 		t.Errorf("Expected overspending transaction to be rejected, but it succeeded")
@@ -126,7 +145,9 @@ func TestMinePendingTransactions(t *testing.T) {
 	}
 
 	// 2. Successful mine
-	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: "Alice", Amount: 100})
+	wAlice := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
 	err = myChain.MinePendingTransactions()
 	if err != nil {
 		t.Errorf("Expected successful mine, got error: %v", err)
@@ -155,7 +176,9 @@ TestValidate_InvalidLinks tests that tampering with block hashes or links
 */
 func TestValidate_InvalidLinks(t *testing.T) {
 	myChain := NewChain(1)
-	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: "Alice", Amount: 100})
+	wAlice := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
 	myChain.MinePendingTransactions()
 
 	// Tamper with Genesis block Hash
@@ -184,9 +207,14 @@ converted to JSON and restored without losing structural integrity.
 */
 func TestChain_JSONSerialization(t *testing.T) {
 	originalChain := NewChain(3)
-	originalChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: "Alice", Amount: 100})
+	wAlice := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+
+	originalChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
 	originalChain.MinePendingTransactions()
-	originalChain.AddTransaction(block.Transaction{Sender: "Alice", Recipient: "Bob", Amount: 20}) // leave in pending pool
+
+	tx2 := createSignedTx(wAlice, "Bob", 20)
+	originalChain.AddTransaction(tx2) // leave in pending pool
 
 	jsonData, err := json.Marshal(originalChain)
 	if err != nil {

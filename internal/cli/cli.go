@@ -4,6 +4,7 @@ import (
 	"blockchain-simulator/internal/block"
 	"blockchain-simulator/internal/chain"
 	"blockchain-simulator/internal/ledger"
+	"blockchain-simulator/internal/wallet"
 	"bufio"
 	"fmt"
 	"os"
@@ -27,19 +28,36 @@ const (
 
 func printHelp() {
 	fmt.Println(ColorBlue + FormatItalic + "\nAvailable Commands" + Reset)
-	fmt.Println(ColorYellow + "  addtx " + FormatDim + "<from> <to> <amount>" + Reset + " - Add a new transaction to the pending pool")
-	fmt.Println(ColorYellow + "  mine" + Reset + "                       - Mine pending transactions into a new block")
-	fmt.Println(ColorYellow + "  pool" + Reset + "                       - View all pending transactions")
-	fmt.Println(ColorYellow + "  balances" + Reset + "                   - View account balances")
-	fmt.Println(ColorYellow + "  validate" + Reset + "                   - Validate the integrity of the blockchain")
-	fmt.Println(ColorYellow + "  print" + Reset + "                      - Visualize the blockchain structure")
-	fmt.Println(ColorYellow + "  help" + Reset + "                       - Display available commands")
-	fmt.Println(ColorYellow + "  clear" + Reset + "                      - Clear the terminal screen")
-	fmt.Println(ColorYellow + "  exit" + Reset + "                       - Exit the Blockchain CLI")
+	fmt.Println(ColorYellow + "  createwallet " + FormatDim + "<name>" + Reset + "   - Create a new wallet and save it to disk")
+	fmt.Println(ColorYellow + "  loadwallet " + FormatDim + "<name>" + Reset + "     - Load an existing wallet from disk")
+	fmt.Println(ColorYellow + "  wallets" + Reset + "               - List all saved wallets")
+	fmt.Println(ColorYellow + "  mywallet" + Reset + "              - View your current wallet address and balance")
+	fmt.Println(ColorYellow + "  faucet " + FormatDim + "<amount>" + Reset + "       - Request free funds from the Faucet")
+	fmt.Println(ColorYellow + "  addtx " + FormatDim + "<to> <amount>" + Reset + "   - Send funds to an address (uses current wallet)")
+	fmt.Println(ColorYellow + "  mine" + Reset + "                  - Mine pending transactions into a new block")
+	fmt.Println(ColorYellow + "  pool" + Reset + "                  - View all pending transactions")
+	fmt.Println(ColorYellow + "  balances" + Reset + "              - View all account balances")
+	fmt.Println(ColorYellow + "  validate" + Reset + "              - Validate the integrity of the blockchain")
+	fmt.Println(ColorYellow + "  print" + Reset + "                 - Visualize the blockchain structure")
+	fmt.Println(ColorYellow + "  help" + Reset + "                  - Display available commands")
+	fmt.Println(ColorYellow + "  clear" + Reset + "                 - Clear the terminal screen")
+	fmt.Println(ColorYellow + "  exit" + Reset + "                  - Exit the Blockchain CLI")
 }
 
 func StartCLI(c *chain.Chain) {
 	scanner := bufio.NewScanner(os.Stdin)
+
+	var activeWallet *wallet.Wallet
+	activeWalletName := ""
+	walletFile := "data/wallet.json"
+
+	// Ensure data directory exists
+	if _, err := os.Stat("data"); os.IsNotExist(err) {
+		os.Mkdir("data", 0755)
+	}
+
+	fmt.Println(ColorYellow + "No active wallet loaded. Use 'loadwallet <name>' or 'createwallet <name>'." + Reset)
+
 	fmt.Println(ColorBlue + "=========================================" + Reset)
 	fmt.Println(FormatBold + "         BlockChain Simulator CLI        " + Reset)
 	fmt.Println(ColorBlue + "=========================================" + Reset)
@@ -62,24 +80,127 @@ func StartCLI(c *chain.Chain) {
 
 		switch command {
 
-		case "addtx":
-			if len(args) != 4 {
-				fmt.Println(ColorRed + "Error: " + Reset + "Invalid arguments!" + Reset + "\nTry again using correct format:" + ColorGreen + FormatDim + " addtx <from> <to> <amount>" + Reset)
+		case "createwallet":
+			if len(args) != 2 {
+				fmt.Println(ColorRed + "Error: " + Reset + "Please specify a name: " + ColorGreen + FormatDim + "createwallet <name>" + Reset)
 				continue
 			}
-			amount, err := strconv.ParseInt(args[3], 10, 64)
+			name := args[1]
+			w := wallet.NewWallet()
+			err := wallet.SaveToKeystore(walletFile, name, w)
+			if err != nil {
+				fmt.Println(ColorRed+"Error saving wallet:"+Reset, err)
+			} else {
+				activeWallet = w
+				activeWalletName = name
+				address := wallet.AddressFromPublicKey(w.PublicKeyBytes)
+				fmt.Printf("%sWallet '%s' created and saved successfully!%s\n", ColorGreen, name, Reset)
+				fmt.Println(ColorCyan + "Your Address: " + Reset + address)
+			}
+
+		case "loadwallet":
+			if len(args) != 2 {
+				fmt.Println(ColorRed + "Error: " + Reset + "Please specify a name: " + ColorGreen + FormatDim + "loadwallet <name>" + Reset)
+				continue
+			}
+			name := args[1]
+			w, err := wallet.LoadFromKeystore(walletFile, name)
+			if err != nil {
+				fmt.Println(ColorRed+"Error loading wallet:"+Reset, err)
+			} else {
+				activeWallet = w
+				activeWalletName = name
+				address := wallet.AddressFromPublicKey(w.PublicKeyBytes)
+				fmt.Printf("%sWallet '%s' loaded successfully!%s\n", ColorGreen, name, Reset)
+				fmt.Println(ColorCyan + "Your Address: " + Reset + address)
+			}
+
+		case "wallets":
+			wallets, err := wallet.GetAllWallets(walletFile)
+			if err != nil || len(wallets) == 0 {
+				fmt.Println(ColorYellow + "No wallets found." + Reset)
+				continue
+			}
+			fmt.Println(ColorCyan + "--- Saved Wallets ---" + Reset)
+			for name, w := range wallets {
+				addr := wallet.AddressFromPublicKey(w.PublicKeyBytes)
+				fmt.Printf("%s- %s%s : %s\n", ColorYellow, name, Reset, addr)
+			}
+
+		case "mywallet":
+			if activeWallet == nil {
+				fmt.Println(ColorRed + "Error: " + Reset + "No active wallet. Use 'loadwallet <name>' or 'createwallet <name>'.")
+				continue
+			}
+			address := wallet.AddressFromPublicKey(activeWallet.PublicKeyBytes)
+			balances := ledger.CalculateBalances(c.Blocks)
+			fmt.Printf("%sActive Wallet: %s%s\n", ColorCyan, Reset, activeWalletName)
+			fmt.Println(ColorCyan + "Your Address: " + Reset + address)
+			fmt.Printf(ColorCyan+"Your Balance: "+Reset+"%d\n", balances[address])
+
+		case "faucet":
+			if activeWallet == nil {
+				fmt.Println(ColorRed + "Error: " + Reset + "No active wallet. Use 'loadwallet <name>' or 'createwallet <name>'.")
+				continue
+			}
+			if len(args) != 2 {
+				fmt.Println(ColorRed + "Error: " + Reset + "Invalid arguments!" + Reset + "\nTry again using correct format:" + ColorGreen + FormatDim + " faucet <amount>" + Reset)
+				continue
+			}
+			amount, err := strconv.ParseInt(args[1], 10, 64)
 			if err != nil {
 				fmt.Println(ColorRed + "Error: " + Reset + "Amount must be a number" + Reset)
 				continue
 			}
 
-			tx := block.Transaction{Sender: args[1], Recipient: args[2], Amount: amount}
+			address := wallet.AddressFromPublicKey(activeWallet.PublicKeyBytes)
+			tx := block.Transaction{
+				Sender:    "FAUCET",
+				Recipient: address,
+				Amount:    amount,
+			}
 
 			err = c.AddTransaction(tx)
 			if err != nil {
-				fmt.Println(ColorRed+"Error: "+Reset+"Failed to add Transaction:", err)
+				fmt.Println(ColorRed+"Error: "+Reset+"Failed to get FAUCET funds:\n", err)
 			} else {
-				fmt.Println(ColorGreen + "Transaction added to the pending pool!" + Reset)
+				fmt.Println(ColorGreen + "Requested funds from FAUCET to pending pool successfully!" + Reset)
+			}
+
+		case "addtx":
+			if activeWallet == nil {
+				fmt.Println(ColorRed + "Error: " + Reset + "No active wallet. Use 'loadwallet <name>' or 'createwallet <name>' first to send funds.")
+				continue
+			}
+			if len(args) != 3 {
+				fmt.Println(ColorRed + "Error: " + Reset + "Invalid arguments!" + Reset + "\nTry again using correct format:" + ColorGreen + FormatDim + " addtx <to> <amount>" + Reset)
+				continue
+			}
+			amount, err := strconv.ParseInt(args[2], 10, 64)
+			if err != nil {
+				fmt.Println(ColorRed + "Error: " + Reset + "Amount must be a number" + Reset)
+				continue
+			}
+
+			senderAddress := wallet.AddressFromPublicKey(activeWallet.PublicKeyBytes)
+			tx := block.Transaction{
+				Sender:    senderAddress,
+				Recipient: args[1],
+				Amount:    amount,
+				PublicKey: activeWallet.PublicKeyBytes,
+			}
+
+			err = tx.Sign(activeWallet.PrivateKey)
+			if err != nil {
+				fmt.Println(ColorRed+"Error signing transaction:"+Reset, err)
+				continue
+			}
+
+			err = c.AddTransaction(tx)
+			if err != nil {
+				fmt.Println(ColorRed+"Error: "+Reset+"Failed to add Transaction:\n", err)
+			} else {
+				fmt.Println(ColorGreen + "Transaction signed and added to the pending pool!" + Reset)
 			}
 
 		case "mine":
@@ -97,17 +218,22 @@ func StartCLI(c *chain.Chain) {
 			if len(c.PendingPool) == 0 {
 				fmt.Println(ColorYellow + "No pending transactions!" + Reset)
 			} else {
+				wallets, _ := wallet.GetAllWallets(walletFile)
 				fmt.Println(ColorCyan + "--- Pending Transactions ---" + Reset)
 				for i, tx := range c.PendingPool {
-					fmt.Printf("%s%d.%s %s --> %s : %d\n", ColorYellow, i+1, Reset, tx.Sender, tx.Recipient, tx.Amount)
+					senderLabel := getAddressLabel(tx.Sender, wallets)
+					recipientLabel := getAddressLabel(tx.Recipient, wallets)
+					fmt.Printf("%s%d.%s %s --> %s : %d\n", ColorYellow, i+1, Reset, senderLabel, recipientLabel, tx.Amount)
 				}
 			}
 
 		case "balances":
 			balances := ledger.CalculateBalances(c.Blocks)
+			wallets, _ := wallet.GetAllWallets(walletFile)
 			fmt.Println(ColorCyan + "--- Account Balances ---" + Reset)
 			for acc, bal := range balances {
-				fmt.Printf("%s : %d\n", acc, bal)
+				label := getAddressLabel(acc, wallets)
+				fmt.Printf("%s : %d\n", label, bal)
 			}
 
 		case "validate":
@@ -119,7 +245,8 @@ func StartCLI(c *chain.Chain) {
 			}
 
 		case "print":
-			printBlockchain(c)
+			wallets, _ := wallet.GetAllWallets(walletFile)
+			printBlockchain(c, wallets)
 
 		case "help":
 			printHelp()
@@ -132,7 +259,7 @@ func StartCLI(c *chain.Chain) {
 			return
 
 		default:
-			fmt.Println(ColorRed + "Unknown Command\n" + Reset + "Available Commands: addtx, mine, pool, balances, validate, print, help, clear, exit")
+			fmt.Println(ColorRed + "Unknown Command\n" + Reset + "Available Commands: createwallet, loadwallet, wallets, mywallet, faucet, addtx, mine, pool, balances, validate, print, help, clear, exit")
 		}
 
 	}
@@ -140,6 +267,25 @@ func StartCLI(c *chain.Chain) {
 	if err := scanner.Err(); err != nil {
 		fmt.Println("Error reading input:", err)
 	}
+}
+
+func getAddressLabel(addr string, wallets map[string]*wallet.Wallet) string {
+	if addr == "FAUCET" || addr == "COINBASE" || addr == "Genesis" || addr == "Miner" {
+		return addr
+	}
+	
+	// Default label is just the address truncated
+	label := addr
+	if len(addr) > 8 {
+		label = addr[:8] + "..."
+	}
+
+	for name, w := range wallets {
+		if wallet.AddressFromPublicKey(w.PublicKeyBytes) == addr {
+			return fmt.Sprintf("%s (%s)", name, label)
+		}
+	}
+	return fmt.Sprintf("Unknown (%s)", label)
 }
 
 func printLine(text string, color string, innerW int) {
@@ -151,7 +297,7 @@ func printLine(text string, color string, innerW int) {
 	fmt.Printf("%s| %s%s%s%s %s|\n", ColorBlue, color, text, Reset, strings.Repeat(" ", padding), ColorBlue)
 }
 
-func printBlockchain(c *chain.Chain) {
+func printBlockchain(c *chain.Chain, wallets map[string]*wallet.Wallet) {
 	fmt.Println(ColorCyan + "--- Blockchain Visualizer ---" + Reset)
 	boxWidth := 85
 	innerW := boxWidth - 4
@@ -167,7 +313,9 @@ func printBlockchain(c *chain.Chain) {
 		if len(b.Transactions) > 0 {
 			printLine("Transactions:", ColorCyan, innerW)
 			for j, tx := range b.Transactions {
-				txStr := fmt.Sprintf("  %d. %s -> %s : %d", j+1, tx.Sender, tx.Recipient, tx.Amount)
+				senderLabel := getAddressLabel(tx.Sender, wallets)
+				recipientLabel := getAddressLabel(tx.Recipient, wallets)
+				txStr := fmt.Sprintf("  %d. %s -> %s : %d", j+1, senderLabel, recipientLabel, tx.Amount)
 				printLine(txStr, Reset, innerW)
 			}
 		}
