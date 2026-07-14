@@ -65,7 +65,7 @@ func NewGenesisBlock() *Block {
 
 // calculate hash for a block
 func (b *Block) CalculateHash() string {
-	record := fmt.Sprintf("%d|%s|%s|%d|%d|%d", b.Height, b.Header.PrevHash, b.Header.MerkleRoot, b.Header.Timestamp, b.Header.Difficulty, b.Header.Nonce)
+	record := fmt.Sprintf("%d|%d:%s|%d:%s|%d|%d|%d", b.Height, len(b.Header.PrevHash), b.Header.PrevHash, len(b.Header.MerkleRoot), b.Header.MerkleRoot, b.Header.Timestamp, b.Header.Difficulty, b.Header.Nonce)
 	doubleHash := doubleSHA256(record)
 	return doubleHash
 }
@@ -113,7 +113,7 @@ func DoubleHashBytes(data []byte) []byte {
 
 // returns double sha256 hash of the transaction data(without signature)
 func (tx *Transaction) Hash() []byte {
-	record := fmt.Sprintf("%s|%s|%d|%d", tx.Sender, tx.Recipient, tx.Amount, tx.Sequence)
+	record := fmt.Sprintf("%d:%s|%d:%s|%d|%d", len(tx.Sender), tx.Sender, len(tx.Recipient), tx.Recipient, tx.Amount, tx.Sequence)
 	return DoubleHashBytes([]byte(record))
 }
 

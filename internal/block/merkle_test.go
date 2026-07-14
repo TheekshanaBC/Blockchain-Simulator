@@ -28,7 +28,7 @@ func TestCalculateMerkleRoot_Single(t *testing.T) {
 	root := CalculateMerkleRoot(txs)
 
 	// Since there's only 1 tx, it just doubleSHA256s the tx record once
-	record := fmt.Sprintf("%s|%s|%d|%x|%x", txs[0].Sender, txs[0].Recipient, txs[0].Amount, txs[0].PublicKey, txs[0].Signature)
+	record := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[0].Sender), txs[0].Sender, len(txs[0].Recipient), txs[0].Recipient, txs[0].Amount, len(txs[0].PublicKey), txs[0].PublicKey, len(txs[0].Signature), txs[0].Signature)
 	expectedHash := doubleSHA256(record)
 
 	if root != expectedHash {
@@ -48,8 +48,8 @@ func TestCalculateMerkleRoot_Even(t *testing.T) {
 	}
 	root := CalculateMerkleRoot(txs)
 
-	record1 := fmt.Sprintf("%s|%s|%d|%x|%x", txs[0].Sender, txs[0].Recipient, txs[0].Amount, txs[0].PublicKey, txs[0].Signature)
-	record2 := fmt.Sprintf("%s|%s|%d|%x|%x", txs[1].Sender, txs[1].Recipient, txs[1].Amount, txs[1].PublicKey, txs[1].Signature)
+	record1 := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[0].Sender), txs[0].Sender, len(txs[0].Recipient), txs[0].Recipient, txs[0].Amount, len(txs[0].PublicKey), txs[0].PublicKey, len(txs[0].Signature), txs[0].Signature)
+	record2 := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[1].Sender), txs[1].Sender, len(txs[1].Recipient), txs[1].Recipient, txs[1].Amount, len(txs[1].PublicKey), txs[1].PublicKey, len(txs[1].Signature), txs[1].Signature)
 
 	hash1 := doubleSHA256(record1)
 	hash2 := doubleSHA256(record2)
@@ -74,9 +74,9 @@ func TestCalculateMerkleRoot_Odd(t *testing.T) {
 	}
 	root := CalculateMerkleRoot(txs)
 
-	record1 := fmt.Sprintf("%s|%s|%d|%x|%x", txs[0].Sender, txs[0].Recipient, txs[0].Amount, txs[0].PublicKey, txs[0].Signature)
-	record2 := fmt.Sprintf("%s|%s|%d|%x|%x", txs[1].Sender, txs[1].Recipient, txs[1].Amount, txs[1].PublicKey, txs[1].Signature)
-	record3 := fmt.Sprintf("%s|%s|%d|%x|%x", txs[2].Sender, txs[2].Recipient, txs[2].Amount, txs[2].PublicKey, txs[2].Signature)
+	record1 := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[0].Sender), txs[0].Sender, len(txs[0].Recipient), txs[0].Recipient, txs[0].Amount, len(txs[0].PublicKey), txs[0].PublicKey, len(txs[0].Signature), txs[0].Signature)
+	record2 := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[1].Sender), txs[1].Sender, len(txs[1].Recipient), txs[1].Recipient, txs[1].Amount, len(txs[1].PublicKey), txs[1].PublicKey, len(txs[1].Signature), txs[1].Signature)
+	record3 := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[2].Sender), txs[2].Sender, len(txs[2].Recipient), txs[2].Recipient, txs[2].Amount, len(txs[2].PublicKey), txs[2].PublicKey, len(txs[2].Signature), txs[2].Signature)
 
 	hash1 := doubleSHA256(record1)
 	hash2 := doubleSHA256(record2)
@@ -84,7 +84,7 @@ func TestCalculateMerkleRoot_Odd(t *testing.T) {
 
 	// Level 1
 	hash12 := doubleSHA256(hash1 + hash2)
-	hash33 := doubleSHA256(hash3 + hash3) // Duplicated
+	hash33 := hash3 // Promoted unchanged (CVE-2012-2459 fix)
 
 	// Level 2 (Root)
 	expectedRoot := doubleSHA256(hash12 + hash33)
@@ -134,11 +134,11 @@ func TestCalculateMerkleRoot_Deep(t *testing.T) {
 	}
 	root := CalculateMerkleRoot(txs)
 
-	record1 := fmt.Sprintf("%s|%s|%d|%x|%x", txs[0].Sender, txs[0].Recipient, txs[0].Amount, txs[0].PublicKey, txs[0].Signature)
-	record2 := fmt.Sprintf("%s|%s|%d|%x|%x", txs[1].Sender, txs[1].Recipient, txs[1].Amount, txs[1].PublicKey, txs[1].Signature)
-	record3 := fmt.Sprintf("%s|%s|%d|%x|%x", txs[2].Sender, txs[2].Recipient, txs[2].Amount, txs[2].PublicKey, txs[2].Signature)
-	record4 := fmt.Sprintf("%s|%s|%d|%x|%x", txs[3].Sender, txs[3].Recipient, txs[3].Amount, txs[3].PublicKey, txs[3].Signature)
-	record5 := fmt.Sprintf("%s|%s|%d|%x|%x", txs[4].Sender, txs[4].Recipient, txs[4].Amount, txs[4].PublicKey, txs[4].Signature)
+	record1 := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[0].Sender), txs[0].Sender, len(txs[0].Recipient), txs[0].Recipient, txs[0].Amount, len(txs[0].PublicKey), txs[0].PublicKey, len(txs[0].Signature), txs[0].Signature)
+	record2 := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[1].Sender), txs[1].Sender, len(txs[1].Recipient), txs[1].Recipient, txs[1].Amount, len(txs[1].PublicKey), txs[1].PublicKey, len(txs[1].Signature), txs[1].Signature)
+	record3 := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[2].Sender), txs[2].Sender, len(txs[2].Recipient), txs[2].Recipient, txs[2].Amount, len(txs[2].PublicKey), txs[2].PublicKey, len(txs[2].Signature), txs[2].Signature)
+	record4 := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[3].Sender), txs[3].Sender, len(txs[3].Recipient), txs[3].Recipient, txs[3].Amount, len(txs[3].PublicKey), txs[3].PublicKey, len(txs[3].Signature), txs[3].Signature)
+	record5 := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x", len(txs[4].Sender), txs[4].Sender, len(txs[4].Recipient), txs[4].Recipient, txs[4].Amount, len(txs[4].PublicKey), txs[4].PublicKey, len(txs[4].Signature), txs[4].Signature)
 
 	h1 := doubleSHA256(record1)
 	h2 := doubleSHA256(record2)
@@ -149,11 +149,11 @@ func TestCalculateMerkleRoot_Deep(t *testing.T) {
 	// Level 1: 5 nodes -> 3 nodes
 	h12 := doubleSHA256(h1 + h2)
 	h34 := doubleSHA256(h3 + h4)
-	h55 := doubleSHA256(h5 + h5)
+	h55 := h5 // Promoted unchanged
 
 	// Level 2: 3 nodes -> 2 nodes
 	h1234 := doubleSHA256(h12 + h34)
-	h5555 := doubleSHA256(h55 + h55)
+	h5555 := h55 // Promoted unchanged
 
 	// Level 3: 2 nodes -> 1 root
 	expectedRoot := doubleSHA256(h1234 + h5555)
