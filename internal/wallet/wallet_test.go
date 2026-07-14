@@ -26,7 +26,7 @@ is a valid 64-character SHA-256 hex string.
 func TestAddressFromPublicKey(t *testing.T) {
 	w := NewWallet()
 	address := AddressFromPublicKey(w.PublicKeyBytes)
-	
+
 	if len(address) != 64 {
 		t.Errorf("Expected address length of 64 characters (SHA-256 hex), got %d", len(address))
 	}
@@ -39,11 +39,11 @@ back into a valid ecdsa.PublicKey object and that the coordinates match.
 func TestBytesToPublicKey(t *testing.T) {
 	w := NewWallet()
 	pubKey := BytesToPublicKey(w.PublicKeyBytes)
-	
+
 	if pubKey == nil {
 		t.Errorf("Expected PublicKey to be parsed, got nil")
 	}
-	
+
 	// Check if the parsed key matches the original
 	if w.PrivateKey.PublicKey.X.Cmp(pubKey.X) != 0 || w.PrivateKey.PublicKey.Y.Cmp(pubKey.Y) != 0 {
 		t.Errorf("Parsed PublicKey coordinates do not match original PrivateKey's public part")
@@ -79,7 +79,7 @@ func TestKeystoreOperations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to load Alice's wallet: %v", err)
 	}
-	
+
 	// Compare private keys
 	if loadedW1.PrivateKey.D.Cmp(w1.PrivateKey.D) != 0 {
 		t.Errorf("Loaded wallet's private key does not match original")

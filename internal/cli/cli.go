@@ -273,7 +273,7 @@ func getAddressLabel(addr string, wallets map[string]*wallet.Wallet) string {
 	if addr == "FAUCET" || addr == "COINBASE" || addr == "Genesis" || addr == "Miner" {
 		return addr
 	}
-	
+
 	// Default label is just the address truncated
 	label := addr
 	if len(addr) > 8 {
