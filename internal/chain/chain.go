@@ -29,8 +29,9 @@ func (c *Chain) AddTransaction(tx block.Transaction) error {
 	}
 
 	balances := ledger.CalculateAvailableBalances(c.Blocks, c.PendingPool)
+	sequences := ledger.CalculatePendingSequences(c.Blocks, c.PendingPool)
 
-	err := ledger.ValidateTransaction(tx, balances)
+	err := ledger.ValidateTransaction(tx, balances, sequences)
 	if err != nil {
 		return fmt.Errorf("Transaction Rejected: %w", err)
 	}
@@ -94,9 +95,11 @@ func (c *Chain) Validate() ValidationResult {
 	}
 
 	balances := make(map[string]int64)
+	sequences := make(map[string]uint64)
 	for _, tx := range genesisBlock.Transactions {
 		if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
 			balances[tx.Sender] -= tx.Amount
+			sequences[tx.Sender] = tx.Sequence
 		}
 		balances[tx.Recipient] += tx.Amount
 	}
@@ -141,6 +144,12 @@ func (c *Chain) Validate() ValidationResult {
 				return ValidationResult{false, currentBlock.Height, "Transaction amount must be strictly positive"}
 			}
 			if tx.Sender != "COINBASE" && tx.Sender != "FAUCET" {
+				expectedSeq := sequences[tx.Sender] + 1
+				if tx.Sequence != expectedSeq {
+					return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Ledger replay failed: invalid sequence for %s (expected %d, got %d)", tx.Sender, expectedSeq, tx.Sequence)}
+				}
+				sequences[tx.Sender] = tx.Sequence
+
 				balances[tx.Sender] -= tx.Amount
 				if balances[tx.Sender] < 0 {
 					return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Ledger replay failed: negative balance for %s", tx.Sender)}

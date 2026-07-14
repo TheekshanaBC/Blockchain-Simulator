@@ -15,6 +15,7 @@ type Transaction struct {
 	Sender    string `json:"sender"`
 	Recipient string `json:"recipient"`
 	Amount    int64  `json:"amount"`
+	Sequence  uint64 `json:"sequence"`
 	PublicKey []byte `json:"public_key"`
 	Signature []byte `json:"signature"`
 }
@@ -96,7 +97,7 @@ func (b *Block) Mine(difficulty int) {
 
 // returns double sha256 hash of the transaction data(without signature)
 func (tx *Transaction) Hash() []byte {
-	record := fmt.Sprintf("%s|%s|%d", tx.Sender, tx.Recipient, tx.Amount)
+	record := fmt.Sprintf("%s|%s|%d|%d", tx.Sender, tx.Recipient, tx.Amount, tx.Sequence)
 	h1 := sha256.Sum256([]byte(record))
 	h2 := sha256.Sum256(h1[:])
 	return h2[:]

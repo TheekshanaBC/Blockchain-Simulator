@@ -183,10 +183,15 @@ func StartCLI(c *chain.Chain) {
 			}
 
 			senderAddress := wallet.AddressFromPublicKey(activeWallet.PublicKeyBytes)
+			
+			sequences := ledger.CalculatePendingSequences(c.Blocks, c.PendingPool)
+			nextSeq := sequences[senderAddress] + 1
+
 			tx := block.Transaction{
 				Sender:    senderAddress,
 				Recipient: args[1],
 				Amount:    amount,
+				Sequence:  nextSeq,
 				PublicKey: activeWallet.PublicKeyBytes,
 			}
 
