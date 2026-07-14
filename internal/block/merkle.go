@@ -1,7 +1,6 @@
 package block
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 )
@@ -38,13 +37,6 @@ func CalculateMerkleRoot(txs []Transaction) string {
 }
 
 func doubleSHA256(data string) string {
-	h1 := sha256.New()
-	h1.Write([]byte(data))
-	hash1 := h1.Sum(nil)
-
-	h2 := sha256.New()
-	h2.Write(hash1)
-	hash2 := h2.Sum(nil)
-
-	return hex.EncodeToString(hash2)
+	hashBytes := DoubleHashBytes([]byte(data))
+	return hex.EncodeToString(hashBytes)
 }

@@ -95,12 +95,17 @@ func (b *Block) Mine(difficulty int) {
 	}
 }
 
+// DoubleHashBytes performs a double SHA-256 hash on raw bytes.
+func DoubleHashBytes(data []byte) []byte {
+	h1 := sha256.Sum256(data)
+	h2 := sha256.Sum256(h1[:])
+	return h2[:]
+}
+
 // returns double sha256 hash of the transaction data(without signature)
 func (tx *Transaction) Hash() []byte {
 	record := fmt.Sprintf("%s|%s|%d|%d", tx.Sender, tx.Recipient, tx.Amount, tx.Sequence)
-	h1 := sha256.Sum256([]byte(record))
-	h2 := sha256.Sum256(h1[:])
-	return h2[:]
+	return DoubleHashBytes([]byte(record))
 }
 
 // signs the transaction hash using the private key
