@@ -35,6 +35,7 @@ type Block struct {
 	Hash         string        `json:"hash"`
 }
 
+const MiningReward int64 = 50
 const GenesisPrevHash = "0000000000000000000000000000000000000000000000000000000000000000"
 
 // create and return the first block of the blockchain
@@ -69,7 +70,7 @@ func (b *Block) Mine(difficulty int) {
 
 	// add coinbase transaction for reward miner
 	if len(b.Transactions) == 0 || b.Transactions[0].Sender != "COINBASE" {
-		coinbaseTx := Transaction{Sender: "COINBASE", Recipient: "Miner", Amount: 50, Signature: []byte("0")}
+		coinbaseTx := Transaction{Sender: "COINBASE", Recipient: "Miner", Amount: MiningReward, Signature: []byte("0")}
 		b.Transactions = append([]Transaction{coinbaseTx}, b.Transactions...)
 	}
 

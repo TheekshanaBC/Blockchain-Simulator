@@ -40,14 +40,36 @@ func (c *Chain) AddTransaction(tx block.Transaction) error {
 	return nil
 }
 
+const MaxFaucetRequest int64 = 1000
+const MaxLifetimeFaucetPerAddress int64 = 5000
+
 // RequestFaucetFunds creates and adds a system-approved FAUCET transaction to the pending pool.
 // This bypasses the AddTransaction sender check but enforces its own limits.
 func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 	if amount <= 0 {
 		return fmt.Errorf("Faucet amount must be strictly positive")
 	}
-	if amount > ledger.MaxTransactionAmount {
-		return fmt.Errorf("Faucet request exceeds maximum allowed limit")
+	if amount > MaxFaucetRequest {
+		return fmt.Errorf("Faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
+	}
+
+	// Calculate total amount already given to this address by the faucet
+	var totalReceived int64 = 0
+	for _, b := range c.Blocks {
+		for _, tx := range b.Transactions {
+			if tx.Sender == "FAUCET" && tx.Recipient == recipient {
+				totalReceived += tx.Amount
+			}
+		}
+	}
+	for _, tx := range c.PendingPool {
+		if tx.Sender == "FAUCET" && tx.Recipient == recipient {
+			totalReceived += tx.Amount
+		}
+	}
+
+	if totalReceived+amount > MaxLifetimeFaucetPerAddress {
+		return fmt.Errorf("Lifetime faucet limit exceeded for address (Max: %d, Already Received: %d)", MaxLifetimeFaucetPerAddress, totalReceived)
 	}
 
 	tx := block.Transaction{
@@ -164,7 +186,25 @@ func (c *Chain) Validate() ValidationResult {
 			return ValidationResult{false, currentBlock.Height, "Proof of work failed"}
 		}
 
-		for _, tx := range currentBlock.Transactions {
+		if len(currentBlock.Transactions) == 0 {
+			return ValidationResult{false, currentBlock.Height, "Block must contain at least one transaction (COINBASE)"}
+		}
+
+		for i, tx := range currentBlock.Transactions {
+			// Enforce strict COINBASE rules
+			if i == 0 {
+				if tx.Sender != "COINBASE" {
+					return ValidationResult{false, currentBlock.Height, "First transaction must be COINBASE"}
+				}
+				if tx.Amount != block.MiningReward {
+					return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Invalid COINBASE reward: expected %d, got %d", block.MiningReward, tx.Amount)}
+				}
+			} else {
+				if tx.Sender == "COINBASE" {
+					return ValidationResult{false, currentBlock.Height, "COINBASE transaction can only be the first transaction in a block"}
+				}
+			}
+
 			if tx.Amount <= 0 {
 				return ValidationResult{false, currentBlock.Height, "Transaction amount must be strictly positive"}
 			}
