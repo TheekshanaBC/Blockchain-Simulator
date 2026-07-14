@@ -154,13 +154,7 @@ func StartCLI(c *chain.Chain) {
 			}
 
 			address := wallet.AddressFromPublicKey(activeWallet.PublicKeyBytes)
-			tx := block.Transaction{
-				Sender:    "FAUCET",
-				Recipient: address,
-				Amount:    amount,
-			}
-
-			err = c.AddTransaction(tx)
+			err = c.RequestFaucetFunds(address, amount)
 			if err != nil {
 				fmt.Println(ColorRed+"Error: "+Reset+"Failed to get FAUCET funds:\n", err)
 			} else {

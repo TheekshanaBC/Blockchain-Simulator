@@ -6,6 +6,10 @@ import (
 	"fmt"
 )
 
+// MaxTransactionAmount is the maximum coins allowed in a single transaction
+// to prevent int64 overflow vulnerabilities.
+const MaxTransactionAmount = 1_000_000_000
+
 func CalculateBalances(chain []*block.Block) map[string]int64 {
 	balances := make(map[string]int64)
 
@@ -68,6 +72,9 @@ func CalculatePendingSequences(chain []*block.Block, pendingPool []block.Transac
 func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequences map[string]uint64) error {
 	if tx.Amount <= 0 {
 		return errors.New("Amount must be Greater than 0")
+	}
+	if tx.Amount > MaxTransactionAmount {
+		return errors.New("Amount exceeds maximum allowed transaction size")
 	}
 
 	if tx.Recipient == "COINBASE" {

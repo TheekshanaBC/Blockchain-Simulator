@@ -34,8 +34,7 @@ func TestValidationAndTamperDetection(t *testing.T) {
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
 	addrBob := wallet.AddressFromPublicKey(wBob.PublicKeyBytes)
 
-	tx1 := block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100}
-	myChain.AddTransaction(tx1)
+	myChain.RequestFaucetFunds(addrAlice, 100)
 	myChain.MinePendingTransactions()
 
 	tx2 := createSignedTx(wAlice, addrBob, 20, 1)
@@ -101,7 +100,7 @@ func TestAddTransaction(t *testing.T) {
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
 
 	// Add money to Alice via FAUCET to test valid transfers later
-	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
+	myChain.RequestFaucetFunds(addrAlice, 100)
 	myChain.MinePendingTransactions()
 
 	// 1. Valid transaction
@@ -148,7 +147,7 @@ func TestMinePendingTransactions(t *testing.T) {
 	// 2. Successful mine
 	wAlice := wallet.NewWallet()
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
-	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
+	myChain.RequestFaucetFunds(addrAlice, 100)
 	err = myChain.MinePendingTransactions()
 	if err != nil {
 		t.Errorf("Expected successful mine, got error: %v", err)
@@ -179,7 +178,7 @@ func TestValidate_InvalidLinks(t *testing.T) {
 	myChain := NewChain(1)
 	wAlice := wallet.NewWallet()
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
-	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
+	myChain.RequestFaucetFunds(addrAlice, 100)
 	myChain.MinePendingTransactions()
 
 	// Tamper with Genesis block Hash
@@ -212,7 +211,7 @@ func TestValidate_ForgedSignature(t *testing.T) {
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
 	
 	// Give Alice some funds
-	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
+	myChain.RequestFaucetFunds(addrAlice, 100)
 	myChain.MinePendingTransactions()
 
 	// Alice sends to Bob
@@ -258,7 +257,7 @@ func TestChain_JSONSerialization(t *testing.T) {
 	wAlice := wallet.NewWallet()
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
 
-	originalChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
+	originalChain.RequestFaucetFunds(addrAlice, 100)
 	originalChain.MinePendingTransactions()
 
 	tx2 := createSignedTx(wAlice, "Bob", 20, 1)

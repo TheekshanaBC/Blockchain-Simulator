@@ -24,8 +24,8 @@ func NewChain(difficulty int) *Chain {
 }
 
 func (c *Chain) AddTransaction(tx block.Transaction) error {
-	if tx.Sender == "COINBASE" {
-		return fmt.Errorf("Transaction Rejected: COINBASE is reserved for block mining rewards only")
+	if tx.Sender == "COINBASE" || tx.Sender == "FAUCET" {
+		return fmt.Errorf("Transaction Rejected: %s is reserved for system use only", tx.Sender)
 	}
 
 	balances := ledger.CalculateAvailableBalances(c.Blocks, c.PendingPool)
@@ -34,6 +34,27 @@ func (c *Chain) AddTransaction(tx block.Transaction) error {
 	err := ledger.ValidateTransaction(tx, balances, sequences)
 	if err != nil {
 		return fmt.Errorf("Transaction Rejected: %w", err)
+	}
+
+	c.PendingPool = append(c.PendingPool, tx)
+	return nil
+}
+
+// RequestFaucetFunds creates and adds a system-approved FAUCET transaction to the pending pool.
+// This bypasses the AddTransaction sender check but enforces its own limits.
+func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
+	if amount <= 0 {
+		return fmt.Errorf("Faucet amount must be strictly positive")
+	}
+	if amount > ledger.MaxTransactionAmount {
+		return fmt.Errorf("Faucet request exceeds maximum allowed limit")
+	}
+
+	tx := block.Transaction{
+		Sender:    "FAUCET",
+		Recipient: recipient,
+		Amount:    amount,
+		// FAUCET transactions don't need a signature or sequence
 	}
 
 	c.PendingPool = append(c.PendingPool, tx)
@@ -73,6 +94,10 @@ type ValidationResult struct {
 }
 
 func (c *Chain) Validate() ValidationResult {
+
+	if len(c.Blocks) == 0 {
+		return ValidationResult{false, 0, "Chain is empty"}
+	}
 
 	// Validate Genesis Block
 	genesisBlock := c.Blocks[0]
@@ -142,6 +167,9 @@ func (c *Chain) Validate() ValidationResult {
 		for _, tx := range currentBlock.Transactions {
 			if tx.Amount <= 0 {
 				return ValidationResult{false, currentBlock.Height, "Transaction amount must be strictly positive"}
+			}
+			if tx.Amount > ledger.MaxTransactionAmount {
+				return ValidationResult{false, currentBlock.Height, "Transaction amount exceeds maximum allowed limit"}
 			}
 			if !tx.Verify() {
 				return ValidationResult{false, currentBlock.Height, "Invalid transaction signature"}
