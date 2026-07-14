@@ -37,10 +37,10 @@ func TestCalculateMerkleRoot_Even(t *testing.T) {
 
 	record1 := fmt.Sprintf("%s|%s|%d|%d", txs[0].Sender, txs[0].Recipient, txs[0].Amount, txs[0].ExtraNonce)
 	record2 := fmt.Sprintf("%s|%s|%d|%d", txs[1].Sender, txs[1].Recipient, txs[1].Amount, txs[1].ExtraNonce)
-	
+
 	hash1 := doubleSHA256(record1)
 	hash2 := doubleSHA256(record2)
-	
+
 	expectedRoot := doubleSHA256(hash1 + hash2)
 
 	if root != expectedRoot {
@@ -59,15 +59,15 @@ func TestCalculateMerkleRoot_Odd(t *testing.T) {
 	record1 := fmt.Sprintf("%s|%s|%d|%d", txs[0].Sender, txs[0].Recipient, txs[0].Amount, txs[0].ExtraNonce)
 	record2 := fmt.Sprintf("%s|%s|%d|%d", txs[1].Sender, txs[1].Recipient, txs[1].Amount, txs[1].ExtraNonce)
 	record3 := fmt.Sprintf("%s|%s|%d|%d", txs[2].Sender, txs[2].Recipient, txs[2].Amount, txs[2].ExtraNonce)
-	
+
 	hash1 := doubleSHA256(record1)
 	hash2 := doubleSHA256(record2)
 	hash3 := doubleSHA256(record3) // The odd one out
-	
+
 	// Level 1
 	hash12 := doubleSHA256(hash1 + hash2)
 	hash33 := doubleSHA256(hash3 + hash3) // Duplicated
-	
+
 	// Level 2 (Root)
 	expectedRoot := doubleSHA256(hash12 + hash33)
 
