@@ -8,11 +8,12 @@ import (
 	"testing"
 )
 
-func createSignedTx(w *wallet.Wallet, recipient string, amount int64) block.Transaction {
+func createSignedTx(w *wallet.Wallet, recipient string, amount int64, sequence uint64) block.Transaction {
 	tx := block.Transaction{
 		Sender:    wallet.AddressFromPublicKey(w.PublicKeyBytes),
 		Recipient: recipient,
 		Amount:    amount,
+		Sequence:  sequence,
 		PublicKey: w.PublicKeyBytes,
 	}
 	tx.Sign(w.PrivateKey)
@@ -37,7 +38,7 @@ func TestValidationAndTamperDetection(t *testing.T) {
 	myChain.AddTransaction(tx1)
 	myChain.MinePendingTransactions()
 
-	tx2 := createSignedTx(wAlice, addrBob, 20)
+	tx2 := createSignedTx(wAlice, addrBob, 20, 1)
 	myChain.AddTransaction(tx2)
 	myChain.MinePendingTransactions()
 
@@ -104,7 +105,7 @@ func TestAddTransaction(t *testing.T) {
 	myChain.MinePendingTransactions()
 
 	// 1. Valid transaction
-	tx1 := createSignedTx(wAlice, "Bob", 50)
+	tx1 := createSignedTx(wAlice, "Bob", 50, 1)
 	err := myChain.AddTransaction(tx1)
 	if err != nil {
 		t.Errorf("Expected valid transaction to succeed, got error: %v", err)
@@ -115,7 +116,7 @@ func TestAddTransaction(t *testing.T) {
 	}
 
 	// 2. Reject COINBASE sender
-	tx2 := createSignedTx(wAlice, "Alice", 100)
+	tx2 := createSignedTx(wAlice, "Alice", 100, 2)
 	tx2.Sender = "COINBASE" // tamper to test rejection
 	err = myChain.AddTransaction(tx2)
 	if err == nil || !strings.Contains(err.Error(), "COINBASE is reserved") {
@@ -123,7 +124,7 @@ func TestAddTransaction(t *testing.T) {
 	}
 
 	// 3. Reject overspending
-	tx3 := createSignedTx(wAlice, "Charlie", 60)
+	tx3 := createSignedTx(wAlice, "Charlie", 60, 3)
 	err = myChain.AddTransaction(tx3)
 	if err == nil {
 		t.Errorf("Expected overspending transaction to be rejected, but it succeeded")
@@ -201,6 +202,53 @@ func TestValidate_InvalidLinks(t *testing.T) {
 }
 
 /*
+TestValidate_ForgedSignature tests that tampering with a transaction's signature
+after it has been mined into a block correctly invalidates the blockchain,
+even if the block's hash and Merkle root are recalculated.
+*/
+func TestValidate_ForgedSignature(t *testing.T) {
+	myChain := NewChain(1)
+	wAlice := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	
+	// Give Alice some funds
+	myChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
+	myChain.MinePendingTransactions()
+
+	// Alice sends to Bob
+	tx := block.Transaction{
+		Sender:    addrAlice,
+		Recipient: "Bob",
+		Amount:    20,
+		Sequence:  1,
+		PublicKey: wAlice.PublicKeyBytes,
+	}
+	tx.Sign(wAlice.PrivateKey)
+	
+	myChain.AddTransaction(tx)
+	myChain.MinePendingTransactions()
+
+	// Now tamper with the signed transaction in the mined block
+	tamperedBlock := myChain.Blocks[2]
+	// [0] is coinbase, [1] is Alice's tx
+	tamperedTx := &tamperedBlock.Transactions[1]
+	
+	tamperedTx.Recipient = "Hacker"
+	tamperedTx.Signature = []byte("forged-not-a-real-signature")
+	
+	// Recalculate block hash and merkle root so it passes those checks
+	tamperedBlock.Mine(1) // Re-mine to get a valid hash with the tampered transaction
+	
+	result := myChain.Validate()
+	if result.IsValid {
+		t.Errorf("Expected chain to be invalid due to forged transaction signature")
+	}
+	if result.Reason != "Invalid transaction signature" {
+		t.Errorf("Expected reason to be 'Invalid transaction signature', got '%s'", result.Reason)
+	}
+}
+
+/*
 TestChain_JSONSerialization verifies that an entire Blockchain (Chain struct),
 including its blocks, headers, transactions, and pending pool, can be safely
 converted to JSON and restored without losing structural integrity.
@@ -213,7 +261,7 @@ func TestChain_JSONSerialization(t *testing.T) {
 	originalChain.AddTransaction(block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 100})
 	originalChain.MinePendingTransactions()
 
-	tx2 := createSignedTx(wAlice, "Bob", 20)
+	tx2 := createSignedTx(wAlice, "Bob", 20, 1)
 	originalChain.AddTransaction(tx2) // leave in pending pool
 
 	jsonData, err := json.Marshal(originalChain)

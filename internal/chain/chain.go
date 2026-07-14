@@ -143,6 +143,9 @@ func (c *Chain) Validate() ValidationResult {
 			if tx.Amount <= 0 {
 				return ValidationResult{false, currentBlock.Height, "Transaction amount must be strictly positive"}
 			}
+			if !tx.Verify() {
+				return ValidationResult{false, currentBlock.Height, "Invalid transaction signature"}
+			}
 			if tx.Sender != "COINBASE" && tx.Sender != "FAUCET" {
 				expectedSeq := sequences[tx.Sender] + 1
 				if tx.Sequence != expectedSeq {
