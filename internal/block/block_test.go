@@ -141,7 +141,7 @@ func TestMine_ExistingCoinbase(t *testing.T) {
 		Header: BlockHeader{PrevHash: "test"},
 		Height: 1,
 		Transactions: []Transaction{
-			{Sender: "COINBASE", Recipient: "Miner", Amount: 50, ExtraNonce: 0},
+			{Sender: "COINBASE", Recipient: "Miner", Amount: 50, Signature: []byte("0")},
 			{Sender: "Alice", Recipient: "Bob", Amount: 10},
 		},
 	}
@@ -196,9 +196,9 @@ func TestMine_NonceOverflow(t *testing.T) {
 	// difficulty 4 ensures it's highly improbable to find a hash on the very first try (1 in 65536)
 	block.Mine(4)
 
-	// Since we started at MaxUint32, ExtraNonce must have incremented.
-	if block.Transactions[0].ExtraNonce == 0 {
-		t.Errorf("Expected ExtraNonce to be incremented after Nonce overflow")
+	// Since we started at MaxUint32, ExtraNonce must have incremented (in Signature).
+	if string(block.Transactions[0].Signature) == "0" {
+		t.Errorf("Expected ExtraNonce (in Signature) to be incremented after Nonce overflow")
 	}
 }
 
@@ -218,7 +218,7 @@ func TestBlock_JSONSerialization(t *testing.T) {
 		},
 		Height: 1,
 		Transactions: []Transaction{
-			{Sender: "Alice", Recipient: "Bob", Amount: 100, ExtraNonce: 1},
+			{Sender: "Alice", Recipient: "Bob", Amount: 100, Signature: []byte("1")},
 		},
 		Hash: "block_hash_789",
 	}

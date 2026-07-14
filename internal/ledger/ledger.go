@@ -46,6 +46,10 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64) error 
 		return errors.New("Cannot send funds to COINBASE address.")
 	}
 
+	if !tx.Verify() {
+		return errors.New("Invalid transaction signature")
+	}
+
 	if tx.Sender != "FAUCET" && tx.Sender != "COINBASE" {
 		if balances[tx.Sender] < tx.Amount {
 			return fmt.Errorf("Insufficent funds: need %d, but have %d", tx.Amount, balances[tx.Sender])

@@ -14,7 +14,7 @@ func CalculateMerkleRoot(txs []Transaction) string {
 	var hashes []string
 
 	for _, tx := range txs {
-		record := fmt.Sprintf("%s|%s|%d|%d", tx.Sender, tx.Recipient, tx.Amount, tx.ExtraNonce)
+		record := fmt.Sprintf("%s|%s|%d|%x|%x", tx.Sender, tx.Recipient, tx.Amount, tx.PublicKey, tx.Signature)
 		hashes = append(hashes, doubleSHA256(record))
 	}
 
