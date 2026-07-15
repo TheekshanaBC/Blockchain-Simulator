@@ -46,6 +46,9 @@ const MaxLifetimeFaucetPerAddress int64 = 5000
 // RequestFaucetFunds creates and adds a system-approved FAUCET transaction to the pending pool.
 // This bypasses the AddTransaction sender check but enforces its own limits.
 func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
+	if strings.TrimSpace(recipient) == "" {
+		return fmt.Errorf("Recipient address cannot be empty")
+	}
 	if amount <= 0 {
 		return fmt.Errorf("Faucet amount must be strictly positive")
 	}
@@ -205,6 +208,9 @@ func (c *Chain) Validate() ValidationResult {
 				}
 			}
 
+			if strings.TrimSpace(tx.Recipient) == "" {
+				return ValidationResult{false, currentBlock.Height, "Recipient address cannot be empty"}
+			}
 			if tx.Recipient == block.SystemAddressCoinbase {
 				return ValidationResult{false, currentBlock.Height, "Cannot send funds to COINBASE address."}
 			}

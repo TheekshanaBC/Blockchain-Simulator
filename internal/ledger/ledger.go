@@ -4,6 +4,7 @@ import (
 	"blockchain-simulator/internal/block"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // MaxTransactionAmount is the maximum coins allowed in a single transaction
@@ -75,6 +76,9 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 	}
 	if tx.Amount > MaxTransactionAmount {
 		return errors.New("Amount exceeds maximum allowed transaction size")
+	}
+	if strings.TrimSpace(tx.Recipient) == "" {
+		return errors.New("Recipient address cannot be empty")
 	}
 
 	if tx.Recipient == block.SystemAddressCoinbase {

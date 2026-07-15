@@ -123,7 +123,7 @@ func TestAddTransaction(t *testing.T) {
 	}
 
 	// 3. Reject overspending
-	tx3 := createSignedTx(wAlice, "Charlie", 60, 3)
+	tx3 := createSignedTx(wAlice, "Charlie", 60, 2)
 	err = myChain.AddTransaction(tx3)
 	if err == nil {
 		t.Errorf("Expected overspending transaction to be rejected, but it succeeded")
