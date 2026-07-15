@@ -28,7 +28,7 @@ in an already mined block and asserts that the blockchain becomes invalid
 and successfully pinpoints the exact block height where the tampering occurred.
 */
 func TestValidationAndTamperDetection(t *testing.T) {
-	myChain := NewChain(2)
+	myChain := NewChain(2, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
 	wBob := wallet.NewWallet()
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
@@ -69,7 +69,7 @@ the given difficulty, an empty pending pool, and exactly one valid Genesis block
 */
 func TestNewChain(t *testing.T) {
 	difficulty := 2
-	myChain := NewChain(difficulty)
+	myChain := NewChain(difficulty, 5, 8, 1, 10)
 
 	if myChain.Difficulty != difficulty {
 		t.Errorf("Expected difficulty %d, got %d", difficulty, myChain.Difficulty)
@@ -95,7 +95,7 @@ It checks for successful additions, rejection of reserved COINBASE sender, and
 rejection of invalid transactions (like overspending).
 */
 func TestAddTransaction(t *testing.T) {
-	myChain := NewChain(2)
+	myChain := NewChain(2, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
 
@@ -136,7 +136,7 @@ mined into a new block, the pending pool is cleared, and the block is linked pro
 It also verifies it fails if there are no pending transactions.
 */
 func TestMinePendingTransactions(t *testing.T) {
-	myChain := NewChain(2)
+	myChain := NewChain(2, 5, 8, 1, 10)
 
 	// 1. Fail when no pending transactions
 	err := myChain.MinePendingTransactions()
@@ -175,7 +175,7 @@ TestValidate_InvalidLinks tests that tampering with block hashes or links
 (e.g., breaking the PrevHash chain) correctly invalidates the blockchain.
 */
 func TestValidate_InvalidLinks(t *testing.T) {
-	myChain := NewChain(1)
+	myChain := NewChain(1, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
 	myChain.RequestFaucetFunds(addrAlice, 100)
@@ -206,10 +206,10 @@ after it has been mined into a block correctly invalidates the blockchain,
 even if the block's hash and Merkle root are recalculated.
 */
 func TestValidate_ForgedSignature(t *testing.T) {
-	myChain := NewChain(1)
+	myChain := NewChain(1, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
-	
+
 	// Give Alice some funds
 	myChain.RequestFaucetFunds(addrAlice, 100)
 	myChain.MinePendingTransactions()
@@ -223,7 +223,7 @@ func TestValidate_ForgedSignature(t *testing.T) {
 		PublicKey: wAlice.PublicKeyBytes,
 	}
 	tx.Sign(wAlice.PrivateKey)
-	
+
 	myChain.AddTransaction(tx)
 	myChain.MinePendingTransactions()
 
@@ -231,13 +231,13 @@ func TestValidate_ForgedSignature(t *testing.T) {
 	tamperedBlock := myChain.Blocks[2]
 	// [0] is coinbase, [1] is Alice's tx
 	tamperedTx := &tamperedBlock.Transactions[1]
-	
+
 	tamperedTx.Recipient = "Hacker"
 	tamperedTx.Signature = []byte("forged-not-a-real-signature")
-	
+
 	// Recalculate block hash and merkle root so it passes those checks
 	tamperedBlock.Mine(1) // Re-mine to get a valid hash with the tampered transaction
-	
+
 	result := myChain.Validate()
 	if result.IsValid {
 		t.Errorf("Expected chain to be invalid due to forged transaction signature")
@@ -253,7 +253,7 @@ including its blocks, headers, transactions, and pending pool, can be safely
 converted to JSON and restored without losing structural integrity.
 */
 func TestChain_JSONSerialization(t *testing.T) {
-	originalChain := NewChain(3)
+	originalChain := NewChain(3, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
 
@@ -292,5 +292,68 @@ func TestChain_JSONSerialization(t *testing.T) {
 
 	if decodedChain.PendingPool[0].Amount != originalChain.PendingPool[0].Amount {
 		t.Errorf("Expected Pending Transaction Amount %d, got %d", originalChain.PendingPool[0].Amount, decodedChain.PendingPool[0].Amount)
+	}
+}
+
+func TestValidate_DifficultyMismatch(t *testing.T) {
+	myChain := NewChain(2, 3, 10, 1, 10) // N=3
+	wAlice := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+
+	// Mine 4 blocks to trigger a retarget at block 4
+	for i := 0; i < 4; i++ {
+		myChain.RequestFaucetFunds(addrAlice, 10)
+		myChain.MinePendingTransactions()
+	}
+
+	// Tamper with the difficulty of a block
+	myChain.Blocks[2].Header.Difficulty = 99
+	myChain.Blocks[2].Hash = myChain.Blocks[2].CalculateHash()
+
+	result := myChain.Validate()
+	if result.IsValid {
+		t.Errorf("Expected chain to be invalid due to difficulty mismatch")
+	}
+	if !strings.Contains(result.Reason, "Difficulty retarget mismatch") {
+		t.Errorf("Expected reason to be 'Difficulty retarget mismatch', got '%s'", result.Reason)
+	}
+}
+
+func TestValidate_TamperTimestampRetarget(t *testing.T) {
+	myChain := NewChain(2, 3, 10, 1, 10)
+	wAlice := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+
+	// Mine 4 blocks to trigger a retarget at block 4
+	for i := 0; i < 4; i++ {
+		myChain.RequestFaucetFunds(addrAlice, 10)
+		myChain.MinePendingTransactions()
+	}
+
+	// Verify it's initially valid
+	result := myChain.Validate()
+	if !result.IsValid {
+		t.Fatalf("Expected initial chain to be valid, got: %s", result.Reason)
+	}
+
+	// Tamper with a timestamp inside the first window (e.g. Block 2)
+	myChain.Blocks[2].Header.Timestamp += 1000 // Make it look very slow
+	myChain.Blocks[3].Header.Timestamp += 1000 // Keep them monotonic
+	myChain.Blocks[4].Header.Timestamp += 1000
+	// so it reaches the expected difficulty check for Block 4.
+	myChain.Blocks[2].Mine(myChain.Blocks[2].Header.Difficulty)
+
+	myChain.Blocks[3].Header.PrevHash = myChain.Blocks[2].Hash
+	myChain.Blocks[3].Mine(myChain.Blocks[3].Header.Difficulty)
+
+	myChain.Blocks[4].Header.PrevHash = myChain.Blocks[3].Hash
+	myChain.Blocks[4].Mine(myChain.Blocks[4].Header.Difficulty)
+
+	tamperedResult := myChain.Validate()
+	if tamperedResult.IsValid {
+		t.Errorf("Expected chain to be invalid after timestamp tamper")
+	}
+	if !strings.Contains(tamperedResult.Reason, "Difficulty retarget mismatch") {
+		t.Errorf("Expected validation to fail with 'Difficulty retarget mismatch', but got '%s'", tamperedResult.Reason)
 	}
 }

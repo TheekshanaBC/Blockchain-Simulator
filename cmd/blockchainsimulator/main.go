@@ -13,7 +13,15 @@ const dbFile = "data/chain.json"
 
 func main() {
 	var difficulty int
-	flag.IntVar(&difficulty, "diff", 5, "Mining difficulty (number of leading zeros)")
+	var retargetWindow int
+	var targetBlockTime int64
+	var minDiff int
+	var maxDiff int
+	flag.IntVar(&difficulty, "diff", 4, "Mining difficulty (number of leading zeros)")
+	flag.IntVar(&retargetWindow, "retarget-window", 2, "Number of blocks between difficulty retargets")
+	flag.Int64Var(&targetBlockTime, "target-block-time", 8, "Target time per block in seconds")
+	flag.IntVar(&minDiff, "min-diff", 3, "Minimum difficulty")
+	flag.IntVar(&maxDiff, "max-diff", 8, "Maximum difficulty")
 	flag.Parse()
 
 	var myChain *chain.Chain
@@ -22,7 +30,7 @@ func main() {
 	if err != nil {
 		if os.IsNotExist(err) {
 			fmt.Println("No existing chain found. Creating a new one...")
-			myChain = chain.NewChain(difficulty)
+			myChain = chain.NewChain(difficulty, retargetWindow, targetBlockTime, minDiff, maxDiff)
 		} else {
 			fmt.Printf("Error loading existing chain from %s: %v\n", dbFile, err)
 			os.Exit(1)

@@ -177,7 +177,7 @@ func StartCLI(c *chain.Chain) {
 			}
 
 			senderAddress := wallet.AddressFromPublicKey(activeWallet.PublicKeyBytes)
-			
+
 			sequences := ledger.CalculatePendingSequences(c.Blocks, c.PendingPool)
 			nextSeq := sequences[senderAddress] + 1
 
@@ -205,12 +205,17 @@ func StartCLI(c *chain.Chain) {
 		case "mine":
 			fmt.Println(ColorYellow + FormatDim + "Mining new block..." + Reset)
 			startTime := time.Now()
+			oldDiff := c.Difficulty
 			err := c.MinePendingTransactions()
+			newDiff := c.Difficulty
 			miningTime := time.Since(startTime)
 			if err != nil {
 				fmt.Println(ColorRed+"Error: "+Reset+"Failed to mine block:", err)
 			} else {
-				fmt.Printf(ColorGreen+"Block mined successfully! Time: %s\n"+Reset, miningTime.Round(time.Millisecond))
+				fmt.Printf(ColorGreen+"Block mined successfully! (Difficulty: %d) Time: %s\n"+Reset, newDiff, miningTime.Round(time.Millisecond))
+				if oldDiff != newDiff {
+					fmt.Printf(ColorCyan+"Difficulty retargeted from %d to %d\n"+Reset, oldDiff, newDiff)
+				}
 			}
 
 		case "pool":
@@ -308,6 +313,7 @@ func printBlockchain(c *chain.Chain, wallets map[string]*wallet.Wallet) {
 		printLine(fmt.Sprintf("Prev: %s", b.Header.PrevHash), Reset, innerW)
 		printLine(fmt.Sprintf("Merkle Root: %s", b.Header.MerkleRoot), Reset, innerW)
 		printLine(fmt.Sprintf("Nonce: %d", b.Header.Nonce), Reset, innerW)
+		printLine(fmt.Sprintf("Difficulty: %d", b.Header.Difficulty), Reset, innerW)
 		printLine(fmt.Sprintf("Tx Count: %d", len(b.Transactions)), ColorGreen, innerW)
 		if len(b.Transactions) > 0 {
 			printLine("Transactions:", ColorCyan, innerW)
