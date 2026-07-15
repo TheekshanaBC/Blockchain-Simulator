@@ -146,8 +146,11 @@ func (c *Chain) Validate() ValidationResult {
 
 	balances := make(map[string]int64)
 	sequences := make(map[string]uint64)
+	faucetReceived := make(map[string]int64)
 	for _, tx := range genesisBlock.Transactions {
-		if !block.IsSystemAddress(tx.Sender) {
+		if tx.Sender == block.SystemAddressFaucet {
+			faucetReceived[tx.Recipient] += tx.Amount
+		} else if !block.IsSystemAddress(tx.Sender) {
 			balances[tx.Sender] -= tx.Amount
 			sequences[tx.Sender] = tx.Sequence
 		}
@@ -224,7 +227,16 @@ func (c *Chain) Validate() ValidationResult {
 			if !tx.Verify() {
 				return ValidationResult{false, currentBlock.Height, "Invalid transaction signature"}
 			}
-			if !block.IsSystemAddress(tx.Sender) {
+
+			if tx.Sender == block.SystemAddressFaucet {
+				if tx.Amount > MaxFaucetRequest {
+					return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)}
+				}
+				if faucetReceived[tx.Recipient]+tx.Amount > MaxLifetimeFaucetPerAddress {
+					return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Lifetime faucet limit exceeded for address (Max: %d)", MaxLifetimeFaucetPerAddress)}
+				}
+				faucetReceived[tx.Recipient] += tx.Amount
+			} else if !block.IsSystemAddress(tx.Sender) {
 				expectedSeq := sequences[tx.Sender] + 1
 				if tx.Sequence != expectedSeq {
 					return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Ledger replay failed: invalid sequence for %s (expected %d, got %d)", tx.Sender, expectedSeq, tx.Sequence)}
