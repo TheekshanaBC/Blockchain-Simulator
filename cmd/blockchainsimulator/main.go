@@ -4,6 +4,7 @@ import (
 	"blockchain-simulator/internal/chain"
 	"blockchain-simulator/internal/cli"
 	"blockchain-simulator/internal/storage"
+	"flag"
 	"fmt"
 	"os"
 )
@@ -11,8 +12,11 @@ import (
 const dbFile = "data/chain.json"
 
 func main() {
+	var difficulty int
+	flag.IntVar(&difficulty, "diff", 5, "Mining difficulty (number of leading zeros)")
+	flag.Parse()
+
 	var myChain *chain.Chain
-	difficulty := 5
 
 	loadedChain, err := storage.LoadChain(dbFile)
 	if err != nil {
