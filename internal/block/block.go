@@ -102,13 +102,18 @@ func (b *Block) Mine(difficulty int) {
 		})
 
 		var wg sync.WaitGroup
+		startNonce := b.Header.Nonce
 
 		for i := 0; i < numWorkers; i++ {
 			wg.Add(1)
 			go func(workerID int) {
 				defer wg.Done()
 
-				for nonce := uint32(workerID); ; nonce += uint32(numWorkers) {
+				if uint32(workerID) > 4294967295-startNonce {
+					return
+				}
+
+				for nonce := startNonce + uint32(workerID); ; nonce += uint32(numWorkers) {
 					select {
 					case <-ctx.Done():
 						return
@@ -149,6 +154,7 @@ func (b *Block) Mine(difficulty int) {
 		cancel()
 		extraNonce++
 		b.Transactions[0].Signature = []byte(fmt.Sprintf("%d", extraNonce))
+		b.Header.Nonce = 0
 	}
 }
 
