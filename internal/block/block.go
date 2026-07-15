@@ -2,13 +2,16 @@ package block
 
 import (
 	"blockchain-simulator/internal/wallet"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
 	"math/big"
+	"runtime"
 	"strings"
+	"sync"
 )
 
 type Transaction struct {
@@ -46,6 +49,7 @@ const (
 func IsSystemAddress(addr string) bool {
 	return addr == SystemAddressCoinbase || addr == SystemAddressFaucet
 }
+
 // create and return the first block of the blockchain
 func NewGenesisBlock() *Block {
 	block := &Block{
@@ -63,11 +67,14 @@ func NewGenesisBlock() *Block {
 	return block
 }
 
+func calculateHashForNonce(b *Block, nonce uint32) string {
+	record := fmt.Sprintf("%d|%d:%s|%d:%s|%d|%d|%d", b.Height, len(b.Header.PrevHash), b.Header.PrevHash, len(b.Header.MerkleRoot), b.Header.MerkleRoot, b.Header.Timestamp, b.Header.Difficulty, nonce)
+	return doubleSHA256(record)
+}
+
 // calculate hash for a block
 func (b *Block) CalculateHash() string {
-	record := fmt.Sprintf("%d|%d:%s|%d:%s|%d|%d|%d", b.Height, len(b.Header.PrevHash), b.Header.PrevHash, len(b.Header.MerkleRoot), b.Header.MerkleRoot, b.Header.Timestamp, b.Header.Difficulty, b.Header.Nonce)
-	doubleHash := doubleSHA256(record)
-	return doubleHash
+	return calculateHashForNonce(b, b.Header.Nonce)
 }
 
 // proof of work algorithm
@@ -86,19 +93,60 @@ func (b *Block) Mine(difficulty int) {
 
 	for {
 		b.Header.MerkleRoot = CalculateMerkleRoot(b.Transactions) // recalculate the merkle root for updated extra nonce
-		for {
-			b.Hash = b.CalculateHash()
+		numWorkers := runtime.NumCPU()
+		ctx, cancel := context.WithCancel(context.Background())
 
-			if strings.HasPrefix(b.Hash, target) {
-				return
-			}
-			if b.Header.Nonce == 4294967295 { // max value for uint32
-				b.Header.Nonce = 0
-				break // go out of the inner loop if hash is not found for every possible nonce
-			}
+		resultChan := make(chan struct {
+			nonce uint32
+			hash  string
+		})
 
-			b.Header.Nonce++
+		var wg sync.WaitGroup
+
+		for i := 0; i < numWorkers; i++ {
+			wg.Add(1)
+			go func(workerID int) {
+				defer wg.Done()
+
+				for nonce := uint32(workerID); ; nonce += uint32(numWorkers) {
+					select {
+					case <-ctx.Done():
+						return
+					default:
+					}
+
+					hash := calculateHashForNonce(b, nonce)
+					if strings.HasPrefix(hash, target) {
+						select {
+						case resultChan <- struct {
+							nonce uint32
+							hash  string
+						}{nonce, hash}:
+						case <-ctx.Done():
+						}
+						return
+					}
+
+					if nonce > 4294967295-uint32(numWorkers) {
+						return
+					}
+				}
+			}(i)
 		}
+
+		go func() {
+			wg.Wait()
+			close(resultChan)
+		}()
+
+		if res, ok := <-resultChan; ok {
+			b.Header.Nonce = res.nonce
+			b.Hash = res.hash
+			cancel()
+			return
+		}
+
+		cancel()
 		extraNonce++
 		b.Transactions[0].Signature = []byte(fmt.Sprintf("%d", extraNonce))
 	}
