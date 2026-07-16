@@ -66,5 +66,3 @@ func calculateHashForNonce(b *Block, nonce uint32) string {
 func (b *Block) CalculateHash() string {
 	return calculateHashForNonce(b, b.Header.Nonce)
 }
-
-

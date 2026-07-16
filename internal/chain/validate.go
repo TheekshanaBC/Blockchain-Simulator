@@ -31,10 +31,20 @@ func (c *Chain) Validate() ValidationResult {
 		return ValidationResult{true, -1, "Chain is Valid"}
 	}
 
-	expectedDifficulty := c.Blocks[1].Header.Difficulty
+	expectedDifficulty := c.InitialDifficulty
+	if expectedDifficulty < c.MinDifficulty {
+		expectedDifficulty = c.MinDifficulty
+	}
+	if expectedDifficulty > c.MaxDifficulty {
+		expectedDifficulty = c.MaxDifficulty
+	}
 	for i := 1; i < len(c.Blocks); i++ {
 		currentBlock := c.Blocks[i]
 		previousBlock := c.Blocks[i-1]
+
+		if currentBlock.Height != previousBlock.Height+1 {
+			return ValidationResult{false, currentBlock.Height, "Block Height mismatch"}
+		}
 
 		expectedDifficulty = expectedDifficultyAfterWindow(c.Blocks, currentBlock.Height, c.RetargetWindow, c.TargetBlockTimeSec, expectedDifficulty, c.MinDifficulty, c.MaxDifficulty)
 

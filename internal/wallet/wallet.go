@@ -47,5 +47,3 @@ func AddressFromPublicKey(pubKeyBytes []byte) string {
 	hash := sha256.Sum256(pubKeyBytes)
 	return hex.EncodeToString(hash[:])
 }
-
-

@@ -34,6 +34,9 @@ func loadRawKeystore(filename string) (Keystore, error) {
 func SaveToKeystore(filename string, name string, w *Wallet) error {
 	keystore, err := loadRawKeystore(filename)
 	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
 		keystore = make(Keystore)
 	}
 

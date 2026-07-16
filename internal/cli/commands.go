@@ -69,11 +69,11 @@ func handleMyWallet(ctx *cliContext, args []string) {
 		return
 	}
 	address := wallet.AddressFromPublicKey(ctx.activeWallet.PublicKeyBytes)
-	balances := ledger.CalculateAvailableBalances(ctx.chain.Blocks, ctx.chain.PendingPool)
+	balances := ledger.CalculateBalances(ctx.chain.Blocks)
 	balance := balances[address]
 	fmt.Printf("%sActive Wallet:%s %s\n", ColorCyan, Reset, ctx.activeWalletName)
-	fmt.Printf("%sAddress:%s %s\n", ColorCyan, Reset, address)
-	fmt.Printf("%sBalance:%s %d\n", ColorCyan, Reset, balance)
+	fmt.Printf("%sYour Address:%s %s\n", ColorCyan, Reset, address)
+	fmt.Printf("%sYour Balance:%s %d\n", ColorCyan, Reset, balance)
 }
 
 func handleFaucet(ctx *cliContext, args []string) {

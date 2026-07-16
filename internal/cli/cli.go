@@ -44,7 +44,6 @@ func init() {
 	}
 }
 
-
 func StartCLI(c *chain.Chain) {
 	scanner := bufio.NewScanner(os.Stdin)
 

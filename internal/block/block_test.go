@@ -124,8 +124,12 @@ func TestMine_ZeroDifficulty(t *testing.T) {
 	}
 	block.Mine(0)
 
-	if block.Hash == "" {
-		t.Errorf("Expected Hash to be populated")
+	expectedHash := block.CalculateHash()
+	if block.Hash != expectedHash {
+		t.Errorf("Hash does not match recalculated hash with found nonce. Expected %s, got %s", expectedHash, block.Hash)
+	}
+	if !strings.HasPrefix(block.Hash, "") {
+		t.Errorf("Expected Hash to meet difficulty 0 (empty prefix)")
 	}
 	if len(block.Transactions) != 1 {
 		t.Fatalf("Expected COINBASE transaction to be added")

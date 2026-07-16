@@ -19,7 +19,7 @@ func TestSaveAndLoadChain(t *testing.T) {
 
 	// Create a dummy chain
 	c := chain.NewChain(2, 10, 60, 1, 5)
-	
+
 	// Save
 	if err := SaveChain(c, filename); err != nil {
 		t.Fatalf("SaveChain failed: %v", err)

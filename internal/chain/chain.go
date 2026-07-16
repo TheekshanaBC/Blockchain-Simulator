@@ -14,11 +14,18 @@ type Chain struct {
 	TargetBlockTimeSec int64               `json:"target_block_time_sec"`
 	MaxDifficulty      int                 `json:"max_difficulty"`
 	MinDifficulty      int                 `json:"min_difficulty"`
+	InitialDifficulty  int                 `json:"initial_difficulty"`
 }
 
 func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minDifficulty int, maxDifficulty int) *Chain {
 	if retargetWindow < 2 {
 		retargetWindow = 2
+	}
+	if difficulty < minDifficulty {
+		difficulty = minDifficulty
+	}
+	if difficulty > maxDifficulty {
+		difficulty = maxDifficulty
 	}
 	genesis := block.NewGenesisBlock()
 	return &Chain{
@@ -29,6 +36,7 @@ func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minD
 		TargetBlockTimeSec: targetBlockTimeSec,
 		MaxDifficulty:      maxDifficulty,
 		MinDifficulty:      minDifficulty,
+		InitialDifficulty:  difficulty,
 	}
 }
 
