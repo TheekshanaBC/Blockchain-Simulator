@@ -13,7 +13,7 @@ func CalculateMerkleRoot(txs []Transaction) string {
 	var hashes []string
 
 	for _, tx := range txs {
-		record := fmt.Sprintf("%d:%s|%d:%s|%d|%d:%x|%d:%x",
+		record := fmt.Sprintf("\x00%d:%s|%d:%s|%d|%d:%x|%d:%x",
 			len(tx.Sender), tx.Sender,
 			len(tx.Recipient), tx.Recipient,
 			tx.Amount,
@@ -26,7 +26,7 @@ func CalculateMerkleRoot(txs []Transaction) string {
 		var newLevel []string
 		for i := 0; i < len(hashes); i += 2 {
 			if i+1 < len(hashes) {
-				combined := hashes[i] + hashes[i+1]
+				combined := "\x01" + hashes[i] + hashes[i+1]
 				newLevel = append(newLevel, doubleSHA256(combined))
 			} else {
 				// odd node: promote unchanged to next level

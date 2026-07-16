@@ -72,32 +72,32 @@ func CalculatePendingSequences(chain []*block.Block, pendingPool []block.Transac
 
 func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequences map[string]uint64) error {
 	if tx.Amount <= 0 {
-		return errors.New("Amount must be Greater than 0")
+		return errors.New("amount must be greater than 0")
 	}
 	if tx.Amount > MaxTransactionAmount {
-		return errors.New("Amount exceeds maximum allowed transaction size")
+		return errors.New("amount exceeds maximum allowed transaction size")
 	}
 	if strings.TrimSpace(tx.Recipient) == "" {
-		return errors.New("Recipient address cannot be empty")
+		return errors.New("recipient address cannot be empty")
 	}
 
 	if tx.Recipient == block.SystemAddressCoinbase {
-		return errors.New("Cannot send funds to COINBASE address.")
+		return errors.New("cannot send funds to coinbase address")
 	}
 
 	if !tx.Verify() {
-		return errors.New("Invalid transaction signature")
+		return errors.New("invalid transaction signature")
 	}
 
 	if !block.IsSystemAddress(tx.Sender) {
 		// Sequence Validation (Replay Protection)
 		expectedSeq := sequences[tx.Sender] + 1
 		if tx.Sequence != expectedSeq {
-			return fmt.Errorf("Invalid sequence number: expected %d, got %d", expectedSeq, tx.Sequence)
+			return fmt.Errorf("invalid sequence number: expected %d, got %d", expectedSeq, tx.Sequence)
 		}
 
 		if balances[tx.Sender] < tx.Amount {
-			return fmt.Errorf("Insufficent funds: need %d, but have %d", tx.Amount, balances[tx.Sender])
+			return fmt.Errorf("insufficent funds: need %d, but have %d", tx.Amount, balances[tx.Sender])
 		}
 	}
 	return nil

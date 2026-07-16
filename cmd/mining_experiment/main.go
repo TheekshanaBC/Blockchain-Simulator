@@ -28,7 +28,12 @@ func main() {
 		b.Mine(difficulty)
 		elapsed := time.Since(start)
 
-		totalHashes := int64(b.Header.Nonce) + 1
+		var extraNonce int64
+		if len(b.Transactions) > 0 && b.Transactions[0].Sender == "COINBASE" {
+			fmt.Sscanf(string(b.Transactions[0].Signature), "%d", &extraNonce)
+		}
+
+		totalHashes := (extraNonce * 4294967296) + int64(b.Header.Nonce) + 1
 		fmt.Printf("%-12d | %-12v | %-12d\n", difficulty, elapsed, totalHashes)
 	}
 }

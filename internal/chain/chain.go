@@ -42,7 +42,7 @@ func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minD
 
 func (c *Chain) AddTransaction(tx block.Transaction) error {
 	if block.IsSystemAddress(tx.Sender) {
-		return fmt.Errorf("Transaction Rejected: %s is reserved for system use only", tx.Sender)
+		return fmt.Errorf("transaction rejected: %s is reserved for system use only", tx.Sender)
 	}
 
 	balances := ledger.CalculateAvailableBalances(c.Blocks, c.PendingPool)
@@ -50,7 +50,7 @@ func (c *Chain) AddTransaction(tx block.Transaction) error {
 
 	err := ledger.ValidateTransaction(tx, balances, sequences)
 	if err != nil {
-		return fmt.Errorf("Transaction Rejected: %w", err)
+		return fmt.Errorf("transaction rejected: %w", err)
 	}
 
 	c.PendingPool = append(c.PendingPool, tx)
