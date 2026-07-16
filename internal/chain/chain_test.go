@@ -357,3 +357,20 @@ func TestValidate_TamperTimestampRetarget(t *testing.T) {
 		t.Errorf("Expected validation to fail with 'Difficulty retarget mismatch', but got '%s'", tamperedResult.Reason)
 	}
 }
+
+func TestRetarget_ConvergesTowardTarget(t *testing.T) {
+	// targetBlockTimeSec is 100, which is far above actual mine time (almost instant)
+	myChain := NewChain(2, 3, 100, 1, 10)
+	wAlice := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+
+	// mine 7 blocks (more than 2 retarget windows of size 3)
+	for i := 0; i < 7; i++ {
+		myChain.RequestFaucetFunds(addrAlice, 10)
+		myChain.MinePendingTransactions()
+	}
+
+	if myChain.Difficulty <= 2 {
+		t.Errorf("expected difficulty to increase when blocks mine faster than target, got %d", myChain.Difficulty)
+	}
+}

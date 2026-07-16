@@ -18,7 +18,7 @@ func main() {
 	var minDiff int
 	var maxDiff int
 	flag.IntVar(&difficulty, "diff", 4, "Mining difficulty (number of leading zeros)")
-	flag.IntVar(&retargetWindow, "retarget-window", 2, "Number of blocks between difficulty retargets")
+	flag.IntVar(&retargetWindow, "retarget-window", 5, "Number of blocks between difficulty retargets")
 	flag.Int64Var(&targetBlockTime, "target-block-time", 8, "Target time per block in seconds")
 	flag.IntVar(&minDiff, "min-diff", 3, "Minimum difficulty")
 	flag.IntVar(&maxDiff, "max-diff", 8, "Maximum difficulty")

@@ -18,7 +18,7 @@ type Chain struct {
 	MinDifficulty      int                 `json:"min_difficulty"`
 }
 
-func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, maxDifficulty int, minDifficulty int) *Chain {
+func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minDifficulty int, maxDifficulty int) *Chain {
 	if retargetWindow < 2 {
 		retargetWindow = 2
 	}
@@ -124,9 +124,9 @@ func expectedDifficultyAfterWindow(blocks []*block.Block, nextHeight, N int, tar
 }
 
 func adjustDifficulty(current int, actual, expected int64, min, max int) int {
-	if actual < expected {
+	if actual < expected/2 {
 		current++
-	} else if actual > expected {
+	} else if actual > expected*2 {
 		current--
 	}
 	if current < min {
