@@ -9,17 +9,28 @@ import (
 )
 
 type Chain struct {
-	Blocks      []*block.Block      `json:"blocks"`
-	Difficulty  int                 `json:"difficulty"`
-	PendingPool []block.Transaction `json:"pending_pool"`
+	Blocks             []*block.Block      `json:"blocks"`
+	Difficulty         int                 `json:"difficulty"`
+	PendingPool        []block.Transaction `json:"pending_pool"`
+	RetargetWindow     int                 `json:"retarget_window"`
+	TargetBlockTimeSec int64               `json:"target_block_time_sec"`
+	MaxDifficulty      int                 `json:"max_difficulty"`
+	MinDifficulty      int                 `json:"min_difficulty"`
 }
 
-func NewChain(difficulty int) *Chain {
+func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minDifficulty int, maxDifficulty int) *Chain {
+	if retargetWindow < 2 {
+		retargetWindow = 2
+	}
 	genesis := block.NewGenesisBlock()
 	return &Chain{
-		Blocks:      []*block.Block{genesis},
-		Difficulty:  difficulty,
-		PendingPool: []block.Transaction{},
+		Blocks:             []*block.Block{genesis},
+		Difficulty:         difficulty,
+		PendingPool:        []block.Transaction{},
+		RetargetWindow:     retargetWindow,
+		TargetBlockTimeSec: targetBlockTimeSec,
+		MaxDifficulty:      maxDifficulty,
+		MinDifficulty:      minDifficulty,
 	}
 }
 
@@ -86,21 +97,71 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 	return nil
 }
 
+func expectedDifficultyAfterWindow(blocks []*block.Block, nextHeight, N int, targetBlockTime int64, prevDifficulty, min, max int) int {
+	if nextHeight <= 1 || (nextHeight-1)%N != 0 {
+		return prevDifficulty
+	}
+
+	lastBlock := blocks[nextHeight-1]
+
+	windowIndex := (nextHeight - 1) / N
+	var firstBlockIndex int
+	var expectedIntervals int
+
+	if windowIndex == 1 {
+		firstBlockIndex = 1
+		expectedIntervals = N - 1
+	} else {
+		firstBlockIndex = nextHeight - 1 - N
+		expectedIntervals = N
+	}
+
+	firstBlock := blocks[firstBlockIndex]
+	actual := lastBlock.Header.Timestamp - firstBlock.Header.Timestamp
+	expected := targetBlockTime * int64(expectedIntervals)
+
+	return adjustDifficulty(prevDifficulty, actual, expected, min, max)
+}
+
+func adjustDifficulty(current int, actual, expected int64, min, max int) int {
+	if actual < expected/2 {
+		current++
+	} else if actual > expected*2 {
+		current--
+	}
+	if current < min {
+		current = min
+	}
+	if current > max {
+		current = max
+	}
+	return current
+}
+func (c *Chain) maybeRetarget() bool {
+	nextHeight := len(c.Blocks)
+	newDiff := expectedDifficultyAfterWindow(c.Blocks, nextHeight, c.RetargetWindow, c.TargetBlockTimeSec, c.Difficulty, c.MinDifficulty, c.MaxDifficulty)
+	if newDiff != c.Difficulty {
+		c.Difficulty = newDiff
+		return true
+	}
+	return false
+}
+
 func (c *Chain) MinePendingTransactions() error {
 	if len(c.PendingPool) == 0 {
 		return fmt.Errorf("No pending transactions to mine")
 	}
+	c.maybeRetarget()
 
 	lastBlock := c.Blocks[len(c.Blocks)-1]
 
 	newBlock := &block.Block{
+		Height:       lastBlock.Height + 1,
+		Transactions: c.PendingPool,
 		Header: block.BlockHeader{
 			PrevHash:  lastBlock.Hash,
 			Timestamp: time.Now().Unix(),
-			Nonce:     0,
 		},
-		Height:       lastBlock.Height + 1,
-		Transactions: c.PendingPool,
 	}
 
 	newBlock.Mine(c.Difficulty)
@@ -158,6 +219,10 @@ func (c *Chain) Validate() ValidationResult {
 	}
 
 	// Validate All Other Blocks
+	if len(c.Blocks) < 2 {
+		return ValidationResult{true, -1, "Chain is Valid"}
+	}
+	expectedDifficulty := c.Blocks[1].Header.Difficulty
 	for i := 1; i < len(c.Blocks); i++ {
 		currentBlock := c.Blocks[i]
 		previousBlock := c.Blocks[i-1]
@@ -182,11 +247,13 @@ func (c *Chain) Validate() ValidationResult {
 			return ValidationResult{false, currentBlock.Height, "Previous Hash mismatch"}
 		}
 
-		if currentBlock.Header.Difficulty != c.Difficulty {
-			return ValidationResult{false, currentBlock.Height, "Block difficulty does not match chain difficulty"}
+		expectedDifficulty = expectedDifficultyAfterWindow(c.Blocks, currentBlock.Height, c.RetargetWindow, c.TargetBlockTimeSec, expectedDifficulty, c.MinDifficulty, c.MaxDifficulty)
+
+		if currentBlock.Header.Difficulty != expectedDifficulty {
+			return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Difficulty retarget mismatch: expected %d, got %d", expectedDifficulty, currentBlock.Header.Difficulty)}
 		}
 
-		target := strings.Repeat("0", c.Difficulty)
+		target := strings.Repeat("0", currentBlock.Header.Difficulty)
 
 		if !strings.HasPrefix(currentBlock.Hash, target) {
 			return ValidationResult{false, currentBlock.Height, "Proof of work failed"}

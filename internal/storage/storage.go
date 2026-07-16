@@ -37,5 +37,12 @@ func LoadChain(filename string) (*chain.Chain, error) {
 		return nil, err
 	}
 
+	if c.RetargetWindow < 2 {
+		c.RetargetWindow = 2
+	}
+	if c.MinDifficulty > c.MaxDifficulty {
+		c.MinDifficulty, c.MaxDifficulty = c.MaxDifficulty, c.MinDifficulty
+	}
+
 	return &c, nil
 }
