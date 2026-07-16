@@ -140,7 +140,7 @@ func TestMinePendingTransactions(t *testing.T) {
 
 	// 1. Fail when no pending transactions
 	err := myChain.MinePendingTransactions()
-	if err == nil || err.Error() != "No pending transactions to mine" {
+	if err == nil || err.Error() != "no pending transactions to mine" {
 		t.Errorf("Expected error when mining empty pool, got: %v", err)
 	}
 

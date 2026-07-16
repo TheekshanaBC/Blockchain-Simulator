@@ -13,13 +13,13 @@ const MaxLifetimeFaucetPerAddress int64 = 5000
 // This bypasses the AddTransaction sender check but enforces its own limits.
 func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 	if strings.TrimSpace(recipient) == "" {
-		return fmt.Errorf("Recipient address cannot be empty")
+		return fmt.Errorf("recipient address cannot be empty")
 	}
 	if amount <= 0 {
-		return fmt.Errorf("Faucet amount must be strictly positive")
+		return fmt.Errorf("faucet amount must be strictly positive")
 	}
 	if amount > MaxFaucetRequest {
-		return fmt.Errorf("Faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
+		return fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
 	}
 
 	// Calculate total amount already given to this address by the faucet
@@ -38,7 +38,7 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 	}
 
 	if totalReceived+amount > MaxLifetimeFaucetPerAddress {
-		return fmt.Errorf("Lifetime faucet limit exceeded for address (Max: %d, Already Received: %d)", MaxLifetimeFaucetPerAddress, totalReceived)
+		return fmt.Errorf("lifetime faucet limit exceeded for address (max: %d, already received: %d)", MaxLifetimeFaucetPerAddress, totalReceived)
 	}
 
 	tx := block.Transaction{

@@ -8,7 +8,7 @@ import (
 
 func (c *Chain) MinePendingTransactions() error {
 	if len(c.PendingPool) == 0 {
-		return fmt.Errorf("No pending transactions to mine")
+		return fmt.Errorf("no pending transactions to mine")
 	}
 	c.maybeRetarget()
 
