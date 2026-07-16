@@ -29,6 +29,7 @@ func TestCLICharacterization(t *testing.T) {
 	defer func() {
 		os.Stdin = oldStdin
 		os.Stdout = oldStdout
+		os.RemoveAll("data") // Clean up test artifacts
 	}()
 	os.Stdin = r
 	os.Stdout = stdoutW
