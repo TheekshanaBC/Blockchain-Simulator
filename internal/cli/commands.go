@@ -5,6 +5,7 @@ import (
 	"blockchain-simulator/internal/ledger"
 	"blockchain-simulator/internal/wallet"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 )
@@ -163,7 +164,10 @@ func handlePool(ctx *cliContext, args []string) {
 	if len(ctx.chain.PendingPool) == 0 {
 		fmt.Println(ColorYellow + "No pending transactions!" + Reset)
 	} else {
-		wallets, _ := wallet.GetAllWallets(ctx.walletFile)
+		wallets, err := wallet.GetAllWallets(ctx.walletFile)
+		if err != nil && !os.IsNotExist(err) {
+			fmt.Println(ColorRed+"Warning: Failed to load wallets from keystore:"+Reset, err)
+		}
 		fmt.Println(ColorCyan + "--- Pending Transactions ---" + Reset)
 		for i, tx := range ctx.chain.PendingPool {
 			senderLabel := getAddressLabel(tx.Sender, wallets)
@@ -175,7 +179,10 @@ func handlePool(ctx *cliContext, args []string) {
 
 func handleBalances(ctx *cliContext, args []string) {
 	balances := ledger.CalculateBalances(ctx.chain.Blocks)
-	wallets, _ := wallet.GetAllWallets(ctx.walletFile)
+	wallets, err := wallet.GetAllWallets(ctx.walletFile)
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Println(ColorRed+"Warning: Failed to load wallets from keystore:"+Reset, err)
+	}
 	fmt.Println(ColorCyan + "--- Account Balances ---" + Reset)
 	for acc, bal := range balances {
 		label := getAddressLabel(acc, wallets)
@@ -193,7 +200,10 @@ func handleValidate(ctx *cliContext, args []string) {
 }
 
 func handlePrint(ctx *cliContext, args []string) {
-	wallets, _ := wallet.GetAllWallets(ctx.walletFile)
+	wallets, err := wallet.GetAllWallets(ctx.walletFile)
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Println(ColorRed+"Warning: Failed to load wallets from keystore:"+Reset, err)
+	}
 	printBlockchain(ctx.chain, wallets)
 }
 

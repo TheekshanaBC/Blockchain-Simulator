@@ -56,7 +56,11 @@ func StartCLI(c *chain.Chain) {
 
 	// Ensure data directory exists
 	if _, err := os.Stat("data"); os.IsNotExist(err) {
-		os.Mkdir("data", 0755)
+		err = os.Mkdir("data", 0755)
+		if err != nil {
+			fmt.Println(ColorRed+"Error creating data directory:"+Reset, err)
+			return
+		}
 	}
 
 	fmt.Println(ColorYellow + "No active wallet loaded. Use 'loadwallet <name>' or 'createwallet <name>'." + Reset)
