@@ -1,7 +1,6 @@
 package wallet
 
 import (
-	"crypto/elliptic"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
@@ -67,7 +66,7 @@ func LoadFromKeystore(filename string, name string) (*Wallet, error) {
 	if err != nil {
 		return nil, err
 	}
-	pubKeyBytes := elliptic.Marshal(privKey.PublicKey.Curve, privKey.PublicKey.X, privKey.PublicKey.Y)
+	pubKeyBytes := marshalUncompressed(privKey.PublicKey.Curve, privKey.PublicKey.X, privKey.PublicKey.Y)
 	return &Wallet{
 		PrivateKey:     privKey,
 		PublicKeyBytes: pubKeyBytes,
@@ -85,7 +84,7 @@ func GetAllWallets(filename string) (map[string]*Wallet, error) {
 	for name, data := range keystore {
 		privKey, err := x509.ParseECPrivateKey(data.PrivateKey)
 		if err == nil {
-			pubKeyBytes := elliptic.Marshal(privKey.PublicKey.Curve, privKey.PublicKey.X, privKey.PublicKey.Y)
+			pubKeyBytes := marshalUncompressed(privKey.PublicKey.Curve, privKey.PublicKey.X, privKey.PublicKey.Y)
 			wallets[name] = &Wallet{
 				PrivateKey:     privKey,
 				PublicKeyBytes: pubKeyBytes,
