@@ -7,6 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 const dbFile = "data/chain.json"
@@ -46,6 +48,21 @@ func main() {
 		fmt.Println("Chain validated successfully.")
 		myChain = loadedChain
 	}
+
+	// Set up signal handling for graceful shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("\nReceived interrupt signal. Saving chain to disk...")
+		err := storage.SaveChain(myChain, dbFile)
+		if err != nil {
+			fmt.Println("Error saving chain:", err)
+			os.Exit(1)
+		}
+		fmt.Println("Chain saved successfully! Exiting.")
+		os.Exit(0)
+	}()
 
 	cli.StartCLI(myChain)
 
