@@ -295,6 +295,11 @@ func TestChain_JSONSerialization(t *testing.T) {
 	}
 }
 
+/*
+TestValidate_DifficultyMismatch verifies that the blockchain validation logic
+correctly detects and rejects blocks that have tampered with their difficulty
+target when a retarget was expected.
+*/
 func TestValidate_DifficultyMismatch(t *testing.T) {
 	myChain := NewChain(2, 3, 10, 1, 10) // N=3
 	wAlice := wallet.NewWallet()
@@ -319,6 +324,11 @@ func TestValidate_DifficultyMismatch(t *testing.T) {
 	}
 }
 
+/*
+TestValidate_TamperTimestampRetarget verifies that the validation process
+catches malicious attempts to manipulate block timestamps to artificially
+lower the difficulty during a retarget window.
+*/
 func TestValidate_TamperTimestampRetarget(t *testing.T) {
 	myChain := NewChain(2, 3, 10, 1, 10)
 	wAlice := wallet.NewWallet()
@@ -358,6 +368,11 @@ func TestValidate_TamperTimestampRetarget(t *testing.T) {
 	}
 }
 
+/*
+TestRetarget_ConvergesTowardTarget tests the dynamic difficulty adjustment
+algorithm. It simulates mining blocks much faster than the target block time
+and asserts that the difficulty correctly increases to compensate.
+*/
 func TestRetarget_ConvergesTowardTarget(t *testing.T) {
 	// targetBlockTimeSec is 100, which is far above actual mine time (almost instant)
 	myChain := NewChain(2, 3, 100, 1, 10)
@@ -372,5 +387,53 @@ func TestRetarget_ConvergesTowardTarget(t *testing.T) {
 
 	if myChain.Difficulty <= 2 {
 		t.Errorf("expected difficulty to increase when blocks mine faster than target, got %d", myChain.Difficulty)
+	}
+}
+
+/*
+TestMaxTxPerBlock verifies that the mining process respects the MaxTxPerBlock
+limit, properly slicing the pending pool so that only the allowed number of
+transactions are included in the new block, leaving the rest pending.
+*/
+func TestMaxTxPerBlock(t *testing.T) {
+	myChain := NewChain(1, 5, 8, 1, 10)
+	
+	// Override the max tx limit for testing
+	myChain.MaxTxPerBlock = 2
+
+	wAlice := wallet.NewWallet()
+	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	myChain.RequestFaucetFunds(addrAlice, 100)
+	myChain.MinePendingTransactions()
+
+	// Alice sends 5 transactions
+	for i := 0; i < 5; i++ {
+		tx := createSignedTx(wAlice, "Bob", 1, uint64(i+1))
+		err := myChain.AddTransaction(tx)
+		if err != nil {
+			t.Fatalf("Failed to add transaction: %v", err)
+		}
+	}
+
+	if len(myChain.PendingPool) != 5 {
+		t.Fatalf("Expected 5 pending transactions, got %d", len(myChain.PendingPool))
+	}
+
+	// Mine a block, it should only take 2 transactions from the pool
+	err := myChain.MinePendingTransactions()
+	if err != nil {
+		t.Fatalf("Mine failed: %v", err)
+	}
+
+	lastBlock := myChain.Blocks[len(myChain.Blocks)-1]
+	
+	// The block should have 3 transactions: 1 coinbase + 2 user transactions
+	if len(lastBlock.Transactions) != 3 {
+		t.Errorf("Expected block to have 3 transactions (1 coinbase + 2 user), got %d", len(lastBlock.Transactions))
+	}
+
+	// The pending pool should have 3 transactions remaining
+	if len(myChain.PendingPool) != 3 {
+		t.Errorf("Expected pending pool to have 3 transactions remaining, got %d", len(myChain.PendingPool))
 	}
 }

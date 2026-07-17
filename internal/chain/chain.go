@@ -15,6 +15,7 @@ type Chain struct {
 	MaxDifficulty      int                 `json:"max_difficulty"`
 	MinDifficulty      int                 `json:"min_difficulty"`
 	InitialDifficulty  int                 `json:"initial_difficulty"`
+	MaxTxPerBlock      int                 `json:"max_tx_per_block"` // Size limit per block
 }
 
 func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minDifficulty int, maxDifficulty int) *Chain {
@@ -37,6 +38,7 @@ func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minD
 		MaxDifficulty:      maxDifficulty,
 		MinDifficulty:      minDifficulty,
 		InitialDifficulty:  difficulty,
+		MaxTxPerBlock:      10, // Default size limit per block
 	}
 }
 
