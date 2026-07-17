@@ -14,23 +14,21 @@ type walletData struct {
 
 type Keystore map[string]walletData
 
+// read and parses the keystore json file
 func loadRawKeystore(filename string) (Keystore, error) {
 	file, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	// if it's the old format (just one wallet without names), it will fail to unmarshal into Keystore
-	// so we can just return empty and let it be overwritten or ignored.
 	var keystore Keystore
-	err = json.Unmarshal(file, &keystore)
-	if err != nil {
+	if err = json.Unmarshal(file, &keystore); err != nil {
 		return nil, err
 	}
 	return keystore, nil
 }
 
-// SaveToKeystore saves a specific wallet to the keystore file under a given name
+// saves a specific wallet to the keystore file under a given name
 func SaveToKeystore(filename string, name string, w *Wallet) error {
 	keystore, err := loadRawKeystore(filename)
 	if err != nil {
@@ -53,7 +51,7 @@ func SaveToKeystore(filename string, name string, w *Wallet) error {
 	return os.WriteFile(filename, file, 0644)
 }
 
-// LoadFromKeystore loads a specific wallet from the keystore
+// loads a specific wallet from the keystore
 func LoadFromKeystore(filename string, name string) (*Wallet, error) {
 	keystore, err := loadRawKeystore(filename)
 	if err != nil {
@@ -76,7 +74,7 @@ func LoadFromKeystore(filename string, name string) (*Wallet, error) {
 	}, nil
 }
 
-// GetAllWallets returns all wallets in the keystore
+// returns all wallets in the keystore
 func GetAllWallets(filename string) (map[string]*Wallet, error) {
 	keystore, err := loadRawKeystore(filename)
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 	"math/big"
 )
 
-// DoubleHashBytes performs a double SHA-256 hash on raw bytes.
+// performs a double SHA-256 hash on raw bytes.
 func DoubleHashBytes(data []byte) []byte {
 	h1 := sha256.Sum256(data)
 	h2 := sha256.Sum256(h1[:])
@@ -50,7 +50,7 @@ func (tx *Transaction) Sign(privKey *ecdsa.PrivateKey) error {
 	return nil
 }
 
-// Verify checks if the transaction signature is valid
+// checks if the transaction signature is valid
 func (tx *Transaction) Verify() bool {
 	// System-generated transactions don't need signatures
 	if IsSystemAddress(tx.Sender) {

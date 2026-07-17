@@ -4,6 +4,7 @@ import (
 	"blockchain-simulator/internal/block"
 )
 
+// recalculate difficulty every N blocks
 func expectedDifficultyAfterWindow(blocks []*block.Block, nextHeight, N int, targetBlockTime int64, prevDifficulty, min, max int) int {
 	if nextHeight <= 1 || (nextHeight-1)%N != 0 {
 		return prevDifficulty
@@ -30,6 +31,7 @@ func expectedDifficultyAfterWindow(blocks []*block.Block, nextHeight, N int, tar
 	return adjustDifficulty(prevDifficulty, actual, expected, min, max)
 }
 
+// adjust difficulty based on actual time taken to mine previous N blocks
 func adjustDifficulty(current int, actual, expected int64, min, max int) int {
 	if actual < expected/2 {
 		current++
