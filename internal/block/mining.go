@@ -84,7 +84,7 @@ func (b *Block) Mine(difficulty int) {
 
 		cancel()
 		extraNonce++
-		b.Transactions[0].Signature = []byte(fmt.Sprintf("%d", extraNonce))
+		b.Transactions[0].Signature = fmt.Appendf(nil, "%d", extraNonce)
 		b.Header.Nonce = 0
 	}
 }
