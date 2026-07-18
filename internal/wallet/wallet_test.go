@@ -109,3 +109,40 @@ func TestKeystoreOperations(t *testing.T) {
 		t.Errorf("Expected to find Bob's wallet in GetAllWallets")
 	}
 }
+
+/*
+TestBytesToPublicKey_InvalidLength ensures that passing wrong-length byte slices
+returns nil and does not panic.
+*/
+func TestBytesToPublicKey_InvalidLength(t *testing.T) {
+	// Too short
+	shortBytes := []byte{4, 1, 2, 3}
+	if BytesToPublicKey(shortBytes) != nil {
+		t.Errorf("Expected nil for short public key bytes")
+	}
+
+	// Too long
+	w := NewWallet()
+	longBytes := append(w.PublicKeyBytes, []byte{1, 2, 3}...)
+	if BytesToPublicKey(longBytes) != nil {
+		t.Errorf("Expected nil for long public key bytes")
+	}
+}
+
+/*
+TestBytesToPublicKey_NotOnCurve ensures that passing a mathematically invalid
+point (not on the P-256 curve) returns nil.
+*/
+func TestBytesToPublicKey_NotOnCurve(t *testing.T) {
+	w := NewWallet()
+	invalidBytes := make([]byte, len(w.PublicKeyBytes))
+	copy(invalidBytes, w.PublicKeyBytes)
+	
+	// Corrupt the X coordinate to make it almost certainly not on the curve
+	invalidBytes[5] ^= 0xFF
+	invalidBytes[10] ^= 0xFF
+
+	if BytesToPublicKey(invalidBytes) != nil {
+		t.Errorf("Expected nil for a public key point not on the curve")
+	}
+}

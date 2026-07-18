@@ -437,3 +437,21 @@ func TestMaxTxPerBlock(t *testing.T) {
 		t.Errorf("Expected pending pool to have 3 transactions remaining, got %d", len(myChain.PendingPool))
 	}
 }
+
+/*
+TestNewChain_DifficultyClamping ensures that the initial difficulty
+is properly clamped between MinDifficulty and MaxDifficulty.
+*/
+func TestNewChain_DifficultyClamping(t *testing.T) {
+	// Test difficulty < minDifficulty
+	c1 := NewChain(0, 10, 60, 2, 5)
+	if c1.Difficulty != 2 {
+		t.Errorf("Expected difficulty to be clamped up to MinDifficulty (2), got %d", c1.Difficulty)
+	}
+
+	// Test difficulty > maxDifficulty
+	c2 := NewChain(10, 10, 60, 2, 5)
+	if c2.Difficulty != 5 {
+		t.Errorf("Expected difficulty to be clamped down to MaxDifficulty (5), got %d", c2.Difficulty)
+	}
+}

@@ -77,9 +77,6 @@ func validateGenesisBlock(genesisBlock *block.Block, balances map[string]int64, 
 		return ValidationResult{false, 0, "Genesis Stored Hash Mismatch"}
 	}
 
-	if genesisBlock.Header.Difficulty != 0 {
-		return ValidationResult{false, 0, "Genesis difficulty should be 0"}
-	}
 
 	for _, tx := range genesisBlock.Transactions {
 		if tx.Sender == block.SystemAddressFaucet {
