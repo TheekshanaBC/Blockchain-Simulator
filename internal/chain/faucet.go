@@ -15,6 +15,9 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 	if strings.TrimSpace(recipient) == "" {
 		return fmt.Errorf("recipient address cannot be empty")
 	}
+	if recipient == block.SystemAddressCoinbase {
+		return fmt.Errorf("cannot request faucet funds for COINBASE address")
+	}
 	if amount <= 0 {
 		return fmt.Errorf("faucet amount must be strictly positive")
 	}

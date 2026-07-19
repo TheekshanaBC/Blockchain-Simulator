@@ -109,9 +109,22 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 	}
 	tx.Sign(w.PrivateKey)
 	
-	// Force it into a block, bypassing AddTransaction checks
-	c.pendingPool = append(c.pendingPool, tx)
+	// Add a valid transaction first to mine a block
+	tx2 := block.Transaction{
+		Sender:    addr,
+		Recipient: "userC",
+		Amount:    10,
+		Sequence:  1,
+		PublicKey: w.PublicKeyBytes,
+	}
+	tx2.Sign(w.PrivateKey)
+	c.AddTransaction(tx2)
 	c.MinePendingTransactions()
+
+	// Tamper with the mined block to force an overspend (negative balance)
+	c.blocks[2].Transactions[1] = tx // replace tx2 with the overspending tx
+	c.blocks[2].Header.MerkleRoot = block.CalculateMerkleRoot(c.blocks[2].Transactions)
+	c.blocks[2].Hash = c.blocks[2].CalculateHash()
 	
 	res := c.Validate()
 	if res.IsValid || !strings.Contains(res.Reason, "negative balance for") {
