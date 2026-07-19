@@ -14,7 +14,7 @@ type ValidationResult struct {
 }
 
 func (c *Chain) Validate() ValidationResult {
-	if len(c.Blocks) == 0 {
+	if len(c.blocks) == 0 {
 		return ValidationResult{false, 0, "Chain is empty"}
 	}
 
@@ -22,12 +22,12 @@ func (c *Chain) Validate() ValidationResult {
 	sequences := make(map[string]uint64)
 	faucetReceived := make(map[string]int64)
 
-	res := validateGenesisBlock(c.Blocks[0], balances, sequences, faucetReceived)
+	res := validateGenesisBlock(c.blocks[0], balances, sequences, faucetReceived)
 	if !res.IsValid {
 		return res
 	}
 
-	if len(c.Blocks) < 2 {
+	if len(c.blocks) < 2 {
 		return ValidationResult{true, -1, "Chain is Valid"}
 	}
 
@@ -38,15 +38,15 @@ func (c *Chain) Validate() ValidationResult {
 	if expectedDifficulty > c.MaxDifficulty {
 		expectedDifficulty = c.MaxDifficulty
 	}
-	for i := 1; i < len(c.Blocks); i++ {
-		currentBlock := c.Blocks[i]
-		previousBlock := c.Blocks[i-1]
+	for i := 1; i < len(c.blocks); i++ {
+		currentBlock := c.blocks[i]
+		previousBlock := c.blocks[i-1]
 
 		if currentBlock.Height != previousBlock.Height+1 {
 			return ValidationResult{false, currentBlock.Height, "Block Height mismatch"}
 		}
 
-		expectedDifficulty = expectedDifficultyAfterWindow(c.Blocks, currentBlock.Height, c.RetargetWindow, c.TargetBlockTimeSec, expectedDifficulty, c.MinDifficulty, c.MaxDifficulty)
+		expectedDifficulty = expectedDifficultyAfterWindow(c.blocks, currentBlock.Height, c.RetargetWindow, c.TargetBlockTimeSec, expectedDifficulty, c.MinDifficulty, c.MaxDifficulty)
 
 		res = validateBlockAgainstPrevious(currentBlock, previousBlock, expectedDifficulty)
 		if !res.IsValid {

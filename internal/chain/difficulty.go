@@ -48,8 +48,8 @@ func adjustDifficulty(current int, actual, expected int64, min, max int) int {
 }
 
 func (c *Chain) maybeRetarget() bool {
-	nextHeight := len(c.Blocks)
-	newDiff := expectedDifficultyAfterWindow(c.Blocks, nextHeight, c.RetargetWindow, c.TargetBlockTimeSec, c.Difficulty, c.MinDifficulty, c.MaxDifficulty)
+	nextHeight := len(c.blocks)
+	newDiff := expectedDifficultyAfterWindow(c.blocks, nextHeight, c.RetargetWindow, c.TargetBlockTimeSec, c.Difficulty, c.MinDifficulty, c.MaxDifficulty)
 	if newDiff != c.Difficulty {
 		c.Difficulty = newDiff
 		return true

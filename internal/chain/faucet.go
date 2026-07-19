@@ -24,14 +24,14 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 
 	// Calculate total amount already given to this address by the faucet
 	var totalReceived int64 = 0
-	for _, b := range c.Blocks {
+	for _, b := range c.blocks {
 		for _, tx := range b.Transactions {
 			if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
 				totalReceived += tx.Amount
 			}
 		}
 	}
-	for _, tx := range c.PendingPool {
+	for _, tx := range c.pendingPool {
 		if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
 			totalReceived += tx.Amount
 		}
@@ -48,6 +48,6 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 		// FAUCET transactions don't need a signature or sequence
 	}
 
-	c.PendingPool = append(c.PendingPool, tx)
+	c.pendingPool = append(c.pendingPool, tx)
 	return nil
 }

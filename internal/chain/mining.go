@@ -7,22 +7,22 @@ import (
 )
 
 func (c *Chain) MinePendingTransactions() error {
-	if len(c.PendingPool) == 0 {
+	if len(c.pendingPool) == 0 {
 		return fmt.Errorf("no pending transactions to mine")
 	}
 	c.maybeRetarget()
 
-	lastBlock := c.Blocks[len(c.Blocks)-1]
+	lastBlock := c.blocks[len(c.blocks)-1]
 
 	// Limit the number of transactions to MaxTxPerBlock
-	numMined := len(c.PendingPool)
+	numMined := len(c.pendingPool)
 	if c.MaxTxPerBlock > 0 && numMined > c.MaxTxPerBlock {
 		numMined = c.MaxTxPerBlock
 	}
 
 	// Take a snapshot of the selected transactions to mine
 	txsToMine := make([]block.Transaction, numMined)
-	copy(txsToMine, c.PendingPool[:numMined])
+	copy(txsToMine, c.pendingPool[:numMined])
 
 	newBlock := &block.Block{
 		Height:       lastBlock.Height + 1,
@@ -35,16 +35,16 @@ func (c *Chain) MinePendingTransactions() error {
 
 	newBlock.Mine(c.Difficulty)
 
-	c.Blocks = append(c.Blocks, newBlock)
+	c.blocks = append(c.blocks, newBlock)
 	
 	// Remove only the transactions we just mined from the pending pool,
 	// preserving any new transactions added while mining was in progress.
-	if len(c.PendingPool) >= numMined {
-		remainingPool := make([]block.Transaction, len(c.PendingPool)-numMined)
-		copy(remainingPool, c.PendingPool[numMined:])
-		c.PendingPool = remainingPool
+	if len(c.pendingPool) >= numMined {
+		remainingPool := make([]block.Transaction, len(c.pendingPool)-numMined)
+		copy(remainingPool, c.pendingPool[numMined:])
+		c.pendingPool = remainingPool
 	} else {
-		c.PendingPool = []block.Transaction{}
+		c.pendingPool = []block.Transaction{}
 	}
 
 	return nil

@@ -70,7 +70,7 @@ func handleMyWallet(ctx *cliContext, args []string) {
 		return
 	}
 	address := wallet.AddressFromPublicKey(ctx.activeWallet.PublicKeyBytes)
-	balances := ledger.CalculateBalances(ctx.chain.Blocks)
+	balances := ledger.CalculateBalances(ctx.chain.GetBlocks())
 	balance := balances[address]
 	fmt.Printf("%sActive Wallet:%s %s\n", ColorCyan, Reset, ctx.activeWalletName)
 	fmt.Printf("%sYour Address:%s %s\n", ColorCyan, Reset, address)
@@ -118,7 +118,7 @@ func handleAddTx(ctx *cliContext, args []string) {
 
 	senderAddress := wallet.AddressFromPublicKey(ctx.activeWallet.PublicKeyBytes)
 
-	sequences := ledger.CalculatePendingSequences(ctx.chain.Blocks, ctx.chain.PendingPool)
+	sequences := ledger.CalculatePendingSequences(ctx.chain.GetBlocks(), ctx.chain.GetPendingPool())
 	nextSeq := sequences[senderAddress] + 1
 
 	tx := block.Transaction{
@@ -161,7 +161,7 @@ func handleMine(ctx *cliContext, args []string) {
 }
 
 func handlePool(ctx *cliContext, args []string) {
-	if len(ctx.chain.PendingPool) == 0 {
+	if len(ctx.chain.GetPendingPool()) == 0 {
 		fmt.Println(ColorYellow + "No pending transactions!" + Reset)
 	} else {
 		wallets, err := wallet.GetAllWallets(ctx.walletFile)
@@ -169,7 +169,7 @@ func handlePool(ctx *cliContext, args []string) {
 			fmt.Println(ColorRed+"Warning: Failed to load wallets from keystore:"+Reset, err)
 		}
 		fmt.Println(ColorCyan + "--- Pending Transactions ---" + Reset)
-		for i, tx := range ctx.chain.PendingPool {
+		for i, tx := range ctx.chain.GetPendingPool() {
 			senderLabel := getAddressLabel(tx.Sender, wallets)
 			recipientLabel := getAddressLabel(tx.Recipient, wallets)
 			fmt.Printf("%s%d.%s %s --> %s : %d\n", ColorYellow, i+1, Reset, senderLabel, recipientLabel, tx.Amount)
@@ -178,7 +178,7 @@ func handlePool(ctx *cliContext, args []string) {
 }
 
 func handleBalances(ctx *cliContext, args []string) {
-	balances := ledger.CalculateBalances(ctx.chain.Blocks)
+	balances := ledger.CalculateBalances(ctx.chain.GetBlocks())
 	wallets, err := wallet.GetAllWallets(ctx.walletFile)
 	if err != nil && !os.IsNotExist(err) {
 		fmt.Println(ColorRed+"Warning: Failed to load wallets from keystore:"+Reset, err)

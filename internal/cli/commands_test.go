@@ -133,7 +133,7 @@ func TestHandleValidate_Invalid(t *testing.T) {
 	c.MinePendingTransactions()
 	
 	// Corrupt a block
-	c.Blocks[1].Hash = "corrupted_hash"
+	c.GetBlocks()[1].Hash = "corrupted_hash"
 	ctx := &cliContext{chain: c}
 
 	out := captureOutput(func() {
