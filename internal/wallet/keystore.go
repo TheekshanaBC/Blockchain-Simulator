@@ -37,6 +37,10 @@ func SaveToKeystore(filename string, name string, w *Wallet) error {
 		keystore = make(Keystore)
 	}
 
+	if _, exists := keystore[name]; exists {
+		return fmt.Errorf("wallet '%s' already exists", name)
+	}
+
 	privKeyBytes, err := x509.MarshalECPrivateKey(w.PrivateKey)
 	if err != nil {
 		return err
