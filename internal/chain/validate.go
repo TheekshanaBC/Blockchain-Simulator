@@ -14,6 +14,9 @@ type ValidationResult struct {
 }
 
 func (c *Chain) Validate() ValidationResult {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	if len(c.blocks) == 0 {
 		return ValidationResult{false, 0, "Chain is empty"}
 	}

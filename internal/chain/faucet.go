@@ -22,6 +22,9 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 		return fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	// Calculate total amount already given to this address by the faucet
 	var totalReceived int64 = 0
 	for _, b := range c.blocks {

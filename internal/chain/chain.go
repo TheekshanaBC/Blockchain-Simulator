@@ -5,9 +5,11 @@ import (
 	"blockchain-simulator/internal/ledger"
 	"encoding/json"
 	"fmt"
+	"sync"
 )
 
 type Chain struct {
+	mu                 sync.RWMutex
 	blocks             []*block.Block
 	Difficulty         int                 `json:"difficulty"`
 	pendingPool        []block.Transaction
@@ -20,16 +22,26 @@ type Chain struct {
 }
 
 func (c *Chain) GetBlocks() []*block.Block {
-	return c.blocks
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	blocksCopy := make([]*block.Block, len(c.blocks))
+	copy(blocksCopy, c.blocks)
+	return blocksCopy
 }
 
 func (c *Chain) GetPendingPool() []block.Transaction {
-	return c.pendingPool
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	poolCopy := make([]block.Transaction, len(c.pendingPool))
+	copy(poolCopy, c.pendingPool)
+	return poolCopy
 }
 
 type chainAlias Chain
 
 func (c *Chain) MarshalJSON() ([]byte, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return json.Marshal(&struct {
 		Blocks      []*block.Block      `json:"blocks"`
 		PendingPool []block.Transaction `json:"pending_pool"`
@@ -42,6 +54,8 @@ func (c *Chain) MarshalJSON() ([]byte, error) {
 }
 
 func (c *Chain) UnmarshalJSON(data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	aux := &struct {
 		Blocks      []*block.Block      `json:"blocks"`
 		PendingPool []block.Transaction `json:"pending_pool"`
@@ -85,6 +99,9 @@ func (c *Chain) AddTransaction(tx block.Transaction) error {
 	if block.IsSystemAddress(tx.Sender) {
 		return fmt.Errorf("transaction rejected: %s is reserved for system use only", tx.Sender)
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	balances := ledger.CalculateAvailableBalances(c.blocks, c.pendingPool)
 	sequences := ledger.CalculatePendingSequences(c.blocks, c.pendingPool)

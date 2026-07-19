@@ -7,6 +7,9 @@ import (
 )
 
 func (c *Chain) MinePendingTransactions() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if len(c.pendingPool) == 0 {
 		return fmt.Errorf("no pending transactions to mine")
 	}
