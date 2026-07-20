@@ -60,7 +60,7 @@ func printBlockchain(c *chain.Chain, wallets map[string]*wallet.Wallet) {
 	boxWidth := 85
 	innerW := boxWidth - 4
 
-	for i, b := range c.Blocks {
+	for i, b := range c.GetBlocks() {
 		fmt.Println(ColorBlue + "+" + strings.Repeat("-", boxWidth-2) + "+" + Reset)
 		printLine(fmt.Sprintf("Block %d", b.Height), ColorCyan, innerW)
 		printLine(fmt.Sprintf("Hash: %s", b.Hash), ColorYellow, innerW)
@@ -79,7 +79,7 @@ func printBlockchain(c *chain.Chain, wallets map[string]*wallet.Wallet) {
 			}
 		}
 		fmt.Println(ColorBlue + "+" + strings.Repeat("-", boxWidth-2) + "+" + Reset)
-		if i < len(c.Blocks)-1 {
+		if i < len(c.GetBlocks())-1 {
 			spaces := strings.Repeat(" ", boxWidth/2)
 			fmt.Printf("%s%s|\n", ColorBlue, spaces)
 			fmt.Printf("%s%sv%s\n", ColorBlue, spaces, Reset)

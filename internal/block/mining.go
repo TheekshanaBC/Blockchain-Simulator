@@ -79,6 +79,7 @@ func (b *Block) Mine(difficulty int) {
 			b.Header.Nonce = res.nonce
 			b.Hash = res.hash
 			cancel()
+			wg.Wait()
 			return
 		}
 

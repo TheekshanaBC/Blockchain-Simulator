@@ -15,6 +15,9 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 	if strings.TrimSpace(recipient) == "" {
 		return fmt.Errorf("recipient address cannot be empty")
 	}
+	if recipient == block.SystemAddressCoinbase {
+		return fmt.Errorf("cannot request faucet funds for COINBASE address")
+	}
 	if amount <= 0 {
 		return fmt.Errorf("faucet amount must be strictly positive")
 	}
@@ -22,16 +25,19 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 		return fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	// Calculate total amount already given to this address by the faucet
 	var totalReceived int64 = 0
-	for _, b := range c.Blocks {
+	for _, b := range c.blocks {
 		for _, tx := range b.Transactions {
 			if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
 				totalReceived += tx.Amount
 			}
 		}
 	}
-	for _, tx := range c.PendingPool {
+	for _, tx := range c.pendingPool {
 		if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
 			totalReceived += tx.Amount
 		}
@@ -48,6 +54,6 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 		// FAUCET transactions don't need a signature or sequence
 	}
 
-	c.PendingPool = append(c.PendingPool, tx)
+	c.pendingPool = append(c.pendingPool, tx)
 	return nil
 }

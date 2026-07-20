@@ -48,7 +48,7 @@ func TestValidationAndTamperDetection(t *testing.T) {
 	}
 
 	// Tampering
-	myChain.Blocks[1].Transactions[0].Amount = 5000
+	myChain.blocks[1].Transactions[0].Amount = 5000
 
 	tamperedResult := myChain.Validate()
 
@@ -75,12 +75,12 @@ func TestNewChain(t *testing.T) {
 		t.Errorf("Expected difficulty %d, got %d", difficulty, myChain.Difficulty)
 	}
 
-	if len(myChain.Blocks) != 1 {
-		t.Fatalf("Expected exactly 1 block (Genesis), got %d", len(myChain.Blocks))
+	if len(myChain.blocks) != 1 {
+		t.Fatalf("Expected exactly 1 block (Genesis), got %d", len(myChain.blocks))
 	}
 
-	if len(myChain.PendingPool) != 0 {
-		t.Errorf("Expected pending pool to be empty, got %d", len(myChain.PendingPool))
+	if len(myChain.pendingPool) != 0 {
+		t.Errorf("Expected pending pool to be empty, got %d", len(myChain.pendingPool))
 	}
 
 	result := myChain.Validate()
@@ -110,8 +110,8 @@ func TestAddTransaction(t *testing.T) {
 		t.Errorf("Expected valid transaction to succeed, got error: %v", err)
 	}
 
-	if len(myChain.PendingPool) != 1 {
-		t.Errorf("Expected 1 pending transaction, got %d", len(myChain.PendingPool))
+	if len(myChain.pendingPool) != 1 {
+		t.Errorf("Expected 1 pending transaction, got %d", len(myChain.pendingPool))
 	}
 
 	// 2. Reject COINBASE sender
@@ -153,19 +153,19 @@ func TestMinePendingTransactions(t *testing.T) {
 		t.Errorf("Expected successful mine, got error: %v", err)
 	}
 
-	if len(myChain.Blocks) != 2 {
-		t.Errorf("Expected chain to have 2 blocks, got %d", len(myChain.Blocks))
+	if len(myChain.blocks) != 2 {
+		t.Errorf("Expected chain to have 2 blocks, got %d", len(myChain.blocks))
 	}
 
-	if len(myChain.PendingPool) != 0 {
-		t.Errorf("Expected pending pool to be cleared, got %d", len(myChain.PendingPool))
+	if len(myChain.pendingPool) != 0 {
+		t.Errorf("Expected pending pool to be cleared, got %d", len(myChain.pendingPool))
 	}
 
-	lastBlock := myChain.Blocks[len(myChain.Blocks)-1]
+	lastBlock := myChain.blocks[len(myChain.blocks)-1]
 	if lastBlock.Height != 1 {
 		t.Errorf("Expected new block height to be 1, got %d", lastBlock.Height)
 	}
-	if lastBlock.Header.PrevHash != myChain.Blocks[0].Hash {
+	if lastBlock.Header.PrevHash != myChain.blocks[0].Hash {
 		t.Errorf("Expected new block PrevHash to match Genesis hash")
 	}
 }
@@ -182,22 +182,22 @@ func TestValidate_InvalidLinks(t *testing.T) {
 	myChain.MinePendingTransactions()
 
 	// Tamper with Genesis block Hash
-	originalGenesisHash := myChain.Blocks[0].Hash
-	myChain.Blocks[0].Hash = "invalidhash"
+	originalGenesisHash := myChain.blocks[0].Hash
+	myChain.blocks[0].Hash = "invalidhash"
 	result := myChain.Validate()
 	if result.IsValid {
 		t.Errorf("Expected chain to be invalid due to Genesis block hash tampering")
 	}
-	myChain.Blocks[0].Hash = originalGenesisHash
+	myChain.blocks[0].Hash = originalGenesisHash
 
 	// Tamper with Block 1 Hash
-	originalHash := myChain.Blocks[1].Hash
-	myChain.Blocks[1].Hash = "invalidhash"
+	originalHash := myChain.blocks[1].Hash
+	myChain.blocks[1].Hash = "invalidhash"
 	result = myChain.Validate()
 	if result.IsValid {
 		t.Errorf("Expected chain to be invalid due to broken link/hash")
 	}
-	myChain.Blocks[1].Hash = originalHash
+	myChain.blocks[1].Hash = originalHash
 }
 
 /*
@@ -228,7 +228,7 @@ func TestValidate_ForgedSignature(t *testing.T) {
 	myChain.MinePendingTransactions()
 
 	// Now tamper with the signed transaction in the mined block
-	tamperedBlock := myChain.Blocks[2]
+	tamperedBlock := myChain.blocks[2]
 	// [0] is coinbase, [1] is Alice's tx
 	tamperedTx := &tamperedBlock.Transactions[1]
 
@@ -278,20 +278,20 @@ func TestChain_JSONSerialization(t *testing.T) {
 		t.Errorf("Expected Difficulty %d, got %d", originalChain.Difficulty, decodedChain.Difficulty)
 	}
 
-	if len(decodedChain.Blocks) != len(originalChain.Blocks) {
-		t.Fatalf("Expected %d blocks, got %d", len(originalChain.Blocks), len(decodedChain.Blocks))
+	if len(decodedChain.blocks) != len(originalChain.blocks) {
+		t.Fatalf("Expected %d blocks, got %d", len(originalChain.blocks), len(decodedChain.blocks))
 	}
 
-	if decodedChain.Blocks[1].Hash != originalChain.Blocks[1].Hash {
-		t.Errorf("Expected Block 1 Hash %s, got %s", originalChain.Blocks[1].Hash, decodedChain.Blocks[1].Hash)
+	if decodedChain.blocks[1].Hash != originalChain.blocks[1].Hash {
+		t.Errorf("Expected Block 1 Hash %s, got %s", originalChain.blocks[1].Hash, decodedChain.blocks[1].Hash)
 	}
 
-	if len(decodedChain.PendingPool) != len(originalChain.PendingPool) {
-		t.Fatalf("Expected %d pending transactions, got %d", len(originalChain.PendingPool), len(decodedChain.PendingPool))
+	if len(decodedChain.pendingPool) != len(originalChain.pendingPool) {
+		t.Fatalf("Expected %d pending transactions, got %d", len(originalChain.pendingPool), len(decodedChain.pendingPool))
 	}
 
-	if decodedChain.PendingPool[0].Amount != originalChain.PendingPool[0].Amount {
-		t.Errorf("Expected Pending Transaction Amount %d, got %d", originalChain.PendingPool[0].Amount, decodedChain.PendingPool[0].Amount)
+	if decodedChain.pendingPool[0].Amount != originalChain.pendingPool[0].Amount {
+		t.Errorf("Expected Pending Transaction Amount %d, got %d", originalChain.pendingPool[0].Amount, decodedChain.pendingPool[0].Amount)
 	}
 }
 
@@ -312,8 +312,8 @@ func TestValidate_DifficultyMismatch(t *testing.T) {
 	}
 
 	// Tamper with the difficulty of a block
-	myChain.Blocks[2].Header.Difficulty = 99
-	myChain.Blocks[2].Hash = myChain.Blocks[2].CalculateHash()
+	myChain.blocks[2].Header.Difficulty = 99
+	myChain.blocks[2].Hash = myChain.blocks[2].CalculateHash()
 
 	result := myChain.Validate()
 	if result.IsValid {
@@ -347,17 +347,17 @@ func TestValidate_TamperTimestampRetarget(t *testing.T) {
 	}
 
 	// Tamper with a timestamp inside the first window (e.g. Block 2)
-	myChain.Blocks[2].Header.Timestamp += 1000 // Make it look very slow
-	myChain.Blocks[3].Header.Timestamp += 1000 // Keep them monotonic
-	myChain.Blocks[4].Header.Timestamp += 1000
+	myChain.blocks[2].Header.Timestamp += 1000 // Make it look very slow
+	myChain.blocks[3].Header.Timestamp += 1000 // Keep them monotonic
+	myChain.blocks[4].Header.Timestamp += 1000
 	// so it reaches the expected difficulty check for Block 4.
-	myChain.Blocks[2].Mine(myChain.Blocks[2].Header.Difficulty)
+	myChain.blocks[2].Mine(myChain.blocks[2].Header.Difficulty)
 
-	myChain.Blocks[3].Header.PrevHash = myChain.Blocks[2].Hash
-	myChain.Blocks[3].Mine(myChain.Blocks[3].Header.Difficulty)
+	myChain.blocks[3].Header.PrevHash = myChain.blocks[2].Hash
+	myChain.blocks[3].Mine(myChain.blocks[3].Header.Difficulty)
 
-	myChain.Blocks[4].Header.PrevHash = myChain.Blocks[3].Hash
-	myChain.Blocks[4].Mine(myChain.Blocks[4].Header.Difficulty)
+	myChain.blocks[4].Header.PrevHash = myChain.blocks[3].Hash
+	myChain.blocks[4].Mine(myChain.blocks[4].Header.Difficulty)
 
 	tamperedResult := myChain.Validate()
 	if tamperedResult.IsValid {
@@ -415,8 +415,8 @@ func TestMaxTxPerBlock(t *testing.T) {
 		}
 	}
 
-	if len(myChain.PendingPool) != 5 {
-		t.Fatalf("Expected 5 pending transactions, got %d", len(myChain.PendingPool))
+	if len(myChain.pendingPool) != 5 {
+		t.Fatalf("Expected 5 pending transactions, got %d", len(myChain.pendingPool))
 	}
 
 	// Mine a block, it should only take 2 transactions from the pool
@@ -425,7 +425,7 @@ func TestMaxTxPerBlock(t *testing.T) {
 		t.Fatalf("Mine failed: %v", err)
 	}
 
-	lastBlock := myChain.Blocks[len(myChain.Blocks)-1]
+	lastBlock := myChain.blocks[len(myChain.blocks)-1]
 	
 	// The block should have 3 transactions: 1 coinbase + 2 user transactions
 	if len(lastBlock.Transactions) != 3 {
@@ -433,8 +433,8 @@ func TestMaxTxPerBlock(t *testing.T) {
 	}
 
 	// The pending pool should have 3 transactions remaining
-	if len(myChain.PendingPool) != 3 {
-		t.Errorf("Expected pending pool to have 3 transactions remaining, got %d", len(myChain.PendingPool))
+	if len(myChain.pendingPool) != 3 {
+		t.Errorf("Expected pending pool to have 3 transactions remaining, got %d", len(myChain.pendingPool))
 	}
 }
 

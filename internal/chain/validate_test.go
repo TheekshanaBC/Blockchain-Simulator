@@ -13,7 +13,7 @@ Merkle Root is tampered with, validation fails appropriately at the root check.
 */
 func TestValidate_GenesisMerkleRootMismatch(t *testing.T) {
 	c := NewChain(1, 10, 60, 1, 5)
-	c.Blocks[0].Header.MerkleRoot = "tampered_root"
+	c.blocks[0].Header.MerkleRoot = "tampered_root"
 	
 	res := c.Validate()
 	if res.IsValid || !strings.Contains(res.Reason, "Genesis Merkle Root mismatch") {
@@ -32,9 +32,9 @@ func TestValidate_CoinbaseAmountWrong(t *testing.T) {
 	c.MinePendingTransactions() // Block 1
 	
 	// Modify the COINBASE tx amount in Block 1
-	c.Blocks[1].Transactions[0].Amount = 999 
-	c.Blocks[1].Header.MerkleRoot = block.CalculateMerkleRoot(c.Blocks[1].Transactions)
-	c.Blocks[1].Hash = c.Blocks[1].CalculateHash()
+	c.blocks[1].Transactions[0].Amount = 999 
+	c.blocks[1].Header.MerkleRoot = block.CalculateMerkleRoot(c.blocks[1].Transactions)
+	c.blocks[1].Hash = c.blocks[1].CalculateHash()
 	
 	res := c.Validate()
 	if res.IsValid || !strings.Contains(res.Reason, "Invalid COINBASE reward") {
@@ -57,9 +57,9 @@ func TestValidate_SecondCoinbaseMidBlock(t *testing.T) {
 		Amount:    block.MiningReward,
 		Signature: []byte("0"),
 	}
-	c.Blocks[1].Transactions = append(c.Blocks[1].Transactions, secondCoinbase)
-	c.Blocks[1].Header.MerkleRoot = block.CalculateMerkleRoot(c.Blocks[1].Transactions)
-	c.Blocks[1].Hash = c.Blocks[1].CalculateHash()
+	c.blocks[1].Transactions = append(c.blocks[1].Transactions, secondCoinbase)
+	c.blocks[1].Header.MerkleRoot = block.CalculateMerkleRoot(c.blocks[1].Transactions)
+	c.blocks[1].Hash = c.blocks[1].CalculateHash()
 
 	res := c.Validate()
 	if res.IsValid || !strings.Contains(res.Reason, "COINBASE transaction can only be the first") {
@@ -76,9 +76,9 @@ func TestValidate_EmptyBlockZeroTransactions(t *testing.T) {
 	c.RequestFaucetFunds("recipient", 100)
 	c.MinePendingTransactions()
 	
-	c.Blocks[1].Transactions = []block.Transaction{}
-	c.Blocks[1].Header.MerkleRoot = block.CalculateMerkleRoot(c.Blocks[1].Transactions)
-	c.Blocks[1].Hash = c.Blocks[1].CalculateHash()
+	c.blocks[1].Transactions = []block.Transaction{}
+	c.blocks[1].Header.MerkleRoot = block.CalculateMerkleRoot(c.blocks[1].Transactions)
+	c.blocks[1].Hash = c.blocks[1].CalculateHash()
 
 	res := c.Validate()
 	if res.IsValid || !strings.Contains(res.Reason, "Block must contain at least one transaction") {
@@ -109,9 +109,22 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 	}
 	tx.Sign(w.PrivateKey)
 	
-	// Force it into a block, bypassing AddTransaction checks
-	c.PendingPool = append(c.PendingPool, tx)
+	// Add a valid transaction first to mine a block
+	tx2 := block.Transaction{
+		Sender:    addr,
+		Recipient: "userC",
+		Amount:    10,
+		Sequence:  1,
+		PublicKey: w.PublicKeyBytes,
+	}
+	tx2.Sign(w.PrivateKey)
+	c.AddTransaction(tx2)
 	c.MinePendingTransactions()
+
+	// Tamper with the mined block to force an overspend (negative balance)
+	c.blocks[2].Transactions[1] = tx // replace tx2 with the overspending tx
+	c.blocks[2].Header.MerkleRoot = block.CalculateMerkleRoot(c.blocks[2].Transactions)
+	c.blocks[2].Hash = c.blocks[2].CalculateHash()
 	
 	res := c.Validate()
 	if res.IsValid || !strings.Contains(res.Reason, "negative balance for") {

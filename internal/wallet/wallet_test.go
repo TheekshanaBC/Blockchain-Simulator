@@ -108,6 +108,13 @@ func TestKeystoreOperations(t *testing.T) {
 	if _, ok := allWallets["Bob"]; !ok {
 		t.Errorf("Expected to find Bob's wallet in GetAllWallets")
 	}
+
+	// 5. Test overwriting an existing wallet
+	w3 := NewWallet()
+	err = SaveToKeystore(tempFile, "Alice", w3)
+	if err == nil {
+		t.Errorf("Expected an error when overwriting an existing wallet, got nil")
+	}
 }
 
 /*
