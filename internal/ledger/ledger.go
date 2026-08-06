@@ -1,10 +1,10 @@
 package ledger
 
 import (
-	"valence/internal/block"
 	"errors"
 	"fmt"
 	"strings"
+	"valence/internal/block"
 )
 
 // MaxTransactionAmount is the maximum coins allowed in a single transaction

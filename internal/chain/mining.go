@@ -1,10 +1,10 @@
 package chain
 
 import (
-	"valence/internal/block"
-	"valence/internal/ledger"
 	"fmt"
 	"time"
+	"valence/internal/block"
+	"valence/internal/ledger"
 )
 
 func (c *Chain) MinePendingTransactions() error {
@@ -83,7 +83,7 @@ func (c *Chain) MinePendingTransactions() error {
 	newBlock.Mine(c.Difficulty)
 
 	c.blocks = append(c.blocks, newBlock)
-	
+
 	// Remove only the transactions we just mined from the pending pool,
 	// preserving any new transactions added while mining was in progress.
 	if len(c.pendingPool) >= numMined {

@@ -1,10 +1,10 @@
 package storage
 
 import (
-	"valence/internal/chain"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"valence/internal/chain"
 )
 
 func SaveChain(c *chain.Chain, filename string) error {

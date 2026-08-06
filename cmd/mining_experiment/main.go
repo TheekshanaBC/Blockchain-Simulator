@@ -1,9 +1,9 @@
 package main
 
 import (
-	"valence/internal/block"
 	"fmt"
 	"time"
+	"valence/internal/block"
 )
 
 func main() {

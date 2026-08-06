@@ -1,9 +1,9 @@
 package chain
 
 import (
-	"valence/internal/block"
 	"fmt"
 	"strings"
+	"valence/internal/block"
 )
 
 const MaxFaucetRequest int64 = 1000 * 1_000_000_000

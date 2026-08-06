@@ -1,10 +1,10 @@
 package cli
 
 import (
-	"valence/internal/chain"
-	"valence/internal/wallet"
 	"fmt"
 	"strings"
+	"valence/internal/chain"
+	"valence/internal/wallet"
 )
 
 const (

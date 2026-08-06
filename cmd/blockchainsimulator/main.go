@@ -1,14 +1,14 @@
 package main
 
 import (
-	"valence/internal/chain"
-	"valence/internal/cli"
-	"valence/internal/storage"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"valence/internal/chain"
+	"valence/internal/cli"
+	"valence/internal/storage"
 )
 
 const dbFile = "data/chain.json"

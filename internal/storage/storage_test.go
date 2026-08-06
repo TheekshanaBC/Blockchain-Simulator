@@ -1,11 +1,11 @@
 package storage
 
 import (
-	"valence/internal/chain"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"valence/internal/chain"
 )
 
 func TestSaveAndLoadChain(t *testing.T) {

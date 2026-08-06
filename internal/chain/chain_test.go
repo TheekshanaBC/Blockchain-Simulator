@@ -1,11 +1,11 @@
 package chain
 
 import (
-	"valence/internal/block"
-	"valence/internal/wallet"
 	"encoding/json"
 	"strings"
 	"testing"
+	"valence/internal/block"
+	"valence/internal/wallet"
 )
 
 func createSignedTx(w *wallet.Wallet, recipient string, amount int64, sequence uint64) block.Transaction {
@@ -397,7 +397,7 @@ transactions are included in the new block, leaving the rest pending.
 */
 func TestMaxTxPerBlock(t *testing.T) {
 	myChain := NewChain(1, 5, 8, 1, 10)
-	
+
 	// Override the max tx limit for testing
 	myChain.MaxTxPerBlock = 2
 
@@ -426,7 +426,7 @@ func TestMaxTxPerBlock(t *testing.T) {
 	}
 
 	lastBlock := myChain.blocks[len(myChain.blocks)-1]
-	
+
 	// The block should have 3 transactions: 1 coinbase + 2 user transactions
 	if len(lastBlock.Transactions) != 3 {
 		t.Errorf("Expected block to have 3 transactions (1 coinbase + 2 user), got %d", len(lastBlock.Transactions))

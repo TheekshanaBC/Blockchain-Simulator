@@ -1,8 +1,8 @@
 package block
 
 import (
-	"valence/internal/wallet"
 	"testing"
+	"valence/internal/wallet"
 )
 
 /*

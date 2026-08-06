@@ -1,12 +1,12 @@
 package cli
 
 import (
-	"valence/internal/chain"
 	"bytes"
 	"io"
 	"os"
 	"strings"
 	"testing"
+	"valence/internal/chain"
 )
 
 func TestCLICharacterization(t *testing.T) {

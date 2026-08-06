@@ -1,13 +1,13 @@
 package cli
 
 import (
-	"valence/internal/block"
-	"valence/internal/ledger"
-	"valence/internal/wallet"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
+	"valence/internal/block"
+	"valence/internal/ledger"
+	"valence/internal/wallet"
 )
 
 func handleCreateWallet(ctx *cliContext, args []string) {

@@ -1,24 +1,24 @@
 package chain
 
 import (
-	"valence/internal/block"
-	"valence/internal/ledger"
 	"encoding/json"
 	"fmt"
 	"sync"
+	"valence/internal/block"
+	"valence/internal/ledger"
 )
 
 type Chain struct {
 	mu                 sync.RWMutex
 	blocks             []*block.Block
-	Difficulty         int                 `json:"difficulty"`
+	Difficulty         int `json:"difficulty"`
 	pendingPool        []block.Transaction
-	RetargetWindow     int                 `json:"retarget_window"`
-	TargetBlockTimeSec int64               `json:"target_block_time_sec"`
-	MaxDifficulty      int                 `json:"max_difficulty"`
-	MinDifficulty      int                 `json:"min_difficulty"`
-	InitialDifficulty  int                 `json:"initial_difficulty"`
-	MaxTxPerBlock      int                 `json:"max_tx_per_block"` // Size limit per block
+	RetargetWindow     int   `json:"retarget_window"`
+	TargetBlockTimeSec int64 `json:"target_block_time_sec"`
+	MaxDifficulty      int   `json:"max_difficulty"`
+	MinDifficulty      int   `json:"min_difficulty"`
+	InitialDifficulty  int   `json:"initial_difficulty"`
+	MaxTxPerBlock      int   `json:"max_tx_per_block"` // Size limit per block
 }
 
 func (c *Chain) GetBlocks() []*block.Block {

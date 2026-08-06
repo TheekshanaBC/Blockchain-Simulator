@@ -1,12 +1,12 @@
 package cli
 
 import (
-	"valence/internal/chain"
-	"valence/internal/wallet"
 	"bufio"
 	"fmt"
 	"os"
 	"strings"
+	"valence/internal/chain"
+	"valence/internal/wallet"
 )
 
 type cliContext struct {
