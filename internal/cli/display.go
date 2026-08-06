@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"blockchain-simulator/internal/chain"
-	"blockchain-simulator/internal/wallet"
+	"valence/internal/chain"
+	"valence/internal/wallet"
 	"fmt"
 	"strings"
 )
@@ -28,7 +28,7 @@ func printHelp() {
 }
 
 func getAddressLabel(addr string, wallets map[string]*wallet.Wallet) string {
-	if addr == "FAUCET" || addr == "COINBASE" || addr == "Genesis" || addr == "Miner" {
+	if addr == "FAUCET" || addr == "VALENCE_COINBASE" || addr == "Genesis" || addr == "Miner" {
 		return addr
 	}
 

@@ -1,8 +1,8 @@
 package chain
 
 import (
-	"blockchain-simulator/internal/block"
-	"blockchain-simulator/internal/ledger"
+	"valence/internal/block"
+	"valence/internal/ledger"
 	"fmt"
 	"strings"
 )

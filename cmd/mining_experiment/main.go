@@ -1,7 +1,7 @@
 package main
 
 import (
-	"blockchain-simulator/internal/block"
+	"valence/internal/block"
 	"fmt"
 	"time"
 )
@@ -29,7 +29,7 @@ func main() {
 		elapsed := time.Since(start)
 
 		var extraNonce int64
-		if len(b.Transactions) > 0 && b.Transactions[0].Sender == "COINBASE" {
+		if len(b.Transactions) > 0 && b.Transactions[0].Sender == "VALENCE_COINBASE" {
 			fmt.Sscanf(string(b.Transactions[0].Signature), "%d", &extraNonce)
 		}
 

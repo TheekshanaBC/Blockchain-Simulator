@@ -1,7 +1,7 @@
 package block
 
 import (
-	"blockchain-simulator/internal/wallet"
+	"valence/internal/wallet"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"

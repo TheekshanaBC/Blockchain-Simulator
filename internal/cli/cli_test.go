@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"blockchain-simulator/internal/chain"
+	"valence/internal/chain"
 	"bytes"
 	"io"
 	"os"

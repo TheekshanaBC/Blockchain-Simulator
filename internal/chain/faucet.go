@@ -1,13 +1,13 @@
 package chain
 
 import (
-	"blockchain-simulator/internal/block"
+	"valence/internal/block"
 	"fmt"
 	"strings"
 )
 
-const MaxFaucetRequest int64 = 1000
-const MaxLifetimeFaucetPerAddress int64 = 5000
+const MaxFaucetRequest int64 = 1000 * 1_000_000_000
+const MaxLifetimeFaucetPerAddress int64 = 5000 * 1_000_000_000
 
 // RequestFaucetFunds creates and adds a system-approved FAUCET transaction to the pending pool.
 // This bypasses the AddTransaction sender check but enforces its own limits.

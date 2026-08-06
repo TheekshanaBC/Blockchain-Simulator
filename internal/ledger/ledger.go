@@ -1,7 +1,7 @@
 package ledger
 
 import (
-	"blockchain-simulator/internal/block"
+	"valence/internal/block"
 	"errors"
 	"fmt"
 	"strings"
@@ -9,7 +9,7 @@ import (
 
 // MaxTransactionAmount is the maximum coins allowed in a single transaction
 // to prevent int64 overflow vulnerabilities.
-const MaxTransactionAmount = 1_000_000_000
+const MaxTransactionAmount = 1_000_000_000_000_000
 
 func CalculateBalances(chain []*block.Block) map[string]int64 {
 	balances := make(map[string]int64)

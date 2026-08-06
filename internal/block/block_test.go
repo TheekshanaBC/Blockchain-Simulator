@@ -27,7 +27,7 @@ func TestNewGenesisBlock(t *testing.T) {
 		t.Fatalf("Expected exactly 1 transaction in Genesis block, got %d", len(block.Transactions))
 	}
 
-	if block.Transactions[0].Sender != "COINBASE" {
+	if block.Transactions[0].Sender != "VALENCE_COINBASE" {
 		t.Errorf("Expected sender COINBASE, got %s", block.Transactions[0].Sender)
 	}
 
@@ -143,7 +143,7 @@ func TestMine_ExistingCoinbase(t *testing.T) {
 		Header: BlockHeader{PrevHash: "test"},
 		Height: 1,
 		Transactions: []Transaction{
-			{Sender: "COINBASE", Recipient: "Miner", Amount: 50, Signature: []byte("0")},
+			{Sender: "VALENCE_COINBASE", Recipient: "Miner", Amount: 50, Signature: []byte("0")},
 			{Sender: "Alice", Recipient: "Bob", Amount: 10},
 		},
 	}
@@ -154,7 +154,7 @@ func TestMine_ExistingCoinbase(t *testing.T) {
 	if len(block.Transactions) != initialTxCount {
 		t.Errorf("Expected transaction count to remain %d, got %d", initialTxCount, len(block.Transactions))
 	}
-	if block.Transactions[0].Sender != "COINBASE" {
+	if block.Transactions[0].Sender != "VALENCE_COINBASE" {
 		t.Errorf("Expected first transaction to be COINBASE")
 	}
 }
@@ -175,7 +175,7 @@ func TestMine_NoTransactions(t *testing.T) {
 	if len(block.Transactions) != 1 {
 		t.Fatalf("Expected exactly 1 transaction (COINBASE), got %d", len(block.Transactions))
 	}
-	if block.Transactions[0].Sender != "COINBASE" {
+	if block.Transactions[0].Sender != "VALENCE_COINBASE" {
 		t.Errorf("Expected COINBASE transaction, got %s", block.Transactions[0].Sender)
 	}
 }
