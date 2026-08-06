@@ -1,7 +1,7 @@
 package wallet
 
 import (
-	"crypto/x509"
+	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -41,11 +41,7 @@ func SaveToKeystore(filename string, name string, w *Wallet) error {
 		return fmt.Errorf("wallet '%s' already exists", name)
 	}
 
-	privKeyBytes, err := x509.MarshalECPrivateKey(w.PrivateKey)
-	if err != nil {
-		return err
-	}
-	keystore[name] = walletData{PrivateKey: privKeyBytes}
+	keystore[name] = walletData{PrivateKey: w.PrivateKey.Seed()}
 
 	file, err := json.MarshalIndent(keystore, "", "  ")
 	if err != nil {
@@ -66,14 +62,12 @@ func LoadFromKeystore(filename string, name string) (*Wallet, error) {
 		return nil, fmt.Errorf("wallet '%s' not found", name)
 	}
 
-	privKey, err := x509.ParseECPrivateKey(data.PrivateKey)
-	if err != nil {
-		return nil, err
-	}
-	pubKeyBytes := marshalUncompressed(privKey.PublicKey.Curve, privKey.PublicKey.X, privKey.PublicKey.Y)
+	privKey := ed25519.NewKeyFromSeed(data.PrivateKey)
+	pubKey := privKey.Public().(ed25519.PublicKey)
+
 	return &Wallet{
-		PrivateKey:     privKey,
-		PublicKeyBytes: pubKeyBytes,
+		PrivateKey: privKey,
+		PublicKey:  pubKey,
 	}, nil
 }
 
@@ -86,13 +80,11 @@ func GetAllWallets(filename string) (map[string]*Wallet, error) {
 
 	wallets := make(map[string]*Wallet)
 	for name, data := range keystore {
-		privKey, err := x509.ParseECPrivateKey(data.PrivateKey)
-		if err == nil {
-			pubKeyBytes := marshalUncompressed(privKey.PublicKey.Curve, privKey.PublicKey.X, privKey.PublicKey.Y)
-			wallets[name] = &Wallet{
-				PrivateKey:     privKey,
-				PublicKeyBytes: pubKeyBytes,
-			}
+		privKey := ed25519.NewKeyFromSeed(data.PrivateKey)
+		pubKey := privKey.Public().(ed25519.PublicKey)
+		wallets[name] = &Wallet{
+			PrivateKey: privKey,
+			PublicKey:  pubKey,
 		}
 	}
 	return wallets, nil

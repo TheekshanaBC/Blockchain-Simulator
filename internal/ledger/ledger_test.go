@@ -13,7 +13,7 @@ preventing zero-amount transactions, and successfully validating a good transact
 */
 func TestValidateTransaction(t *testing.T) {
 	wAlice := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrAlice := wAlice.Address()
 
 	balances := map[string]int64{
 		addrAlice: 100,
@@ -30,7 +30,7 @@ func TestValidateTransaction(t *testing.T) {
 			Recipient: recipient,
 			Amount:    amount,
 			Sequence:  1,
-			PublicKey: wAlice.PublicKeyBytes,
+			PublicKey: wAlice.PublicKey,
 		}
 		tx.Sign(wAlice.PrivateKey)
 		return tx

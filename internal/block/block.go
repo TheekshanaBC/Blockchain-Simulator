@@ -5,12 +5,14 @@ import (
 )
 
 type Transaction struct {
+	ID        string `json:"id"`
 	Sender    string `json:"sender"`
 	Recipient string `json:"recipient"`
 	Amount    int64  `json:"amount"`
 	Sequence  uint64 `json:"sequence"`
 	PublicKey []byte `json:"public_key"`
 	Signature []byte `json:"signature"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 type BlockHeader struct {

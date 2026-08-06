@@ -23,7 +23,7 @@ func handleCreateWallet(ctx *cliContext, args []string) {
 	} else {
 		ctx.activeWallet = w
 		ctx.activeWalletName = name
-		address := wallet.AddressFromPublicKey(w.PublicKeyBytes)
+		address := w.Address()
 		fmt.Printf("%sWallet '%s' created and saved successfully!%s\n", ColorGreen, name, Reset)
 		fmt.Println(ColorCyan + "Your Address: " + Reset + address)
 	}
@@ -41,7 +41,7 @@ func handleLoadWallet(ctx *cliContext, args []string) {
 	} else {
 		ctx.activeWallet = w
 		ctx.activeWalletName = name
-		address := wallet.AddressFromPublicKey(w.PublicKeyBytes)
+		address := w.Address()
 		fmt.Printf("%sWallet '%s' loaded successfully!%s\n", ColorGreen, name, Reset)
 		fmt.Println(ColorCyan + "Your Address: " + Reset + address)
 	}
@@ -55,7 +55,7 @@ func handleWallets(ctx *cliContext, args []string) {
 	}
 	fmt.Println(ColorCyan + "--- Saved Wallets ---" + Reset)
 	for name, w := range wallets {
-		addr := wallet.AddressFromPublicKey(w.PublicKeyBytes)
+		addr := w.Address()
 		activeMark := ""
 		if name == ctx.activeWalletName {
 			activeMark = ColorGreen + " (Active)" + Reset
@@ -69,7 +69,7 @@ func handleMyWallet(ctx *cliContext, args []string) {
 		fmt.Println(ColorRed + "Error: " + Reset + "No active wallet. Use 'loadwallet <name>' or 'createwallet <name>'.")
 		return
 	}
-	address := wallet.AddressFromPublicKey(ctx.activeWallet.PublicKeyBytes)
+	address := ctx.activeWallet.Address()
 	balances := ledger.CalculateBalances(ctx.chain.GetBlocks())
 	balance := balances[address]
 	fmt.Printf("%sActive Wallet:%s %s\n", ColorCyan, Reset, ctx.activeWalletName)
@@ -93,7 +93,7 @@ func handleFaucet(ctx *cliContext, args []string) {
 	}
 	amount := int64(amountVCN * 1e9)
 
-	address := wallet.AddressFromPublicKey(ctx.activeWallet.PublicKeyBytes)
+	address := ctx.activeWallet.Address()
 	err = ctx.chain.RequestFaucetFunds(address, amount)
 	if err != nil {
 		fmt.Println(ColorRed+"Error: "+Reset+"Failed to get FAUCET funds:\n", err)
@@ -118,7 +118,7 @@ func handleAddTx(ctx *cliContext, args []string) {
 	}
 	amount := int64(amountVCN * 1e9)
 
-	senderAddress := wallet.AddressFromPublicKey(ctx.activeWallet.PublicKeyBytes)
+	senderAddress := ctx.activeWallet.Address()
 
 	sequences := ledger.CalculatePendingSequences(ctx.chain.GetBlocks(), ctx.chain.GetPendingPool())
 	nextSeq := sequences[senderAddress] + 1
@@ -128,7 +128,7 @@ func handleAddTx(ctx *cliContext, args []string) {
 		Recipient: args[1],
 		Amount:    amount,
 		Sequence:  nextSeq,
-		PublicKey: ctx.activeWallet.PublicKeyBytes,
+		PublicKey: ctx.activeWallet.PublicKey,
 	}
 
 	err = tx.Sign(ctx.activeWallet.PrivateKey)

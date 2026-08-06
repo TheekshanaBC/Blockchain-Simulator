@@ -94,7 +94,7 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
 	
 	w := wallet.NewWallet()
-	addr := wallet.AddressFromPublicKey(w.PublicKeyBytes)
+	addr := w.Address()
 	
 	c.RequestFaucetFunds(addr, 100)
 	c.MinePendingTransactions() // addr gets 100
@@ -105,7 +105,7 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 		Recipient: "userB",
 		Amount:    150,
 		Sequence:  1,
-		PublicKey: w.PublicKeyBytes,
+		PublicKey: w.PublicKey,
 	}
 	tx.Sign(w.PrivateKey)
 	
@@ -115,7 +115,7 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 		Recipient: "userC",
 		Amount:    10,
 		Sequence:  1,
-		PublicKey: w.PublicKeyBytes,
+		PublicKey: w.PublicKey,
 	}
 	tx2.Sign(w.PrivateKey)
 	c.AddTransaction(tx2)

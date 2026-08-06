@@ -39,7 +39,7 @@ func getAddressLabel(addr string, wallets map[string]*wallet.Wallet) string {
 	}
 
 	for name, w := range wallets {
-		if wallet.AddressFromPublicKey(w.PublicKeyBytes) == addr {
+		if w.Address() == addr {
 			return fmt.Sprintf("%s (%s)", name, label)
 		}
 	}
