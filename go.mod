@@ -1,3 +1,3 @@
-module blockchain-simulator
+module valence
 
 go 1.22

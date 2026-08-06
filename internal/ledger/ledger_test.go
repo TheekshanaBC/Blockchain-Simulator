@@ -1,8 +1,8 @@
 package ledger
 
 import (
-	"blockchain-simulator/internal/block"
-	"blockchain-simulator/internal/wallet"
+	"valence/internal/block"
+	"valence/internal/wallet"
 	"testing"
 )
 
@@ -67,7 +67,7 @@ func TestValidateTransaction(t *testing.T) {
 	}
 
 	// Send to COINBASE
-	coinbaseTx := createTx("COINBASE", 10)
+	coinbaseTx := createTx("VALENCE_COINBASE", 10)
 	err = ValidateTransaction(coinbaseTx, balances, sequences)
 	if err == nil {
 		t.Errorf("Expected an error for sending to COINBASE, but got nil")
@@ -98,7 +98,7 @@ func TestCalculateBalances(t *testing.T) {
 		{
 			Transactions: []block.Transaction{
 				{Sender: "FAUCET", Recipient: "Alice", Amount: 100},
-				{Sender: "COINBASE", Recipient: "Miner", Amount: 50},
+				{Sender: "VALENCE_COINBASE", Recipient: "Miner", Amount: 50},
 			},
 		},
 		{
@@ -129,7 +129,7 @@ func TestCalculateBalances(t *testing.T) {
 	if val, exists := balances["FAUCET"]; exists && val < 0 {
 		t.Errorf("FAUCET should not have a negative balance")
 	}
-	if val, exists := balances["COINBASE"]; exists && val < 0 {
+	if val, exists := balances["VALENCE_COINBASE"]; exists && val < 0 {
 		t.Errorf("COINBASE should not have a negative balance")
 	}
 }

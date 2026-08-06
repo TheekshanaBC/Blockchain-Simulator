@@ -1,8 +1,8 @@
 package chain
 
 import (
-	"blockchain-simulator/internal/block"
-	"blockchain-simulator/internal/wallet"
+	"valence/internal/block"
+	"valence/internal/wallet"
 	"strings"
 	"testing"
 )

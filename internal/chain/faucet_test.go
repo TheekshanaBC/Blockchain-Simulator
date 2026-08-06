@@ -63,19 +63,19 @@ func TestRequestFaucetFunds_LifetimeLimitExceeded(t *testing.T) {
 	c := NewChain(0, 10, 60, 1, 5)
 	recipient := "greedy_user"
 	
-	// MaxLifetimeFaucetPerAddress is 5000, MaxFaucetRequest is 1000
+	// MaxLifetimeFaucetPerAddress is 5000 * 1e9, MaxFaucetRequest is 1000 * 1e9
 
 	// 1. Give some funds and mine them
-	c.RequestFaucetFunds(recipient, 1000)
-	c.RequestFaucetFunds(recipient, 1000)
+	c.RequestFaucetFunds(recipient, MaxFaucetRequest)
+	c.RequestFaucetFunds(recipient, MaxFaucetRequest)
 	c.MinePendingTransactions() // 2000 total received in blocks
 
 	// 2. Add some to pending pool
-	c.RequestFaucetFunds(recipient, 1000)
-	c.RequestFaucetFunds(recipient, 1000) // 4000 total received across blocks + pending
+	c.RequestFaucetFunds(recipient, MaxFaucetRequest)
+	c.RequestFaucetFunds(recipient, MaxFaucetRequest) // 4000 total received across blocks + pending
 
-	// 3. Request exactly the remaining limit (1000) - should pass
-	err := c.RequestFaucetFunds(recipient, 1000)
+	// 3. Request exactly the remaining limit (MaxFaucetRequest) - should pass
+	err := c.RequestFaucetFunds(recipient, MaxFaucetRequest)
 	if err != nil {
 		t.Errorf("Expected successful request up to limit, got: %v", err)
 	}

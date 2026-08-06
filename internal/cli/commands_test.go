@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"blockchain-simulator/internal/chain"
-	"blockchain-simulator/internal/wallet"
+	"valence/internal/chain"
+	"valence/internal/wallet"
 	"bytes"
 	"io"
 	"os"
@@ -98,7 +98,7 @@ func TestHandleAddTx_HappyPath(t *testing.T) {
 
 	// First give the wallet some balance via faucet and mine
 	addr := wallet.AddressFromPublicKey(w.PublicKeyBytes)
-	c.RequestFaucetFunds(addr, 500)
+	c.RequestFaucetFunds(addr, 500_000_000_000)
 	c.MinePendingTransactions()
 
 	out := captureOutput(func() {

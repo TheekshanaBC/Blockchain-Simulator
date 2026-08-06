@@ -1,9 +1,9 @@
 package cli
 
 import (
-	"blockchain-simulator/internal/block"
-	"blockchain-simulator/internal/ledger"
-	"blockchain-simulator/internal/wallet"
+	"valence/internal/block"
+	"valence/internal/ledger"
+	"valence/internal/wallet"
 	"fmt"
 	"os"
 	"strconv"
@@ -74,7 +74,7 @@ func handleMyWallet(ctx *cliContext, args []string) {
 	balance := balances[address]
 	fmt.Printf("%sActive Wallet:%s %s\n", ColorCyan, Reset, ctx.activeWalletName)
 	fmt.Printf("%sYour Address:%s %s\n", ColorCyan, Reset, address)
-	fmt.Printf("%sYour Balance:%s %d\n", ColorCyan, Reset, balance)
+	fmt.Printf("%sYour Balance:%s %s\n", ColorCyan, Reset, block.FormatVCN(balance))
 }
 
 func handleFaucet(ctx *cliContext, args []string) {
@@ -86,11 +86,12 @@ func handleFaucet(ctx *cliContext, args []string) {
 		fmt.Println(ColorRed + "Error: " + Reset + "Invalid arguments!" + Reset + "\nTry again using correct format:" + ColorGreen + FormatDim + " faucet <amount>" + Reset)
 		return
 	}
-	amount, err := strconv.ParseInt(args[1], 10, 64)
+	amountVCN, err := strconv.ParseFloat(args[1], 64)
 	if err != nil {
 		fmt.Println(ColorRed + "Error: " + Reset + "Amount must be a number" + Reset)
 		return
 	}
+	amount := int64(amountVCN * 1e9)
 
 	address := wallet.AddressFromPublicKey(ctx.activeWallet.PublicKeyBytes)
 	err = ctx.chain.RequestFaucetFunds(address, amount)
@@ -110,11 +111,12 @@ func handleAddTx(ctx *cliContext, args []string) {
 		fmt.Println(ColorRed + "Error: " + Reset + "Invalid arguments!" + Reset + "\nTry again using correct format:" + ColorGreen + FormatDim + " addtx <to> <amount>" + Reset)
 		return
 	}
-	amount, err := strconv.ParseInt(args[2], 10, 64)
+	amountVCN, err := strconv.ParseFloat(args[2], 64)
 	if err != nil {
 		fmt.Println(ColorRed + "Error: " + Reset + "Amount must be a number" + Reset)
 		return
 	}
+	amount := int64(amountVCN * 1e9)
 
 	senderAddress := wallet.AddressFromPublicKey(ctx.activeWallet.PublicKeyBytes)
 
@@ -172,7 +174,7 @@ func handlePool(ctx *cliContext, args []string) {
 		for i, tx := range ctx.chain.GetPendingPool() {
 			senderLabel := getAddressLabel(tx.Sender, wallets)
 			recipientLabel := getAddressLabel(tx.Recipient, wallets)
-			fmt.Printf("%s%d.%s %s --> %s : %d\n", ColorYellow, i+1, Reset, senderLabel, recipientLabel, tx.Amount)
+			fmt.Printf("%s%d.%s %s --> %s : %s\n", ColorYellow, i+1, Reset, senderLabel, recipientLabel, block.FormatVCN(tx.Amount))
 		}
 	}
 }
@@ -186,7 +188,7 @@ func handleBalances(ctx *cliContext, args []string) {
 	fmt.Println(ColorCyan + "--- Account Balances ---" + Reset)
 	for acc, bal := range balances {
 		label := getAddressLabel(acc, wallets)
-		fmt.Printf("%s : %d\n", label, bal)
+		fmt.Printf("%s : %s\n", label, block.FormatVCN(bal))
 	}
 }
 

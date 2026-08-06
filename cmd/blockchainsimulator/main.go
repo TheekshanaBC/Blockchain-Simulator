@@ -1,9 +1,9 @@
 package main
 
 import (
-	"blockchain-simulator/internal/chain"
-	"blockchain-simulator/internal/cli"
-	"blockchain-simulator/internal/storage"
+	"valence/internal/chain"
+	"valence/internal/cli"
+	"valence/internal/storage"
 	"flag"
 	"fmt"
 	"os"

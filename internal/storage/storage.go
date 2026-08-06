@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"blockchain-simulator/internal/chain"
+	"valence/internal/chain"
 	"encoding/json"
 	"os"
 	"path/filepath"

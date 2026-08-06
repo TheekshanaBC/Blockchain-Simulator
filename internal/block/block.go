@@ -28,11 +28,11 @@ type Block struct {
 	Hash         string        `json:"hash"`
 }
 
-const MiningReward int64 = 50
+const MiningReward int64 = 50_000_000_000
 const GenesisPrevHash = "0000000000000000000000000000000000000000000000000000000000000000"
 
 const (
-	SystemAddressCoinbase = "COINBASE"
+	SystemAddressCoinbase = "VALENCE_COINBASE"
 	SystemAddressFaucet   = "FAUCET"
 )
 
@@ -66,3 +66,8 @@ func calculateHashForNonce(b *Block, nonce uint32) string {
 func (b *Block) CalculateHash() string {
 	return calculateHashForNonce(b, b.Header.Nonce)
 }
+
+func FormatVCN(electrons int64) string {
+	return fmt.Sprintf("%.9f VCN", float64(electrons)/1e9)
+}
+

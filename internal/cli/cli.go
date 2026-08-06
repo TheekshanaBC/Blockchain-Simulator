@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"blockchain-simulator/internal/chain"
-	"blockchain-simulator/internal/wallet"
+	"valence/internal/chain"
+	"valence/internal/wallet"
 	"bufio"
 	"fmt"
 	"os"

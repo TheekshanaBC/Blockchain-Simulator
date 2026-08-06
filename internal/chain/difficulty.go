@@ -1,7 +1,7 @@
 package chain
 
 import (
-	"blockchain-simulator/internal/block"
+	"valence/internal/block"
 )
 
 // recalculate difficulty every N blocks

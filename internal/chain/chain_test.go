@@ -1,8 +1,8 @@
 package chain
 
 import (
-	"blockchain-simulator/internal/block"
-	"blockchain-simulator/internal/wallet"
+	"valence/internal/block"
+	"valence/internal/wallet"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -116,7 +116,7 @@ func TestAddTransaction(t *testing.T) {
 
 	// 2. Reject COINBASE sender
 	tx2 := createSignedTx(wAlice, "Alice", 100, 2)
-	tx2.Sender = "COINBASE" // tamper to test rejection
+	tx2.Sender = "VALENCE_COINBASE" // tamper to test rejection
 	err = myChain.AddTransaction(tx2)
 	if err == nil || !strings.Contains(err.Error(), "COINBASE is reserved") {
 		t.Errorf("Expected COINBASE transaction to be rejected, got: %v", err)
