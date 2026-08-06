@@ -10,11 +10,11 @@ import (
 
 func createSignedTx(w *wallet.Wallet, recipient string, amount int64, sequence uint64) block.Transaction {
 	tx := block.Transaction{
-		Sender:    wallet.AddressFromPublicKey(w.PublicKeyBytes),
+		Sender:    w.Address(),
 		Recipient: recipient,
 		Amount:    amount,
 		Sequence:  sequence,
-		PublicKey: w.PublicKeyBytes,
+		PublicKey: w.PublicKey,
 	}
 	tx.Sign(w.PrivateKey)
 	return tx
@@ -31,8 +31,8 @@ func TestValidationAndTamperDetection(t *testing.T) {
 	myChain := NewChain(2, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
 	wBob := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
-	addrBob := wallet.AddressFromPublicKey(wBob.PublicKeyBytes)
+	addrAlice := wAlice.Address()
+	addrBob := wBob.Address()
 
 	myChain.RequestFaucetFunds(addrAlice, 100)
 	myChain.MinePendingTransactions()
@@ -97,7 +97,7 @@ rejection of invalid transactions (like overspending).
 func TestAddTransaction(t *testing.T) {
 	myChain := NewChain(2, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrAlice := wAlice.Address()
 
 	// Add money to Alice via FAUCET to test valid transfers later
 	myChain.RequestFaucetFunds(addrAlice, 100)
@@ -146,7 +146,7 @@ func TestMinePendingTransactions(t *testing.T) {
 
 	// 2. Successful mine
 	wAlice := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrAlice := wAlice.Address()
 	myChain.RequestFaucetFunds(addrAlice, 100)
 	err = myChain.MinePendingTransactions()
 	if err != nil {
@@ -177,7 +177,7 @@ TestValidate_InvalidLinks tests that tampering with block hashes or links
 func TestValidate_InvalidLinks(t *testing.T) {
 	myChain := NewChain(1, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrAlice := wAlice.Address()
 	myChain.RequestFaucetFunds(addrAlice, 100)
 	myChain.MinePendingTransactions()
 
@@ -208,7 +208,7 @@ even if the block's hash and Merkle root are recalculated.
 func TestValidate_ForgedSignature(t *testing.T) {
 	myChain := NewChain(1, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrAlice := wAlice.Address()
 
 	// Give Alice some funds
 	myChain.RequestFaucetFunds(addrAlice, 100)
@@ -220,7 +220,7 @@ func TestValidate_ForgedSignature(t *testing.T) {
 		Recipient: "Bob",
 		Amount:    20,
 		Sequence:  1,
-		PublicKey: wAlice.PublicKeyBytes,
+		PublicKey: wAlice.PublicKey,
 	}
 	tx.Sign(wAlice.PrivateKey)
 
@@ -255,7 +255,7 @@ converted to JSON and restored without losing structural integrity.
 func TestChain_JSONSerialization(t *testing.T) {
 	originalChain := NewChain(3, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrAlice := wAlice.Address()
 
 	originalChain.RequestFaucetFunds(addrAlice, 100)
 	originalChain.MinePendingTransactions()
@@ -303,7 +303,7 @@ target when a retarget was expected.
 func TestValidate_DifficultyMismatch(t *testing.T) {
 	myChain := NewChain(2, 3, 10, 1, 10) // N=3
 	wAlice := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrAlice := wAlice.Address()
 
 	// Mine 4 blocks to trigger a retarget at block 4
 	for i := 0; i < 4; i++ {
@@ -332,7 +332,7 @@ lower the difficulty during a retarget window.
 func TestValidate_TamperTimestampRetarget(t *testing.T) {
 	myChain := NewChain(2, 3, 10, 1, 10)
 	wAlice := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrAlice := wAlice.Address()
 
 	// Mine 4 blocks to trigger a retarget at block 4
 	for i := 0; i < 4; i++ {
@@ -377,7 +377,7 @@ func TestRetarget_ConvergesTowardTarget(t *testing.T) {
 	// targetBlockTimeSec is 100, which is far above actual mine time (almost instant)
 	myChain := NewChain(2, 3, 100, 1, 10)
 	wAlice := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrAlice := wAlice.Address()
 
 	// mine 7 blocks (more than 2 retarget windows of size 3)
 	for i := 0; i < 7; i++ {
@@ -402,7 +402,7 @@ func TestMaxTxPerBlock(t *testing.T) {
 	myChain.MaxTxPerBlock = 2
 
 	wAlice := wallet.NewWallet()
-	addrAlice := wallet.AddressFromPublicKey(wAlice.PublicKeyBytes)
+	addrAlice := wAlice.Address()
 	myChain.RequestFaucetFunds(addrAlice, 100)
 	myChain.MinePendingTransactions()
 

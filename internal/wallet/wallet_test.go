@@ -7,15 +7,15 @@ import (
 
 /*
 TestNewWallet verifies that a newly created wallet contains
-a valid PrivateKey and a populated PublicKeyBytes slice.
+a valid PrivateKey and a populated PublicKey slice.
 */
 func TestNewWallet(t *testing.T) {
 	w := NewWallet()
 	if w.PrivateKey == nil {
 		t.Errorf("Expected PrivateKey to be generated, got nil")
 	}
-	if len(w.PublicKeyBytes) == 0 {
-		t.Errorf("Expected PublicKeyBytes to be populated, got empty bytes")
+	if len(w.PublicKey) != 32 {
+		t.Errorf("Expected PublicKey to be 32 bytes, got %d", len(w.PublicKey))
 	}
 }
 
@@ -25,28 +25,10 @@ is a valid 64-character SHA-256 hex string.
 */
 func TestAddressFromPublicKey(t *testing.T) {
 	w := NewWallet()
-	address := AddressFromPublicKey(w.PublicKeyBytes)
+	address := w.Address()
 
 	if len(address) != 64 {
 		t.Errorf("Expected address length of 64 characters (SHA-256 hex), got %d", len(address))
-	}
-}
-
-/*
-TestBytesToPublicKey ensures that we can parse the public key bytes
-back into a valid ecdsa.PublicKey object and that the coordinates match.
-*/
-func TestBytesToPublicKey(t *testing.T) {
-	w := NewWallet()
-	pubKey := BytesToPublicKey(w.PublicKeyBytes)
-
-	if pubKey == nil {
-		t.Errorf("Expected PublicKey to be parsed, got nil")
-	}
-
-	// Check if the parsed key matches the original
-	if w.PrivateKey.PublicKey.X.Cmp(pubKey.X) != 0 || w.PrivateKey.PublicKey.Y.Cmp(pubKey.Y) != 0 {
-		t.Errorf("Parsed PublicKey coordinates do not match original PrivateKey's public part")
 	}
 }
 
@@ -81,7 +63,7 @@ func TestKeystoreOperations(t *testing.T) {
 	}
 
 	// Compare private keys
-	if loadedW1.PrivateKey.D.Cmp(w1.PrivateKey.D) != 0 {
+	if string(loadedW1.PrivateKey) != string(w1.PrivateKey) {
 		t.Errorf("Loaded wallet's private key does not match original")
 	}
 
@@ -114,42 +96,5 @@ func TestKeystoreOperations(t *testing.T) {
 	err = SaveToKeystore(tempFile, "Alice", w3)
 	if err == nil {
 		t.Errorf("Expected an error when overwriting an existing wallet, got nil")
-	}
-}
-
-/*
-TestBytesToPublicKey_InvalidLength ensures that passing wrong-length byte slices
-returns nil and does not panic.
-*/
-func TestBytesToPublicKey_InvalidLength(t *testing.T) {
-	// Too short
-	shortBytes := []byte{4, 1, 2, 3}
-	if BytesToPublicKey(shortBytes) != nil {
-		t.Errorf("Expected nil for short public key bytes")
-	}
-
-	// Too long
-	w := NewWallet()
-	longBytes := append(w.PublicKeyBytes, []byte{1, 2, 3}...)
-	if BytesToPublicKey(longBytes) != nil {
-		t.Errorf("Expected nil for long public key bytes")
-	}
-}
-
-/*
-TestBytesToPublicKey_NotOnCurve ensures that passing a mathematically invalid
-point (not on the P-256 curve) returns nil.
-*/
-func TestBytesToPublicKey_NotOnCurve(t *testing.T) {
-	w := NewWallet()
-	invalidBytes := make([]byte, len(w.PublicKeyBytes))
-	copy(invalidBytes, w.PublicKeyBytes)
-	
-	// Corrupt the X coordinate to make it almost certainly not on the curve
-	invalidBytes[5] ^= 0xFF
-	invalidBytes[10] ^= 0xFF
-
-	if BytesToPublicKey(invalidBytes) != nil {
-		t.Errorf("Expected nil for a public key point not on the curve")
 	}
 }
