@@ -120,13 +120,12 @@ func main() {
 			os.Exit(1)
 		}
 
-		ks := wallet.NewKeystore(*keystoreFlag)
-		w, err := ks.LoadWallet(*walletFlag)
+		w, err := wallet.LoadFromKeystore(*keystoreFlag, *walletFlag)
 		if err != nil {
 			fmt.Printf("Failed to load wallet '%s': %v\n", *walletFlag, err)
 			fmt.Println("Creating a new wallet for faucet...")
 			w = wallet.NewWallet()
-			err = ks.SaveWallet(*walletFlag, w)
+			err = wallet.SaveToKeystore(*keystoreFlag, *walletFlag, w)
 			if err != nil {
 				fmt.Printf("Failed to save new wallet: %v\n", err)
 				os.Exit(1)
@@ -161,8 +160,7 @@ func main() {
 		dir := filepath.Dir(*keystoreFlag)
 		os.MkdirAll(dir, 0750)
 
-		ks := wallet.NewKeystore(*keystoreFlag)
-		w, err := ks.LoadWallet(*walletFlag)
+		w, err := wallet.LoadFromKeystore(*keystoreFlag, *walletFlag)
 		if err != nil {
 			fmt.Printf("Failed to load wallet '%s': %v\n", *walletFlag, err)
 			fmt.Println("To create a wallet, you can run the faucet command or generate one programmatically.")
