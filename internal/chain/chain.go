@@ -29,6 +29,54 @@ func (c *Chain) GetBlocks() []*block.Block {
 	return blocksCopy
 }
 
+func (c *Chain) GetLastBlock() *block.Block {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if len(c.blocks) == 0 {
+		return nil
+	}
+	return c.blocks[len(c.blocks)-1]
+}
+
+func (c *Chain) Height() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.blocks) - 1
+}
+
+// AddBlock manually appends a block to the chain, used for gossip/syncing.
+// It validates the block against the current chain before appending.
+func (c *Chain) AddBlock(b block.Block) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(c.blocks) == 0 {
+		return fmt.Errorf("chain is empty")
+	}
+
+	previousBlock := c.blocks[len(c.blocks)-1]
+	
+	expectedDifficulty := c.InitialDifficulty
+	expectedDifficulty = expectedDifficultyAfterWindow(c.blocks, b.Height, c.RetargetWindow, c.TargetBlockTimeSec, c.InitialDifficulty, c.MinDifficulty, c.MaxDifficulty)
+
+	res := validateBlockAgainstPrevious(&b, previousBlock, expectedDifficulty)
+	if !res.IsValid {
+		return fmt.Errorf(res.Reason)
+	}
+	
+	balances := ledger.CalculateAvailableBalances(c.blocks, []block.Transaction{})
+	sequences := ledger.CalculatePendingSequences(c.blocks, []block.Transaction{})
+	faucetReceived := make(map[string]int64)
+
+	res = validateBlockTransactions(&b, balances, sequences, faucetReceived)
+	if !res.IsValid {
+		return fmt.Errorf(res.Reason)
+	}
+
+	c.blocks = append(c.blocks, &b)
+	return nil
+}
+
 func (c *Chain) GetPendingPool() []block.Transaction {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
