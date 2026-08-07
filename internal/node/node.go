@@ -87,12 +87,9 @@ func NewNode(cfg Config) *Node {
 func (n *Node) Start() error {
 	n.logger.Info("Starting Valence Node", "port", n.Config.Port, "data_dir", n.Config.DataDir, "miner_address", n.Config.MinerAddress)
 
-	// Create a dummy HTTP handler for now
+	// Setup HTTP endpoints
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("pong"))
-	})
+	n.setupAPI(mux)
 
 	n.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", n.Config.Port),
