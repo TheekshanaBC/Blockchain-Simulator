@@ -30,7 +30,11 @@ func main() {
 
 		var extraNonce int64
 		if len(b.Transactions) > 0 && b.Transactions[0].Sender == "VALENCE_COINBASE" {
-			fmt.Sscanf(string(b.Transactions[0].Signature), "%d", &extraNonce)
+			_, err := fmt.Sscanf(string(b.Transactions[0].Signature), "%d", &extraNonce)
+			if err != nil {
+				// Ignore if it's not a valid nonce or genesis block
+				extraNonce = 0
+			}
 		}
 
 		totalHashes := (extraNonce * 4294967296) + int64(b.Header.Nonce) + 1

@@ -47,7 +47,7 @@ func SaveToKeystore(filename string, name string, w *Wallet) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filename, file, 0644)
+	return os.WriteFile(filename, file, 0600)
 }
 
 // loads a specific wallet from the keystore

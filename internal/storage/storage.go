@@ -13,12 +13,12 @@ func SaveChain(c *chain.Chain, filename string) error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filename), 0750); err != nil {
 		return err
 	}
 
 	tempFile := filename + ".tmp"
-	if err := os.WriteFile(tempFile, data, 0644); err != nil { // 0644 read,write permission for owner, read-only for others.
+	if err := os.WriteFile(tempFile, data, 0600); err != nil { // 0600 read,write permission for owner.
 		return err
 	}
 
