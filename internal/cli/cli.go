@@ -1,12 +1,12 @@
 package cli
 
 import (
-	"valence/internal/chain"
-	"valence/internal/wallet"
 	"bufio"
 	"fmt"
 	"os"
 	"strings"
+	"valence/internal/chain"
+	"valence/internal/wallet"
 )
 
 type cliContext struct {
@@ -56,7 +56,7 @@ func StartCLI(c *chain.Chain) {
 
 	// Ensure data directory exists
 	if _, err := os.Stat("data"); os.IsNotExist(err) {
-		err = os.Mkdir("data", 0755)
+		err = os.Mkdir("data", 0750)
 		if err != nil {
 			fmt.Println(ColorRed+"Error creating data directory:"+Reset, err)
 			return

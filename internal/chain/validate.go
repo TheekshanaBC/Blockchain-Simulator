@@ -1,10 +1,10 @@
 package chain
 
 import (
-	"valence/internal/block"
-	"valence/internal/ledger"
 	"fmt"
 	"strings"
+	"valence/internal/block"
+	"valence/internal/ledger"
 )
 
 type ValidationResult struct {
@@ -79,7 +79,6 @@ func validateGenesisBlock(genesisBlock *block.Block, balances map[string]int64, 
 	if genesisBlock.Hash != genesisBlock.CalculateHash() {
 		return ValidationResult{false, 0, "Genesis Stored Hash Mismatch"}
 	}
-
 
 	for _, tx := range genesisBlock.Transactions {
 		if tx.Sender == block.SystemAddressFaucet {

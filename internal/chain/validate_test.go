@@ -1,10 +1,10 @@
 package chain
 
 import (
-	"valence/internal/block"
-	"valence/internal/wallet"
 	"strings"
 	"testing"
+	"valence/internal/block"
+	"valence/internal/wallet"
 )
 
 /*
@@ -14,13 +14,12 @@ Merkle Root is tampered with, validation fails appropriately at the root check.
 func TestValidate_GenesisMerkleRootMismatch(t *testing.T) {
 	c := NewChain(1, 10, 60, 1, 5)
 	c.blocks[0].Header.MerkleRoot = "tampered_root"
-	
+
 	res := c.Validate()
 	if res.IsValid || !strings.Contains(res.Reason, "Genesis Merkle Root mismatch") {
 		t.Errorf("Expected Genesis Merkle Root mismatch, got: %s", res.Reason)
 	}
 }
-
 
 /*
 TestValidate_CoinbaseAmountWrong ensures that a block is rejected if its
@@ -30,12 +29,12 @@ func TestValidate_CoinbaseAmountWrong(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
 	c.RequestFaucetFunds("recipient", 100)
 	c.MinePendingTransactions() // Block 1
-	
+
 	// Modify the COINBASE tx amount in Block 1
-	c.blocks[1].Transactions[0].Amount = 999 
+	c.blocks[1].Transactions[0].Amount = 999
 	c.blocks[1].Header.MerkleRoot = block.CalculateMerkleRoot(c.blocks[1].Transactions)
 	c.blocks[1].Hash = c.blocks[1].CalculateHash()
-	
+
 	res := c.Validate()
 	if res.IsValid || !strings.Contains(res.Reason, "Invalid COINBASE reward") {
 		t.Errorf("Expected Invalid COINBASE reward, got: %s", res.Reason)
@@ -50,7 +49,7 @@ func TestValidate_SecondCoinbaseMidBlock(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
 	c.RequestFaucetFunds("recipient", 100)
 	c.MinePendingTransactions()
-	
+
 	secondCoinbase := block.Transaction{
 		Sender:    block.SystemAddressCoinbase,
 		Recipient: "Miner2",
@@ -75,7 +74,7 @@ func TestValidate_EmptyBlockZeroTransactions(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
 	c.RequestFaucetFunds("recipient", 100)
 	c.MinePendingTransactions()
-	
+
 	c.blocks[1].Transactions = []block.Transaction{}
 	c.blocks[1].Header.MerkleRoot = block.CalculateMerkleRoot(c.blocks[1].Transactions)
 	c.blocks[1].Hash = c.blocks[1].CalculateHash()
@@ -92,13 +91,13 @@ results in a negative balance during ledger replay, the chain is invalidated.
 */
 func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
-	
+
 	w := wallet.NewWallet()
 	addr := w.Address()
-	
+
 	c.RequestFaucetFunds(addr, 100)
 	c.MinePendingTransactions() // addr gets 100
-	
+
 	// Create a tx spending 150
 	tx := block.Transaction{
 		Sender:    addr,
@@ -108,7 +107,7 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 		PublicKey: w.PublicKey,
 	}
 	tx.Sign(w.PrivateKey)
-	
+
 	// Add a valid transaction first to mine a block
 	tx2 := block.Transaction{
 		Sender:    addr,
@@ -125,7 +124,7 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 	c.blocks[2].Transactions[1] = tx // replace tx2 with the overspending tx
 	c.blocks[2].Header.MerkleRoot = block.CalculateMerkleRoot(c.blocks[2].Transactions)
 	c.blocks[2].Hash = c.blocks[2].CalculateHash()
-	
+
 	res := c.Validate()
 	if res.IsValid || !strings.Contains(res.Reason, "negative balance for") {
 		t.Errorf("Expected negative balance error, got: %s", res.Reason)

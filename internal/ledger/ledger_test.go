@@ -1,9 +1,9 @@
 package ledger
 
 import (
+	"testing"
 	"valence/internal/block"
 	"valence/internal/wallet"
-	"testing"
 )
 
 /*

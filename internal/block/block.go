@@ -72,4 +72,3 @@ func (b *Block) CalculateHash() string {
 func FormatVCN(electrons int64) string {
 	return fmt.Sprintf("%.9f VCN", float64(electrons)/1e9)
 }
-

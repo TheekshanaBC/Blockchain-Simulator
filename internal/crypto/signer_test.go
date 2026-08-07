@@ -32,11 +32,11 @@ func TestSignAndVerify(t *testing.T) {
 	pub, priv, _ := GenerateKeyPair()
 	msg := []byte("hello valence")
 	sig := Sign(priv, msg)
-	
+
 	if len(sig) != 64 {
 		t.Errorf("Expected signature length 64, got %d", len(sig))
 	}
-	
+
 	valid := Verify(pub, msg, sig)
 	if !valid {
 		t.Error("Expected signature to be valid")
@@ -52,7 +52,7 @@ func TestVerifyTamperedMessage(t *testing.T) {
 	pub, priv, _ := GenerateKeyPair()
 	msg := []byte("hello valence")
 	sig := Sign(priv, msg)
-	
+
 	tamperedMsg := []byte("hello valence!")
 	valid := Verify(pub, tamperedMsg, sig)
 	if valid {
@@ -69,7 +69,7 @@ func TestVerifyTamperedSignature(t *testing.T) {
 	pub, priv, _ := GenerateKeyPair()
 	msg := []byte("hello valence")
 	sig := Sign(priv, msg)
-	
+
 	sig[0] ^= 0xFF // Tamper with signature
 	valid := Verify(pub, msg, sig)
 	if valid {
@@ -85,10 +85,10 @@ for signing. This prevents identity spoofing.
 func TestVerifyWrongKey(t *testing.T) {
 	_, privA, _ := GenerateKeyPair()
 	pubB, _, _ := GenerateKeyPair()
-	
+
 	msg := []byte("hello valence")
 	sig := Sign(privA, msg)
-	
+
 	valid := Verify(pubB, msg, sig)
 	if valid {
 		t.Error("Expected signature verified with wrong public key to be invalid")
@@ -104,7 +104,7 @@ func TestAddressFromPublicKey(t *testing.T) {
 	pub, _, _ := GenerateKeyPair()
 	addr1 := AddressFromPublicKey(pub)
 	addr2 := AddressFromPublicKey(pub)
-	
+
 	if addr1 != addr2 {
 		t.Error("Expected identical addresses for the same public key")
 	}
@@ -121,10 +121,10 @@ ensuring collision resistance and uniqueness.
 func TestAddressDifferentKeys(t *testing.T) {
 	pubA, _, _ := GenerateKeyPair()
 	pubB, _, _ := GenerateKeyPair()
-	
+
 	addrA := AddressFromPublicKey(pubA)
 	addrB := AddressFromPublicKey(pubB)
-	
+
 	if addrA == addrB {
 		t.Error("Expected different addresses for different public keys")
 	}

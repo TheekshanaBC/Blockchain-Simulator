@@ -1,13 +1,13 @@
 package cli
 
 import (
-	"valence/internal/chain"
-	"valence/internal/wallet"
 	"bytes"
 	"io"
 	"os"
 	"strings"
 	"testing"
+	"valence/internal/chain"
+	"valence/internal/wallet"
 )
 
 // Helper to capture stdout
@@ -131,7 +131,7 @@ func TestHandleValidate_Invalid(t *testing.T) {
 	c := chain.NewChain(0, 10, 60, 1, 5)
 	c.RequestFaucetFunds("someone", 100)
 	c.MinePendingTransactions()
-	
+
 	// Corrupt a block
 	c.GetBlocks()[1].Hash = "corrupted_hash"
 	ctx := &cliContext{chain: c}
@@ -153,7 +153,7 @@ func TestHandlePrint(t *testing.T) {
 	c := chain.NewChain(0, 10, 60, 1, 5)
 	c.RequestFaucetFunds("someone", 100)
 	c.MinePendingTransactions()
-	
+
 	ctx := &cliContext{
 		chain:      c,
 		walletFile: "non_existent_wallet.json", // to cover load failure warning
@@ -194,7 +194,7 @@ func TestHandleLoadWallet(t *testing.T) {
 	testDir := "test_data"
 	os.Mkdir(testDir, 0755)
 	defer os.RemoveAll(testDir)
-	
+
 	walletFile := testDir + "/wallet.json"
 	ctx := &cliContext{walletFile: walletFile}
 
