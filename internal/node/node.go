@@ -27,8 +27,8 @@ type Node struct {
 	mu     sync.RWMutex
 	Config Config
 	Chain  *chain.Chain
-	Wallet *wallet.Wallet
-	// Mempool     *Mempool            // defined in Task 2.2
+	Wallet  *wallet.Wallet
+	Mempool *Mempool
 	// PeerManager *peer.PeerManager   // defined in Task 2.3
 	// Gossip      *gossip.Engine      // defined in Sprint 3 (nil initially)
 	server *http.Server
@@ -72,10 +72,11 @@ func NewNode(cfg Config) *Node {
 	c := chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty)
 
 	return &Node{
-		Config: cfg,
-		Chain:  c,
-		Wallet: nodeWallet,
-		logger: logger,
+		Config:  cfg,
+		Chain:   c,
+		Wallet:  nodeWallet,
+		Mempool: NewMempool(),
+		logger:  logger,
 	}
 }
 
