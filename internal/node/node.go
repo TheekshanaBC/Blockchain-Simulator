@@ -8,6 +8,7 @@ import (
 	"os"
 	"sync"
 	"valence/internal/chain"
+	"valence/internal/peer"
 	"valence/internal/wallet"
 )
 
@@ -27,9 +28,9 @@ type Node struct {
 	mu     sync.RWMutex
 	Config Config
 	Chain  *chain.Chain
-	Wallet  *wallet.Wallet
-	Mempool *Mempool
-	// PeerManager *peer.PeerManager   // defined in Task 2.3
+	Wallet      *wallet.Wallet
+	Mempool     *Mempool
+	PeerManager *peer.PeerManager
 	// Gossip      *gossip.Engine      // defined in Sprint 3 (nil initially)
 	server *http.Server
 	logger *slog.Logger
@@ -71,12 +72,15 @@ func NewNode(cfg Config) *Node {
 	// Initialize chain
 	c := chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty)
 
+	selfAddr := fmt.Sprintf("http://localhost:%d", cfg.Port)
+
 	return &Node{
-		Config:  cfg,
-		Chain:   c,
-		Wallet:  nodeWallet,
-		Mempool: NewMempool(),
-		logger:  logger,
+		Config:      cfg,
+		Chain:       c,
+		Wallet:      nodeWallet,
+		Mempool:     NewMempool(),
+		PeerManager: peer.NewPeerManager(selfAddr, cfg.Peers),
+		logger:      logger,
 	}
 }
 
