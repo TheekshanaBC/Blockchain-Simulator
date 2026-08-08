@@ -111,3 +111,76 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 	}
 	return nil
 }
+
+// ValidateTransactions validates a batch of transactions sequentially against the current chain and pending pool state.
+func ValidateTransactions(txs []block.Transaction, chain []*block.Block, pendingPool []block.Transaction) error {
+	balances := CalculateAvailableBalances(chain, pendingPool)
+	sequences := CalculatePendingSequences(chain, pendingPool)
+	faucetReceived := make(map[string]int64)
+
+	// Pre-populate faucetReceived from chain and pending pool
+	for _, b := range chain {
+		for _, tx := range b.Transactions {
+			if tx.Sender == block.SystemAddressFaucet {
+				faucetReceived[tx.Recipient] += tx.Amount
+			}
+		}
+	}
+	for _, tx := range pendingPool {
+		if tx.Sender == block.SystemAddressFaucet {
+			faucetReceived[tx.Recipient] += tx.Amount
+		}
+	}
+
+	for _, tx := range txs {
+		if err := ValidateTransaction(tx, balances, sequences, faucetReceived); err != nil {
+			return err
+		}
+		// Update state for subsequent transactions in this batch
+		if !block.IsSystemAddress(tx.Sender) {
+			balances[tx.Sender] -= tx.Amount
+			sequences[tx.Sender] = tx.Sequence
+		}
+		balances[tx.Recipient] += tx.Amount
+		if tx.Sender == block.SystemAddressFaucet {
+			faucetReceived[tx.Recipient] += tx.Amount
+		}
+	}
+	return nil
+}
+
+// FilterValidTransactions returns only the transactions from the pending pool that are valid against the current chain state.
+func FilterValidTransactions(pendingPool []block.Transaction, chain []*block.Block) []block.Transaction {
+	balances := CalculateAvailableBalances(chain, []block.Transaction{})
+	sequences := CalculatePendingSequences(chain, []block.Transaction{})
+	faucetReceived := make(map[string]int64)
+
+	for _, b := range chain {
+		for _, tx := range b.Transactions {
+			if tx.Sender == block.SystemAddressFaucet {
+				faucetReceived[tx.Recipient] += tx.Amount
+			}
+		}
+	}
+
+	var validPool []block.Transaction
+	for _, tx := range pendingPool {
+		if tx.Sender == block.SystemAddressFaucet {
+			if tx.Recipient == block.SystemAddressCoinbase {
+				continue
+			}
+			if err := ValidateTransaction(tx, balances, sequences, faucetReceived); err == nil {
+				faucetReceived[tx.Recipient] += tx.Amount
+				validPool = append(validPool, tx)
+			}
+		} else if !block.IsSystemAddress(tx.Sender) {
+			if err := ValidateTransaction(tx, balances, sequences, faucetReceived); err == nil {
+				balances[tx.Sender] -= tx.Amount
+				balances[tx.Recipient] += tx.Amount
+				sequences[tx.Sender] = tx.Sequence
+				validPool = append(validPool, tx)
+			}
+		}
+	}
+	return validPool
+}

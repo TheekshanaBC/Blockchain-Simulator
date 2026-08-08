@@ -57,14 +57,8 @@ func HandlePost(nodeURL, endpoint string) {
 func HandleFaucet(nodeURL, keystoreFile, walletName string, amount int64) {
 	w, err := wallet.LoadFromKeystore(keystoreFile, walletName)
 	if err != nil {
-		fmt.Printf("Failed to load wallet '%s': %v\n", walletName, err)
-		fmt.Println("Creating a new wallet for faucet...")
-		w = wallet.NewWallet()
-		err = wallet.SaveToKeystore(keystoreFile, walletName, w)
-		if err != nil {
-			fmt.Printf("Failed to save new wallet: %v\n", err)
-			os.Exit(1)
-		}
+		fmt.Printf("Wallet '%s' not found. Use 'valence-cli wallet create' to create one.\n", walletName)
+		os.Exit(1)
 	}
 
 	payload := map[string]interface{}{
@@ -98,11 +92,27 @@ func HandleSubmitTx(nodeURL, keystoreFile, walletName, toAddr string, amount int
 		os.Exit(1)
 	}
 
+	// Fetch next sequence from node
+	seqResp, err := http.Get(nodeURL + "/sequence/" + w.Address())
+	if err != nil {
+		fmt.Printf("Error fetching sequence: %v\n", err)
+		os.Exit(1)
+	}
+	defer seqResp.Body.Close()
+
+	var seqData struct {
+		NextSequence uint64 `json:"next_sequence"`
+	}
+	if err := json.NewDecoder(seqResp.Body).Decode(&seqData); err != nil {
+		fmt.Printf("Error parsing sequence response: %v\n", err)
+		os.Exit(1)
+	}
+
 	tx := block.Transaction{
 		Sender:    w.Address(),
 		Recipient: toAddr,
 		Amount:    amount,
-		Sequence:  uint64(time.Now().UnixNano()), // Hack for sprint 2
+		Sequence:  seqData.NextSequence,
 		Timestamp: time.Now().UnixNano(),
 	}
 	tx.ComputeID()

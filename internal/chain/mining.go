@@ -16,38 +16,7 @@ func (c *Chain) MinePendingTransactions() error {
 	}
 
 	// Re-validate and filter the pending pool before mining
-	balances := ledger.CalculateAvailableBalances(c.blocks, []block.Transaction{})
-	sequences := ledger.CalculatePendingSequences(c.blocks, []block.Transaction{})
-	faucetReceived := make(map[string]int64)
-
-	for _, b := range c.blocks {
-		for _, tx := range b.Transactions {
-			if tx.Sender == block.SystemAddressFaucet {
-				faucetReceived[tx.Recipient] += tx.Amount
-			}
-		}
-	}
-
-	var validPool []block.Transaction
-	for _, tx := range c.pendingPool {
-		if tx.Sender == block.SystemAddressFaucet {
-			if tx.Recipient == block.SystemAddressCoinbase {
-				continue
-			}
-			if err := ledger.ValidateTransaction(tx, balances, sequences, faucetReceived); err == nil {
-				faucetReceived[tx.Recipient] += tx.Amount
-				validPool = append(validPool, tx)
-			}
-		} else if !block.IsSystemAddress(tx.Sender) {
-			if err := ledger.ValidateTransaction(tx, balances, sequences, faucetReceived); err == nil {
-				balances[tx.Sender] -= tx.Amount
-				balances[tx.Recipient] += tx.Amount
-				sequences[tx.Sender] = tx.Sequence
-				validPool = append(validPool, tx)
-			}
-		}
-	}
-	c.pendingPool = validPool
+	c.pendingPool = ledger.FilterValidTransactions(c.pendingPool, c.blocks)
 
 	if len(c.pendingPool) == 0 {
 		return fmt.Errorf("no pending transactions to mine after validation")

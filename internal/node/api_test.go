@@ -74,10 +74,15 @@ func TestAPISubmitTx_ValidSignature(t *testing.T) {
 	mux := http.NewServeMux()
 	n.setupAPI(mux)
 
+	// Fund the wallet so validation passes
+	n.Chain.RequestFaucetFunds(n.Wallet.Address(), 1000)
+	n.Chain.MinePendingTransactions() // Mined into a block
+
 	tx := block.Transaction{
 		Sender:    n.Wallet.Address(),
 		Recipient: "Bob",
 		Amount:    100,
+		Sequence:  1, // Expected sequence is 1 for a new address
 	}
 	tx.ComputeID()
 	tx.Sign(n.Wallet.PrivateKey)
@@ -128,10 +133,15 @@ func TestAPIGossipTx_AlreadySeen(t *testing.T) {
 	mux := http.NewServeMux()
 	n.setupAPI(mux)
 
+	// Fund the wallet so validation passes
+	n.Chain.RequestFaucetFunds(n.Wallet.Address(), 1000)
+	n.Chain.MinePendingTransactions()
+
 	tx := block.Transaction{
 		Sender:    n.Wallet.Address(),
 		Recipient: "Bob",
 		Amount:    100,
+		Sequence:  1,
 	}
 	tx.ComputeID()
 	tx.Sign(n.Wallet.PrivateKey)
@@ -238,6 +248,28 @@ func TestAPISubmitTx_SystemAddressForge(t *testing.T) {
 
 	if status := rr.Code; status != http.StatusForbidden {
 		t.Errorf("handler returned wrong status code for forged system tx: got %v want %v", status, http.StatusForbidden)
+	}
+}
+
+func TestAPIGossipTx_SystemAddressForge(t *testing.T) {
+	n := setupTestNode(t)
+	mux := http.NewServeMux()
+	n.setupAPI(mux)
+
+	tx := block.Transaction{
+		Sender:    block.SystemAddressFaucet,
+		Recipient: n.Wallet.Address(),
+		Amount:    100,
+	}
+	tx.ComputeID()
+
+	body, _ := json.Marshal(tx)
+	req, _ := http.NewRequest("POST", "/tx/gossip", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusForbidden {
+		t.Errorf("handler returned wrong status code for forged system tx in gossip: got %v want %v", status, http.StatusForbidden)
 	}
 }
 
