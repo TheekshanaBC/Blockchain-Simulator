@@ -47,7 +47,11 @@ func main() {
 		MaxDifficulty:   maxDiff,
 	}
 
-	n := node.NewNode(cfg)
+	n, err := node.NewNode(cfg)
+	if err != nil {
+		slog.Error("failed to initialize node", "error", err)
+		os.Exit(1)
+	}
 
 	// Setup graceful shutdown
 	sigs := make(chan os.Signal, 1)

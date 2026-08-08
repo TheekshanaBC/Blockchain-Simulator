@@ -2,12 +2,15 @@ package node
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 	"valence/internal/block"
 	"valence/internal/ledger"
 )
+
+const FaucetMaxBalance = 10_000 * 1_000_000_000 // 10,000 VCN
 
 // setupAPI registers all the HTTP endpoints for the node
 func (n *Node) setupAPI(mux *http.ServeMux) {
@@ -30,7 +33,9 @@ func (n *Node) setupAPI(mux *http.ServeMux) {
 func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(payload)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		slog.Error("failed to encode JSON response", "error", err)
+	}
 }
 
 func respondError(w http.ResponseWriter, status int, message string) {
@@ -39,8 +44,6 @@ func respondError(w http.ResponseWriter, status int, message string) {
 
 // GET /status
 func (n *Node) handleStatus(w http.ResponseWriter, r *http.Request) {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
 
 	lastBlock := n.Chain.GetLastBlock()
 	hash := ""
@@ -61,8 +64,6 @@ func (n *Node) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 // GET /chain/height
 func (n *Node) handleChainHeight(w http.ResponseWriter, r *http.Request) {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
 
 	lastBlock := n.Chain.GetLastBlock()
 	hash := ""
@@ -78,8 +79,6 @@ func (n *Node) handleChainHeight(w http.ResponseWriter, r *http.Request) {
 
 // GET /chain
 func (n *Node) handleChain(w http.ResponseWriter, r *http.Request) {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
 
 	respondJSON(w, http.StatusOK, n.Chain.GetBlocks())
 }
@@ -93,9 +92,6 @@ func (n *Node) handleBlockByHeight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-
 	blocks := n.Chain.GetBlocks()
 	if height < 0 || height >= len(blocks) {
 		respondError(w, http.StatusNotFound, "block not found")
@@ -107,8 +103,6 @@ func (n *Node) handleBlockByHeight(w http.ResponseWriter, r *http.Request) {
 
 // GET /balances
 func (n *Node) handleBalances(w http.ResponseWriter, r *http.Request) {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
 
 	balances := ledger.CalculateBalances(n.Chain.GetBlocks())
 	respondJSON(w, http.StatusOK, balances)
@@ -179,10 +173,7 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	// Verify block and its transactions
+	// Verify block and its transactions (AddBlock takes its own lock)
 	err := n.Chain.AddBlock(b)
 	if err != nil {
 		respondError(w, http.StatusNotAcceptable, err.Error())
@@ -217,18 +208,16 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 
 	electrons := req.Amount * 1e9
 
-	n.mu.RLock()
 	balances := ledger.CalculateBalances(n.Chain.GetBlocks())
-	n.mu.RUnlock()
 
 	currentBalance := balances[req.Address]
-	if currentBalance+electrons > 10000*1e9 {
+	if currentBalance+electrons > FaucetMaxBalance {
 		respondError(w, http.StatusBadRequest, "faucet limit exceeded")
 		return
 	}
 
 	tx := block.Transaction{
-		Sender:    "VALENCE_FAUCET",
+		Sender:    block.SystemAddressFaucet,
 		Recipient: req.Address,
 		Amount:    electrons,
 		Sequence:  uint64(time.Now().UnixNano()),

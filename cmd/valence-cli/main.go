@@ -136,7 +136,11 @@ func main() {
 			"address": w.Address(),
 			"amount":  amount,
 		}
-		body, _ := json.Marshal(payload)
+		body, err := json.Marshal(payload)
+		if err != nil {
+			fmt.Printf("Failed to marshal request: %v\n", err)
+			os.Exit(1)
+		}
 		resp, err := http.Post(nodeURL+"/faucet", "application/json", bytes.NewBuffer(body))
 		if err != nil {
 			fmt.Printf("Error connecting to node: %v\n", err)
@@ -158,7 +162,10 @@ func main() {
 
 		// Ensure directory exists for keystore
 		dir := filepath.Dir(*keystoreFlag)
-		os.MkdirAll(dir, 0750)
+		if err := os.MkdirAll(dir, 0750); err != nil {
+			fmt.Printf("Failed to create keystore directory: %v\n", err)
+			os.Exit(1)
+		}
 
 		w, err := wallet.LoadFromKeystore(*keystoreFlag, *walletFlag)
 		if err != nil {
@@ -177,7 +184,11 @@ func main() {
 		tx.ComputeID()
 		tx.Sign(w.PrivateKey)
 
-		body, _ := json.Marshal(tx)
+		body, err := json.Marshal(tx)
+		if err != nil {
+			fmt.Printf("Failed to marshal transaction: %v\n", err)
+			os.Exit(1)
+		}
 		resp, err := http.Post(nodeURL+"/tx/submit", "application/json", bytes.NewBuffer(body))
 		if err != nil {
 			fmt.Printf("Error connecting to node: %v\n", err)
