@@ -32,6 +32,7 @@ type Node struct {
 	Mempool     *Mempool
 	PeerManager *peer.PeerManager
 	Gossip      *gossip.Engine
+	Logger      *slog.Logger
 	server *http.Server
 	logger *slog.Logger
 }
@@ -85,6 +86,7 @@ func NewNode(cfg Config) (*Node, error) {
 		Wallet:      nodeWallet,
 		Mempool:     NewMempool(),
 		PeerManager: pm,
+		Logger:      logger,
 		Gossip:      engine,
 		logger:      logger,
 	}, nil

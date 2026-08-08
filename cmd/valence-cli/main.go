@@ -26,6 +26,7 @@ func main() {
 		fmt.Println("  submit-tx <to> <amount>       Sign and submit a transaction")
 		fmt.Println("  mine                          Trigger mining")
 		fmt.Println("  faucet <amount>               Request test funds (in VCN)")
+		fmt.Println("  create-wallet                 Create a new wallet in the keystore")
 		fmt.Println("\nFlags:")
 		flag.PrintDefaults()
 		os.Exit(1)
@@ -38,6 +39,8 @@ func main() {
 	}
 
 	switch command {
+		case "create-wallet":
+		cliclient.HandleCreateWallet(*keystoreFlag, *walletFlag)
 	case "status":
 		cliclient.HandleGet(nodeURL, "/status")
 	case "balances":
@@ -45,7 +48,15 @@ func main() {
 	case "mempool":
 		cliclient.HandleGet(nodeURL, "/mempool")
 	case "peers":
-		cliclient.HandleGet(nodeURL, "/peers")
+		if len(args) > 1 && args[1] == "add" {
+			if len(args) < 3 {
+				fmt.Println("Usage: valence-cli peers add <peer_address>")
+				os.Exit(1)
+			}
+			cliclient.HandlePeersAdd(nodeURL, args[2])
+		} else {
+			cliclient.HandleGet(nodeURL, "/peers")
+		}
 	case "mine":
 		cliclient.HandlePost(nodeURL, "/mine")
 	case "faucet":
