@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"valence/internal/block"
 	"bufio"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ type cliContext struct {
 	chain            *chain.Chain
 	activeWallet     *wallet.Wallet
 	activeWalletName string
+	pendingPool      []block.Transaction
 	walletFile       string
 }
 

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"valence/internal/block"
 	"bytes"
 	"io"
 	"os"
@@ -98,8 +99,8 @@ func TestHandleAddTx_HappyPath(t *testing.T) {
 
 	// First give the wallet some balance via faucet and mine
 	addr := w.Address()
-	c.RequestFaucetFunds(addr, 500_000_000_000)
-	c.MinePendingTransactions()
+	fTx, _ := c.CreateFaucetTx(addr, 500_000_000_000)
+	c.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	out := captureOutput(func() {
 		handleAddTx(ctx, []string{"addtx", "recipient", "100"})
@@ -129,8 +130,8 @@ blockchain with a corrupted block correctly identifies the invalid chain.
 */
 func TestHandleValidate_Invalid(t *testing.T) {
 	c := chain.NewChain(0, 10, 60, 1, 5)
-	c.RequestFaucetFunds("someone", 100)
-	c.MinePendingTransactions()
+	fTx, _ := c.CreateFaucetTx("someone", 100)
+	c.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	// Corrupt a block
 	c.GetBlocks()[1].Hash = "corrupted_hash"
@@ -151,8 +152,8 @@ provides coverage for display.go's printBlockchain and printLine.
 */
 func TestHandlePrint(t *testing.T) {
 	c := chain.NewChain(0, 10, 60, 1, 5)
-	c.RequestFaucetFunds("someone", 100)
-	c.MinePendingTransactions()
+	fTx, _ := c.CreateFaucetTx("someone", 100)
+	c.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	ctx := &cliContext{
 		chain:      c,

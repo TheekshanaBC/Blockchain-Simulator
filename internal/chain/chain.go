@@ -13,8 +13,7 @@ type Chain struct {
 	mu         sync.RWMutex
 	blocks     []*block.Block
 	Difficulty int `json:"difficulty"`
-	// Deprecated: pendingPool was used in Assessment 1. In Sprint 2 and onwards, use internal/node/Mempool instead.
-	pendingPool        []block.Transaction
+
 	RetargetWindow     int   `json:"retarget_window"`
 	TargetBlockTimeSec int64 `json:"target_block_time_sec"`
 	MaxDifficulty      int   `json:"max_difficulty"`
@@ -58,8 +57,7 @@ func (c *Chain) AddBlock(b block.Block) error {
 
 	previousBlock := c.blocks[len(c.blocks)-1]
 
-	prevDifficulty := c.blocks[len(c.blocks)-1].Header.Difficulty
-	expectedDifficulty := expectedDifficultyAfterWindow(c.blocks, b.Height, c.RetargetWindow, c.TargetBlockTimeSec, prevDifficulty, c.MinDifficulty, c.MaxDifficulty)
+	expectedDifficulty := expectedDifficultyAfterWindow(c.blocks, b.Height, c.RetargetWindow, c.TargetBlockTimeSec, c.Difficulty, c.MinDifficulty, c.MaxDifficulty)
 
 	res := validateBlockAgainstPrevious(&b, previousBlock, expectedDifficulty)
 	if !res.IsValid {
@@ -76,18 +74,10 @@ func (c *Chain) AddBlock(b block.Block) error {
 	}
 
 	c.blocks = append(c.blocks, &b)
+	c.Difficulty = expectedDifficulty
 	return nil
 }
 
-// GetPendingPool returns the legacy pending pool.
-// Deprecated: Use node.Mempool instead for new developments.
-func (c *Chain) GetPendingPool() []block.Transaction {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	poolCopy := make([]block.Transaction, len(c.pendingPool))
-	copy(poolCopy, c.pendingPool)
-	return poolCopy
-}
 
 type chainAlias Chain
 
@@ -96,11 +86,9 @@ func (c *Chain) MarshalJSON() ([]byte, error) {
 	defer c.mu.RUnlock()
 	return json.Marshal(&struct {
 		Blocks      []*block.Block      `json:"blocks"`
-		PendingPool []block.Transaction `json:"pending_pool"`
 		*chainAlias
 	}{
 		Blocks:      c.blocks,
-		PendingPool: c.pendingPool,
 		chainAlias:  (*chainAlias)(c),
 	})
 }
@@ -110,7 +98,6 @@ func (c *Chain) UnmarshalJSON(data []byte) error {
 	defer c.mu.Unlock()
 	aux := &struct {
 		Blocks      []*block.Block      `json:"blocks"`
-		PendingPool []block.Transaction `json:"pending_pool"`
 		*chainAlias
 	}{
 		chainAlias: (*chainAlias)(c),
@@ -119,7 +106,6 @@ func (c *Chain) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	c.blocks = aux.Blocks
-	c.pendingPool = aux.PendingPool
 	return nil
 }
 
@@ -137,7 +123,6 @@ func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minD
 	return &Chain{
 		blocks:             []*block.Block{genesis},
 		Difficulty:         difficulty,
-		pendingPool:        []block.Transaction{},
 		RetargetWindow:     retargetWindow,
 		TargetBlockTimeSec: targetBlockTimeSec,
 		MaxDifficulty:      maxDifficulty,
@@ -147,25 +132,4 @@ func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minD
 	}
 }
 
-// AddTransaction adds a transaction to the legacy pending pool.
-// Deprecated: Submit transactions via HTTP to the node's Mempool instead.
-func (c *Chain) AddTransaction(tx block.Transaction) error {
-	if block.IsSystemAddress(tx.Sender) {
-		return fmt.Errorf("transaction rejected: %s is reserved for system use only", tx.Sender)
-	}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	balances := ledger.CalculateAvailableBalances(c.blocks, c.pendingPool)
-	sequences := ledger.CalculatePendingSequences(c.blocks, c.pendingPool)
-	faucetReceived := make(map[string]int64)
-
-	err := ledger.ValidateTransaction(tx, balances, sequences, faucetReceived)
-	if err != nil {
-		return fmt.Errorf("transaction rejected: %w", err)
-	}
-
-	c.pendingPool = append(c.pendingPool, tx)
-	return nil
-}

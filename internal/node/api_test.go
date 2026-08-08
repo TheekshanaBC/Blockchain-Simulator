@@ -75,8 +75,8 @@ func TestAPISubmitTx_ValidSignature(t *testing.T) {
 	n.setupAPI(mux)
 
 	// Fund the wallet so validation passes
-	n.Chain.RequestFaucetFunds(n.Wallet.Address(), 1000)
-	n.Chain.MinePendingTransactions() // Mined into a block
+	fTx, _ := n.Chain.CreateFaucetTx(n.Wallet.Address(), 1000)
+	n.Chain.MineBlock([]block.Transaction{fTx}, "Miner") // Mined into a block
 
 	tx := block.Transaction{
 		Sender:    n.Wallet.Address(),
@@ -115,8 +115,8 @@ func TestAPIFaucet(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	if status := rr.Code; status != http.StatusAccepted {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusAccepted)
 	}
 
 	if n.Mempool.Size() != 1 {
@@ -134,8 +134,8 @@ func TestAPIGossipTx_AlreadySeen(t *testing.T) {
 	n.setupAPI(mux)
 
 	// Fund the wallet so validation passes
-	n.Chain.RequestFaucetFunds(n.Wallet.Address(), 1000)
-	n.Chain.MinePendingTransactions()
+	fTx, _ := n.Chain.CreateFaucetTx(n.Wallet.Address(), 1000)
+	n.Chain.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	tx := block.Transaction{
 		Sender:    n.Wallet.Address(),

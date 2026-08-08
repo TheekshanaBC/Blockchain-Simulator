@@ -104,14 +104,38 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 
 // POST /mine
 func (n *Node) handleMine(w http.ResponseWriter, r *http.Request) {
-	respondJSON(w, http.StatusAccepted, map[string]string{"status": "mining_started"})
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	txs := n.Mempool.GetAll()
+	
+	newBlock, err := n.Chain.MineBlock(txs, n.Config.MinerAddress)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	
+	var txIDs []string
+	for _, tx := range newBlock.Transactions {
+		txIDs = append(txIDs, tx.ID)
+	}
+	n.Mempool.Remove(txIDs)
+	
+	n.Gossip.BroadcastBlock(newBlock)
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "mined",
+		"block":  newBlock,
+	})
 }
 
 // POST /faucet
 func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Address string `json:"address"`
-		Amount  int64  `json:"amount"` // In VCN
+		Amount    int64  `json:"amount"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
@@ -127,19 +151,18 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	electrons := req.Amount * block.ElectronsPerVCN
-
 	// Re-use the existing Faucet Logic from internal/chain/faucet.go
-	tx, err := n.Chain.RequestFaucetFunds(req.Address, electrons)
+	electrons := req.Amount * block.ElectronsPerVCN
+	tx, err := n.Chain.CreateFaucetTx(req.Address, electrons)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 
-	// Move the newly created Faucet transaction directly to the Mempool
 	n.Mempool.Add(tx)
+	n.Gossip.BroadcastTx(tx)
 
-	respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	respondJSON(w, http.StatusAccepted, map[string]string{"status": "ok"})
 }
 
 // GET /mempool

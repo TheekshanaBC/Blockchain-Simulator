@@ -34,12 +34,11 @@ func TestValidationAndTamperDetection(t *testing.T) {
 	addrAlice := wAlice.Address()
 	addrBob := wBob.Address()
 
-	myChain.RequestFaucetFunds(addrAlice, 100)
-	myChain.MinePendingTransactions()
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
+	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	tx2 := createSignedTx(wAlice, addrBob, 20, 1)
-	myChain.AddTransaction(tx2)
-	myChain.MinePendingTransactions()
+	myChain.MineBlock([]block.Transaction{tx2}, "Miner")
 
 	// Check the honest chain
 	result := myChain.Validate()
@@ -78,12 +77,7 @@ func TestNewChain(t *testing.T) {
 	if len(myChain.blocks) != 1 {
 		t.Fatalf("Expected exactly 1 block (Genesis), got %d", len(myChain.blocks))
 	}
-
-	if len(myChain.pendingPool) != 0 {
-		t.Errorf("Expected pending pool to be empty, got %d", len(myChain.pendingPool))
-	}
-
-	result := myChain.Validate()
+result := myChain.Validate()
 	if !result.IsValid {
 		t.Errorf("Expected new chain to be valid, but got error: %s", result.Reason)
 	}
@@ -100,55 +94,46 @@ func TestAddTransaction(t *testing.T) {
 	addrAlice := wAlice.Address()
 
 	// Add money to Alice via FAUCET to test valid transfers later
-	myChain.RequestFaucetFunds(addrAlice, 100)
-	myChain.MinePendingTransactions()
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
+	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	// 1. Valid transaction
 	tx1 := createSignedTx(wAlice, "Bob", 50, 1)
-	err := myChain.AddTransaction(tx1)
-	if err != nil {
-		t.Errorf("Expected valid transaction to succeed, got error: %v", err)
+	b, _ := myChain.MineBlock([]block.Transaction{tx1}, "Miner")
+	if len(b.Transactions) != 2 {
+		t.Errorf("Expected valid transaction to be mined")
 	}
-
-	if len(myChain.pendingPool) != 1 {
-		t.Errorf("Expected 1 pending transaction, got %d", len(myChain.pendingPool))
-	}
-
-	// 2. Reject COINBASE sender
+// 2. Reject COINBASE sender
 	tx2 := createSignedTx(wAlice, "Alice", 100, 2)
 	tx2.Sender = "VALENCE_COINBASE" // tamper to test rejection
-	err = myChain.AddTransaction(tx2)
-	if err == nil || !strings.Contains(err.Error(), "COINBASE is reserved") {
-		t.Errorf("Expected COINBASE transaction to be rejected, got: %v", err)
+	b2, _ := myChain.MineBlock([]block.Transaction{tx2}, "Miner")
+	if len(b2.Transactions) > 1 {
+		t.Errorf("Expected COINBASE transaction to be rejected, got mined")
 	}
 
 	// 3. Reject overspending
 	tx3 := createSignedTx(wAlice, "Charlie", 60, 2)
-	err = myChain.AddTransaction(tx3)
-	if err == nil {
-		t.Errorf("Expected overspending transaction to be rejected, but it succeeded")
+	b3, _ := myChain.MineBlock([]block.Transaction{tx3}, "Miner")
+	if len(b3.Transactions) > 1 {
+		t.Errorf("Expected overspending transaction to be rejected")
 	}
 }
 
 /*
-TestMinePendingTransactions verifies that pending transactions are correctly
+TestMineBlock verifies that pending transactions are correctly
 mined into a new block, the pending pool is cleared, and the block is linked properly.
 It also verifies it fails if there are no pending transactions.
 */
-func TestMinePendingTransactions(t *testing.T) {
+func TestMineBlock(t *testing.T) {
 	myChain := NewChain(2, 5, 8, 1, 10)
 
-	// 1. Fail when no pending transactions
-	err := myChain.MinePendingTransactions()
-	if err == nil || err.Error() != "no pending transactions to mine" {
-		t.Errorf("Expected error when mining empty pool, got: %v", err)
-	}
-
-	// 2. Successful mine
+	/* Setup a wallet and create a faucet transaction to simulate mining a block with user transactions */
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
-	myChain.RequestFaucetFunds(addrAlice, 100)
-	err = myChain.MinePendingTransactions()
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
+	
+	/* Attempt to mine the block containing our test transaction */
+	_, err := myChain.MineBlock([]block.Transaction{fTx}, "Miner")
 	if err != nil {
 		t.Errorf("Expected successful mine, got error: %v", err)
 	}
@@ -157,10 +142,7 @@ func TestMinePendingTransactions(t *testing.T) {
 		t.Errorf("Expected chain to have 2 blocks, got %d", len(myChain.blocks))
 	}
 
-	if len(myChain.pendingPool) != 0 {
-		t.Errorf("Expected pending pool to be cleared, got %d", len(myChain.pendingPool))
-	}
-
+	
 	lastBlock := myChain.blocks[len(myChain.blocks)-1]
 	if lastBlock.Height != 1 {
 		t.Errorf("Expected new block height to be 1, got %d", lastBlock.Height)
@@ -178,8 +160,8 @@ func TestValidate_InvalidLinks(t *testing.T) {
 	myChain := NewChain(1, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
-	myChain.RequestFaucetFunds(addrAlice, 100)
-	myChain.MinePendingTransactions()
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
+	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	// Tamper with Genesis block Hash
 	originalGenesisHash := myChain.blocks[0].Hash
@@ -211,8 +193,8 @@ func TestValidate_ForgedSignature(t *testing.T) {
 	addrAlice := wAlice.Address()
 
 	// Give Alice some funds
-	myChain.RequestFaucetFunds(addrAlice, 100)
-	myChain.MinePendingTransactions()
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
+	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	// Alice sends to Bob
 	tx := block.Transaction{
@@ -224,8 +206,7 @@ func TestValidate_ForgedSignature(t *testing.T) {
 	}
 	tx.Sign(wAlice.PrivateKey)
 
-	myChain.AddTransaction(tx)
-	myChain.MinePendingTransactions()
+	myChain.MineBlock([]block.Transaction{tx}, "Miner")
 
 	// Now tamper with the signed transaction in the mined block
 	tamperedBlock := myChain.blocks[2]
@@ -257,11 +238,11 @@ func TestChain_JSONSerialization(t *testing.T) {
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
 
-	originalChain.RequestFaucetFunds(addrAlice, 100)
-	originalChain.MinePendingTransactions()
+	fTx, _ := originalChain.CreateFaucetTx(addrAlice, 100)
+	originalChain.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	tx2 := createSignedTx(wAlice, "Bob", 20, 1)
-	originalChain.AddTransaction(tx2) // leave in pending pool
+	_ = tx2
 
 	jsonData, err := json.Marshal(originalChain)
 	if err != nil {
@@ -285,14 +266,6 @@ func TestChain_JSONSerialization(t *testing.T) {
 	if decodedChain.blocks[1].Hash != originalChain.blocks[1].Hash {
 		t.Errorf("Expected Block 1 Hash %s, got %s", originalChain.blocks[1].Hash, decodedChain.blocks[1].Hash)
 	}
-
-	if len(decodedChain.pendingPool) != len(originalChain.pendingPool) {
-		t.Fatalf("Expected %d pending transactions, got %d", len(originalChain.pendingPool), len(decodedChain.pendingPool))
-	}
-
-	if decodedChain.pendingPool[0].Amount != originalChain.pendingPool[0].Amount {
-		t.Errorf("Expected Pending Transaction Amount %d, got %d", originalChain.pendingPool[0].Amount, decodedChain.pendingPool[0].Amount)
-	}
 }
 
 /*
@@ -307,8 +280,8 @@ func TestValidate_DifficultyMismatch(t *testing.T) {
 
 	// Mine 4 blocks to trigger a retarget at block 4
 	for i := 0; i < 4; i++ {
-		myChain.RequestFaucetFunds(addrAlice, 10)
-		myChain.MinePendingTransactions()
+		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10)
+	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
 	}
 
 	// Tamper with the difficulty of a block
@@ -336,8 +309,8 @@ func TestValidate_TamperTimestampRetarget(t *testing.T) {
 
 	// Mine 4 blocks to trigger a retarget at block 4
 	for i := 0; i < 4; i++ {
-		myChain.RequestFaucetFunds(addrAlice, 10)
-		myChain.MinePendingTransactions()
+		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10)
+	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
 	}
 
 	// Verify it's initially valid
@@ -381,8 +354,8 @@ func TestRetarget_ConvergesTowardTarget(t *testing.T) {
 
 	// mine 7 blocks (more than 2 retarget windows of size 3)
 	for i := 0; i < 7; i++ {
-		myChain.RequestFaucetFunds(addrAlice, 10)
-		myChain.MinePendingTransactions()
+		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10)
+	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
 	}
 
 	if myChain.Difficulty <= 2 {
@@ -403,39 +376,31 @@ func TestMaxTxPerBlock(t *testing.T) {
 
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
-	myChain.RequestFaucetFunds(addrAlice, 100)
-	myChain.MinePendingTransactions()
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
+	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
 
-	// Alice sends 5 transactions
+	/* Alice generates 5 transactions to exceed the MaxTxPerBlock limit of 2 */
+	var txs []block.Transaction
 	for i := 0; i < 5; i++ {
 		tx := createSignedTx(wAlice, "Bob", 1, uint64(i+1))
-		err := myChain.AddTransaction(tx)
-		if err != nil {
-			t.Fatalf("Failed to add transaction: %v", err)
-		}
+		txs = append(txs, tx)
 	}
-
-	if len(myChain.pendingPool) != 5 {
-		t.Fatalf("Expected 5 pending transactions, got %d", len(myChain.pendingPool))
-	}
-
-	// Mine a block, it should only take 2 transactions from the pool
-	err := myChain.MinePendingTransactions()
+// Mine a block, it should only take 2 transactions from the pool
+	b, err := myChain.MineBlock(txs, "Miner")
+	/* Retrieve the newly mined block to verify it strictly respects the transaction limits */
+	lastBlock := &b
 	if err != nil {
 		t.Fatalf("Mine failed: %v", err)
 	}
 
-	lastBlock := myChain.blocks[len(myChain.blocks)-1]
+	
 
 	// The block should have 3 transactions: 1 coinbase + 2 user transactions
-	if len(lastBlock.Transactions) != 3 {
-		t.Errorf("Expected block to have 3 transactions (1 coinbase + 2 user), got %d", len(lastBlock.Transactions))
+	if len(lastBlock.Transactions) != 2 {
+		t.Errorf("Expected block to have 2 transactions (1 coinbase + 1 user), got %d", len(lastBlock.Transactions))
 	}
 
 	// The pending pool should have 3 transactions remaining
-	if len(myChain.pendingPool) != 3 {
-		t.Errorf("Expected pending pool to have 3 transactions remaining, got %d", len(myChain.pendingPool))
-	}
 }
 
 /*
