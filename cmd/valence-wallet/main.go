@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"valence/internal/block"
 	"valence/internal/cliclient"
 )
 
@@ -55,7 +56,7 @@ func main() {
 		cliclient.HandleFaucet(nodeURL, *keystoreFlag, *walletFlag, amount)
 	case "submit-tx":
 		if len(args) < 3 {
-			fmt.Println("Usage: valence-wallet submit-tx <to_address> <amount_in_electrons>")
+			fmt.Println("Usage: valence-wallet submit-tx <to_address> <amount_in_vcn>")
 			os.Exit(1)
 		}
 		toAddr := args[1]
@@ -64,7 +65,7 @@ func main() {
 			fmt.Printf("Invalid amount: %v\n", err)
 			os.Exit(1)
 		}
-		cliclient.HandleSubmitTx(nodeURL, *keystoreFlag, *walletFlag, toAddr, amount)
+		cliclient.HandleSubmitTx(nodeURL, *keystoreFlag, *walletFlag, toAddr, amount*block.ElectronsPerVCN)
 	default:
 		fmt.Printf("Unknown wallet command: %s\n", command)
 		os.Exit(1)

@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -92,7 +93,7 @@ func TestAPISubmitTx_ValidSignature(t *testing.T) {
 
 	// Fund the wallet so validation passes
 	fTx, _ := n.Chain.CreateFaucetTx(n.Wallet.Address(), 1000, nil)
-	n.Chain.MineBlock([]block.Transaction{fTx}, "Miner") // Mined into a block
+	n.Chain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner") // Mined into a block
 
 	tx := block.Transaction{
 		Sender:    n.Wallet.Address(),
@@ -161,7 +162,7 @@ func TestAPIGossipTx_AlreadySeen(t *testing.T) {
 
 	// Fund the wallet so validation passes
 	fTx, _ := n.Chain.CreateFaucetTx(n.Wallet.Address(), 1000, nil)
-	n.Chain.MineBlock([]block.Transaction{fTx}, "Miner")
+	n.Chain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	tx := block.Transaction{
 		Sender:    n.Wallet.Address(),

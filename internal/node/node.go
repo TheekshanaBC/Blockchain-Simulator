@@ -10,6 +10,7 @@ import (
 	"valence/internal/chain"
 	"valence/internal/gossip"
 	"valence/internal/peer"
+	"valence/internal/storage"
 	"valence/internal/wallet"
 )
 
@@ -71,7 +72,15 @@ func NewNode(cfg Config) (*Node, error) {
 	}
 
 	// Initialize chain
-	c := chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty)
+	chainFile := fmt.Sprintf("%s/chain.json", cfg.DataDir)
+	var c *chain.Chain
+	c, err = storage.LoadChain(chainFile)
+	if err != nil {
+		logger.Info("No existing chain found, creating genesis chain")
+		c = chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty)
+	} else {
+		logger.Info("Loaded chain from disk", "height", c.Height(), "file", chainFile)
+	}
 
 	selfAddr := fmt.Sprintf("http://localhost:%d", cfg.Port)
 
@@ -122,5 +131,13 @@ func (n *Node) Stop() {
 		if err := n.server.Shutdown(ctx); err != nil {
 			n.Logger.Error("server shutdown error", "error", err)
 		}
+	}
+}
+
+// SaveState saves the current blockchain state to disk
+func (n *Node) SaveState() {
+	chainFile := fmt.Sprintf("%s/chain.json", n.Config.DataDir)
+	if err := storage.SaveChain(n.Chain, chainFile); err != nil {
+		n.Logger.Error("Failed to save chain state", "error", err)
 	}
 }

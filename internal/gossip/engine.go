@@ -90,10 +90,11 @@ func (e *Engine) sendToPeer(peerAddr string, endpoint string, payload []byte) {
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
-		e.logger.Warn("gossip request failed", "peer", peerAddr, "endpoint", endpoint, "error", err)
+		e.logger.Debug("gossip request failed", "peer", peerAddr, "endpoint", endpoint, "error", err)
 		e.peerManager.MarkFailed(peerAddr)
 		return
 	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {

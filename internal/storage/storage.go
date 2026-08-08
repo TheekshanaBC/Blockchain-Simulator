@@ -43,6 +43,9 @@ func LoadChain(filename string) (*chain.Chain, error) {
 	if c.MinDifficulty > c.MaxDifficulty {
 		c.MinDifficulty, c.MaxDifficulty = c.MaxDifficulty, c.MinDifficulty
 	}
+	if c.MaxTxPerBlock <= 0 {
+		c.MaxTxPerBlock = 10
+	}
 
 	return &c, nil
 }

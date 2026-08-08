@@ -2,14 +2,15 @@ package block
 
 import (
 	"context"
-	"fmt"
+	"math"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 )
 
 // proof of work algorithm
-func (b *Block) Mine(difficulty int) {
+func (b *Block) Mine(ctx context.Context, difficulty int) {
 	b.Header.Difficulty = difficulty
 	b.Header.MerkleRoot = CalculateMerkleRoot(b.Transactions)
 	target := strings.Repeat("0", difficulty)
@@ -25,7 +26,9 @@ func (b *Block) Mine(difficulty int) {
 	for {
 		b.Header.MerkleRoot = CalculateMerkleRoot(b.Transactions) // recalculate the merkle root for updated extra nonce
 		numWorkers := runtime.NumCPU()
-		ctx, cancel := context.WithCancel(context.Background())
+		
+		// Create an inner context to cancel siblings if one finds the block
+		innerCtx, innerCancel := context.WithCancel(ctx)
 
 		resultChan := make(chan struct {
 			nonce uint32
@@ -40,13 +43,13 @@ func (b *Block) Mine(difficulty int) {
 			go func(workerID int) {
 				defer wg.Done()
 
-				if uint32(workerID) > 4294967295-startNonce {
+				if math.MaxUint32-startNonce < uint32(workerID) {
 					return
 				}
 
 				for nonce := startNonce + uint32(workerID); ; nonce += uint32(numWorkers) {
 					select {
-					case <-ctx.Done():
+					case <-innerCtx.Done():
 						return
 					default:
 					}
@@ -58,12 +61,12 @@ func (b *Block) Mine(difficulty int) {
 							nonce uint32
 							hash  string
 						}{nonce, hash}:
-						case <-ctx.Done():
+						case <-innerCtx.Done():
 						}
 						return
 					}
 
-					if nonce > 4294967295-uint32(numWorkers) {
+					if nonce > math.MaxUint32-uint32(numWorkers) {
 						return
 					}
 				}
@@ -75,17 +78,23 @@ func (b *Block) Mine(difficulty int) {
 			close(resultChan)
 		}()
 
-		if res, ok := <-resultChan; ok {
-			b.Header.Nonce = res.nonce
-			b.Hash = res.hash
-			cancel()
-			wg.Wait()
+		select {
+		case result, ok := <-resultChan:
+			if ok {
+				b.Header.Nonce = result.nonce
+				b.Hash = result.hash
+				innerCancel()
+				return
+			}
+		case <-ctx.Done():
+			b.Hash = ""
+			innerCancel()
 			return
 		}
 
-		cancel()
+		innerCancel()
 		extraNonce++
-		b.Transactions[0].Signature = fmt.Appendf(nil, "%d", extraNonce)
+		b.Transactions[0].Signature = strconv.AppendInt(nil, int64(extraNonce), 10)
 		b.Header.Nonce = 0
 	}
 }

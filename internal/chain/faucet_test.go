@@ -1,6 +1,8 @@
 package chain
 
 import (
+	"valence/internal/ledger"
+	"context"
 	"valence/internal/block"
 	"strings"
 	"testing"
@@ -44,12 +46,12 @@ func TestCreateFaucetTx_NonPositiveAmount(t *testing.T) {
 
 /*
 TestCreateFaucetTx_SingleRequestOverLimit ensures that a single request
-exceeding MaxFaucetRequest is rejected.
+exceeding ledger.MaxFaucetRequest is rejected.
 */
 func TestCreateFaucetTx_SingleRequestOverLimit(t *testing.T) {
 	c := NewChain(1, 10, 60, 1, 5)
 
-	_, err := c.CreateFaucetTx("recipient", MaxFaucetRequest+1, nil)
+	_, err := c.CreateFaucetTx("recipient", ledger.MaxFaucetRequest+1, nil)
 	if err == nil || !strings.Contains(err.Error(), "exceeds maximum allowed limit per request") {
 		t.Errorf("Expected over limit error, got: %v", err)
 	}
@@ -64,14 +66,14 @@ func TestCreateFaucetTx_LifetimeLimitExceeded(t *testing.T) {
 	c := NewChain(0, 10, 60, 1, 5)
 	recipient := "greedy_user"
 
-	// 1. Give some funds and mine them (MaxLifetimeFaucetPerAddress is 5000, MaxFaucetRequest is 1000)
+	// 1. Give some funds and mine them (MaxLifetimeFaucetPerAddress is 5000, ledger.MaxFaucetRequest is 1000)
 	
 	for i := 0; i < 5; i++ {
-		fTx, err := c.CreateFaucetTx(recipient, MaxFaucetRequest, nil)
+		fTx, err := c.CreateFaucetTx(recipient, ledger.MaxFaucetRequest, nil)
 		if err != nil {
 			t.Fatalf("Failed to create faucet tx: %v", err)
 		}
-		c.MineBlock([]block.Transaction{fTx}, "Miner")
+		c.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 	}
 
 	/* 2. After reaching the lifetime limit of 5000 VCN, any subsequent request must be rejected by the system */

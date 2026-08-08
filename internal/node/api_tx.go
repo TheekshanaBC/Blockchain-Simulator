@@ -87,6 +87,12 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Quick deduplication check to save CPU
+	if b.Height <= n.Chain.Height() {
+		respondJSON(w, http.StatusOK, map[string]string{"status": "already_seen"})
+		return
+	}
+
 	// Verify block and its transactions (AddBlock takes its own lock)
 	n.Logger.Info("Block received from gossip", "height", b.Height, "hash", b.Hash)
 	err := n.Chain.AddBlock(b)
@@ -102,6 +108,8 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 		txIDs = append(txIDs, tx.ID)
 	}
 	n.Mempool.Remove(txIDs)
+	n.SaveState()
+	
 	n.Logger.Info("Block validated and appended", "height", b.Height, "hash", b.Hash)
 	n.Gossip.BroadcastBlock(b)
 
@@ -110,14 +118,9 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 
 // POST /mine
 func (n *Node) handleMine(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	txs := n.Mempool.GetAll()
 	
-	newBlock, err := n.Chain.MineBlock(txs, n.Config.MinerAddress)
+	newBlock, err := n.Chain.MineBlock(r.Context(), txs, n.Config.MinerAddress)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -128,6 +131,7 @@ func (n *Node) handleMine(w http.ResponseWriter, r *http.Request) {
 		txIDs = append(txIDs, tx.ID)
 	}
 	n.Mempool.Remove(txIDs)
+	n.SaveState()
 	
 	n.Logger.Info("Block mined successfully", "height", newBlock.Height, "hash", newBlock.Hash, "tx_count", len(newBlock.Transactions))
 	n.Gossip.BroadcastBlock(newBlock)

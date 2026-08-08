@@ -60,9 +60,12 @@ func (m *Mempool) GetAll() []block.Transaction {
 		txList = append(txList, tx)
 	}
 
-	// Sort transactions by Sequence (and Sender as secondary to keep deterministic)
+	// Sort transactions by Sequence (and Sender/ID as secondary/tertiary to keep deterministic)
 	sort.Slice(txList, func(i, j int) bool {
 		if txList[i].Sequence == txList[j].Sequence {
+			if txList[i].Sender == txList[j].Sender {
+				return txList[i].ID < txList[j].ID
+			}
 			return txList[i].Sender < txList[j].Sender
 		}
 		return txList[i].Sequence < txList[j].Sequence

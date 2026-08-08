@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"valence/internal/block"
+	"valence/internal/ledger"
 )
-
-const MaxFaucetRequest int64 = 1000 * block.ElectronsPerVCN
-const MaxLifetimeFaucetPerAddress int64 = 5000 * block.ElectronsPerVCN
 
 // CreateFaucetTx creates a system-approved FAUCET transaction.
 // This bypasses the sender signature check but enforces its own limits against the blockchain.
@@ -21,8 +19,8 @@ func (c *Chain) CreateFaucetTx(recipient string, amount int64, pendingPool []blo
 	if amount <= 0 {
 		return block.Transaction{}, fmt.Errorf("faucet amount must be strictly positive")
 	}
-	if amount > MaxFaucetRequest {
-		return block.Transaction{}, fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
+	if amount > ledger.MaxFaucetRequest {
+		return block.Transaction{}, fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", ledger.MaxFaucetRequest)
 	}
 
 	c.mu.RLock()
@@ -42,8 +40,8 @@ func (c *Chain) CreateFaucetTx(recipient string, amount int64, pendingPool []blo
 		}
 	}
 
-	if totalReceived+amount > MaxLifetimeFaucetPerAddress {
-		return block.Transaction{}, fmt.Errorf("lifetime faucet limit exceeded for address (max: %d, already received: %d)", MaxLifetimeFaucetPerAddress, totalReceived)
+	if totalReceived+amount > ledger.MaxLifetimeFaucetPerAddress {
+		return block.Transaction{}, fmt.Errorf("lifetime faucet limit exceeded for address (max: %d, already received: %d)", ledger.MaxLifetimeFaucetPerAddress, totalReceived)
 	}
 
 	tx := block.Transaction{
