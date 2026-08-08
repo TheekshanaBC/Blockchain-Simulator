@@ -58,7 +58,8 @@ func (c *Chain) AddBlock(b block.Block) error {
 
 	previousBlock := c.blocks[len(c.blocks)-1]
 
-	expectedDifficulty := expectedDifficultyAfterWindow(c.blocks, b.Height, c.RetargetWindow, c.TargetBlockTimeSec, c.InitialDifficulty, c.MinDifficulty, c.MaxDifficulty)
+	prevDifficulty := c.blocks[len(c.blocks)-1].Header.Difficulty
+	expectedDifficulty := expectedDifficultyAfterWindow(c.blocks, b.Height, c.RetargetWindow, c.TargetBlockTimeSec, prevDifficulty, c.MinDifficulty, c.MaxDifficulty)
 
 	res := validateBlockAgainstPrevious(&b, previousBlock, expectedDifficulty)
 	if !res.IsValid {
