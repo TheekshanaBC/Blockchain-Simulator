@@ -17,16 +17,13 @@ func main() {
 
 	args := flag.Args()
 	if len(args) < 1 {
-		fmt.Println("Usage: valence-cli [flags] <command> [args]")
+		fmt.Println("Usage: valence-wallet [flags] <command> [args]")
 		fmt.Println("\nCommands:")
-		fmt.Println("  status                        Show node status")
+		fmt.Println("  create-wallet                 Create a new wallet in the keystore")
 		fmt.Println("  balances                      Show all balances")
 		fmt.Println("  mempool                       Show pending transactions")
-		fmt.Println("  peers                         Show connected peers")
 		fmt.Println("  submit-tx <to> <amount>       Sign and submit a transaction")
-		fmt.Println("  mine                          Trigger mining")
 		fmt.Println("  faucet <amount>               Request test funds (in VCN)")
-		fmt.Println("  create-wallet                 Create a new wallet in the keystore")
 		fmt.Println("\nFlags:")
 		flag.PrintDefaults()
 		os.Exit(1)
@@ -39,29 +36,15 @@ func main() {
 	}
 
 	switch command {
-		case "create-wallet":
+	case "create-wallet":
 		cliclient.HandleCreateWallet(*keystoreFlag, *walletFlag)
-	case "status":
-		cliclient.HandleGet(nodeURL, "/status")
 	case "balances":
 		cliclient.HandleGet(nodeURL, "/balances")
 	case "mempool":
 		cliclient.HandleGet(nodeURL, "/mempool")
-	case "peers":
-		if len(args) > 1 && args[1] == "add" {
-			if len(args) < 3 {
-				fmt.Println("Usage: valence-cli peers add <peer_address>")
-				os.Exit(1)
-			}
-			cliclient.HandlePeersAdd(nodeURL, args[2])
-		} else {
-			cliclient.HandleGet(nodeURL, "/peers")
-		}
-	case "mine":
-		cliclient.HandlePost(nodeURL, "/mine")
 	case "faucet":
 		if len(args) < 2 {
-			fmt.Println("Usage: valence-cli faucet <amount>")
+			fmt.Println("Usage: valence-wallet faucet <amount>")
 			os.Exit(1)
 		}
 		amount, err := strconv.ParseInt(args[1], 10, 64)
@@ -72,7 +55,7 @@ func main() {
 		cliclient.HandleFaucet(nodeURL, *keystoreFlag, *walletFlag, amount)
 	case "submit-tx":
 		if len(args) < 3 {
-			fmt.Println("Usage: valence-cli submit-tx <to_address> <amount_in_electrons>")
+			fmt.Println("Usage: valence-wallet submit-tx <to_address> <amount_in_electrons>")
 			os.Exit(1)
 		}
 		toAddr := args[1]
@@ -83,7 +66,7 @@ func main() {
 		}
 		cliclient.HandleSubmitTx(nodeURL, *keystoreFlag, *walletFlag, toAddr, amount)
 	default:
-		fmt.Printf("Unknown command: %s\n", command)
+		fmt.Printf("Unknown wallet command: %s\n", command)
 		os.Exit(1)
 	}
 }
