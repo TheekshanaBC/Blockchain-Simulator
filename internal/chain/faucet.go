@@ -11,7 +11,7 @@ const MaxLifetimeFaucetPerAddress int64 = 5000 * block.ElectronsPerVCN
 
 // CreateFaucetTx creates a system-approved FAUCET transaction.
 // This bypasses the sender signature check but enforces its own limits against the blockchain.
-func (c *Chain) CreateFaucetTx(recipient string, amount int64) (block.Transaction, error) {
+func (c *Chain) CreateFaucetTx(recipient string, amount int64, pendingPool []block.Transaction) (block.Transaction, error) {
 	if strings.TrimSpace(recipient) == "" {
 		return block.Transaction{}, fmt.Errorf("recipient address cannot be empty")
 	}
@@ -34,6 +34,11 @@ func (c *Chain) CreateFaucetTx(recipient string, amount int64) (block.Transactio
 			if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
 				totalReceived += tx.Amount
 			}
+		}
+	}
+	for _, tx := range pendingPool {
+		if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
+			totalReceived += tx.Amount
 		}
 	}
 

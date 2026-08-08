@@ -13,12 +13,12 @@ empty or whitespace-only recipient address returns an error.
 func TestCreateFaucetTx_EmptyRecipient(t *testing.T) {
 	c := NewChain(1, 10, 60, 1, 5)
 
-	_, err := c.CreateFaucetTx("", 100)
+	_, err := c.CreateFaucetTx("", 100, nil)
 	if err == nil || !strings.Contains(err.Error(), "recipient address cannot be empty") {
 		t.Errorf("Expected empty recipient error, got: %v", err)
 	}
 
-	_, err = c.CreateFaucetTx("   ", 100)
+	_, err = c.CreateFaucetTx("   ", 100, nil)
 	if err == nil || !strings.Contains(err.Error(), "recipient address cannot be empty") {
 		t.Errorf("Expected empty recipient error for whitespace, got: %v", err)
 	}
@@ -31,12 +31,12 @@ funds from the faucet returns an error.
 func TestCreateFaucetTx_NonPositiveAmount(t *testing.T) {
 	c := NewChain(1, 10, 60, 1, 5)
 
-	_, err := c.CreateFaucetTx("recipient", 0)
+	_, err := c.CreateFaucetTx("recipient", 0, nil)
 	if err == nil || !strings.Contains(err.Error(), "strictly positive") {
 		t.Errorf("Expected non-positive amount error for 0, got: %v", err)
 	}
 
-	_, err = c.CreateFaucetTx("recipient", -50)
+	_, err = c.CreateFaucetTx("recipient", -50, nil)
 	if err == nil || !strings.Contains(err.Error(), "strictly positive") {
 		t.Errorf("Expected non-positive amount error for -50, got: %v", err)
 	}
@@ -49,7 +49,7 @@ exceeding MaxFaucetRequest is rejected.
 func TestCreateFaucetTx_SingleRequestOverLimit(t *testing.T) {
 	c := NewChain(1, 10, 60, 1, 5)
 
-	_, err := c.CreateFaucetTx("recipient", MaxFaucetRequest+1)
+	_, err := c.CreateFaucetTx("recipient", MaxFaucetRequest+1, nil)
 	if err == nil || !strings.Contains(err.Error(), "exceeds maximum allowed limit per request") {
 		t.Errorf("Expected over limit error, got: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestCreateFaucetTx_LifetimeLimitExceeded(t *testing.T) {
 	// 1. Give some funds and mine them (MaxLifetimeFaucetPerAddress is 5000, MaxFaucetRequest is 1000)
 	
 	for i := 0; i < 5; i++ {
-		fTx, err := c.CreateFaucetTx(recipient, MaxFaucetRequest)
+		fTx, err := c.CreateFaucetTx(recipient, MaxFaucetRequest, nil)
 		if err != nil {
 			t.Fatalf("Failed to create faucet tx: %v", err)
 		}
@@ -75,7 +75,7 @@ func TestCreateFaucetTx_LifetimeLimitExceeded(t *testing.T) {
 	}
 
 	/* 2. After reaching the lifetime limit of 5000 VCN, any subsequent request must be rejected by the system */
-	_, err := c.CreateFaucetTx(recipient, 1)
+	_, err := c.CreateFaucetTx(recipient, 1, nil)
 	if err == nil || !strings.Contains(err.Error(), "lifetime faucet limit exceeded") {
 		t.Errorf("Expected lifetime limit exceeded error, got: %v", err)
 	}

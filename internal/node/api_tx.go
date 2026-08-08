@@ -160,7 +160,7 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 
 	// Re-use the existing Faucet Logic from internal/chain/faucet.go
 	electrons := req.Amount * block.ElectronsPerVCN
-	tx, err := n.Chain.CreateFaucetTx(req.Address, electrons)
+	tx, err := n.Chain.CreateFaucetTx(req.Address, electrons, n.Mempool.GetAll())
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return

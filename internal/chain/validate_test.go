@@ -27,7 +27,7 @@ COINBASE transaction has an incorrect mining reward amount.
 */
 func TestValidate_CoinbaseAmountWrong(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
-	fTx, _ := c.CreateFaucetTx("recipient", 100)
+	fTx, _ := c.CreateFaucetTx("recipient", 100, nil)
 	c.MineBlock([]block.Transaction{fTx}, "Miner") // Block 1
 
 	// Modify the COINBASE tx amount in Block 1
@@ -47,7 +47,7 @@ contains a COINBASE transaction anywhere other than the very first transaction.
 */
 func TestValidate_SecondCoinbaseMidBlock(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
-	fTx, _ := c.CreateFaucetTx("recipient", 100)
+	fTx, _ := c.CreateFaucetTx("recipient", 100, nil)
 	c.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	secondCoinbase := block.Transaction{
@@ -72,7 +72,7 @@ zero transactions (missing even the COINBASE) is immediately rejected.
 */
 func TestValidate_EmptyBlockZeroTransactions(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
-	fTx, _ := c.CreateFaucetTx("recipient", 100)
+	fTx, _ := c.CreateFaucetTx("recipient", 100, nil)
 	c.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	c.blocks[1].Transactions = []block.Transaction{}
@@ -95,7 +95,7 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 	w := wallet.NewWallet()
 	addr := w.Address()
 
-	fTx, _ := c.CreateFaucetTx(addr, 100)
+	fTx, _ := c.CreateFaucetTx(addr, 100, nil)
 	c.MineBlock([]block.Transaction{fTx}, "Miner") // addr gets 100
 
 	// Create a tx spending 150

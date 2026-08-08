@@ -20,7 +20,7 @@ func (c *Chain) MineBlock(txs []block.Transaction, minerAddress string) (block.B
 	coinbaseTx := block.Transaction{
 		Sender:    block.SystemAddressCoinbase,
 		Recipient: minerAddress,
-		Amount:    block.ElectronsPerVCN * 50, // 50 VCN block reward
+		Amount:    block.MiningReward,
 	}
 	coinbaseTx.ComputeID()
 	
@@ -32,6 +32,10 @@ func (c *Chain) MineBlock(txs []block.Transaction, minerAddress string) (block.B
 	}
 	finalTxs = append(finalTxs, validTxs[:maxToAdd]...)
 	
+	if len(c.blocks) == 0 {
+		c.mu.RUnlock()
+		return block.Block{}, fmt.Errorf("cannot mine: chain has no blocks")
+	}
 	lastBlock := c.blocks[len(c.blocks)-1]
 	
 	expectedDifficulty := expectedDifficultyAfterWindow(c.blocks, lastBlock.Height+1, c.RetargetWindow, c.TargetBlockTimeSec, c.Difficulty, c.MinDifficulty, c.MaxDifficulty)

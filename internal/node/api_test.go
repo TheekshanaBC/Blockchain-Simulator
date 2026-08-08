@@ -24,6 +24,11 @@ func setupTestNode(t *testing.T) *Node {
 	return n
 }
 
+/*
+TestAPIStatus verifies the /status endpoint.
+It ensures that a newly started node returns HTTP 200 OK
+and reports an initial blockchain height of 0.
+*/
 func TestAPIStatus(t *testing.T) {
 	n := setupTestNode(t)
 	mux := http.NewServeMux()
@@ -45,6 +50,11 @@ func TestAPIStatus(t *testing.T) {
 	}
 }
 
+/*
+TestAPISubmitTx_InvalidSignature ensures the /tx/submit endpoint
+rejects transactions that lack a valid cryptographic signature.
+It should return HTTP 400 Bad Request.
+*/
 func TestAPISubmitTx_InvalidSignature(t *testing.T) {
 	n := setupTestNode(t)
 	mux := http.NewServeMux()
@@ -69,13 +79,19 @@ func TestAPISubmitTx_InvalidSignature(t *testing.T) {
 	}
 }
 
+/*
+TestAPISubmitTx_ValidSignature ensures the /tx/submit endpoint
+accepts correctly constructed and signed transactions.
+It verifies that the transaction is successfully added to the mempool
+and returns HTTP 202 Accepted.
+*/
 func TestAPISubmitTx_ValidSignature(t *testing.T) {
 	n := setupTestNode(t)
 	mux := http.NewServeMux()
 	n.setupAPI(mux)
 
 	// Fund the wallet so validation passes
-	fTx, _ := n.Chain.CreateFaucetTx(n.Wallet.Address(), 1000)
+	fTx, _ := n.Chain.CreateFaucetTx(n.Wallet.Address(), 1000, nil)
 	n.Chain.MineBlock([]block.Transaction{fTx}, "Miner") // Mined into a block
 
 	tx := block.Transaction{
@@ -101,6 +117,11 @@ func TestAPISubmitTx_ValidSignature(t *testing.T) {
 	}
 }
 
+/*
+TestAPIFaucet verifies the /faucet endpoint.
+It ensures that a valid request creates a FAUCET transaction
+and correctly places it into the node's mempool.
+*/
 func TestAPIFaucet(t *testing.T) {
 	n := setupTestNode(t)
 	mux := http.NewServeMux()
@@ -128,13 +149,18 @@ func TestAPIFaucet(t *testing.T) {
 	}
 }
 
+/*
+TestAPIGossipTx_AlreadySeen tests the deduplication logic in the gossip protocol.
+If a transaction is gossiped to a node that already has it in its mempool,
+the node should safely ignore it and return an 'already_seen' status.
+*/
 func TestAPIGossipTx_AlreadySeen(t *testing.T) {
 	n := setupTestNode(t)
 	mux := http.NewServeMux()
 	n.setupAPI(mux)
 
 	// Fund the wallet so validation passes
-	fTx, _ := n.Chain.CreateFaucetTx(n.Wallet.Address(), 1000)
+	fTx, _ := n.Chain.CreateFaucetTx(n.Wallet.Address(), 1000, nil)
 	n.Chain.MineBlock([]block.Transaction{fTx}, "Miner")
 
 	tx := block.Transaction{
@@ -165,6 +191,11 @@ func TestAPIGossipTx_AlreadySeen(t *testing.T) {
 	}
 }
 
+/*
+TestAPIPeersAnnounce verifies the /peers/announce endpoint.
+It ensures that when a new peer announces itself to the node,
+the node correctly updates its internal PeerManager with the new addresses.
+*/
 func TestAPIPeersAnnounce(t *testing.T) {
 	n := setupTestNode(t)
 	mux := http.NewServeMux()
@@ -189,6 +220,11 @@ func TestAPIPeersAnnounce(t *testing.T) {
 	}
 }
 
+/*
+TestAPIGossipBlock verifies the /block/gossip endpoint.
+It ensures that a valid block received from a peer is successfully
+validated and appended to the local blockchain, increasing the chain height.
+*/
 func TestAPIGossipBlock(t *testing.T) {
 	n := setupTestNode(t)
 	mux := http.NewServeMux()
@@ -228,6 +264,11 @@ func TestAPIGossipBlock(t *testing.T) {
 	}
 }
 
+/*
+TestAPISubmitTx_SystemAddressForge ensures the API prevents clients
+from directly forging System Address transactions (like FAUCET or COINBASE)
+via the /tx/submit endpoint, returning HTTP 403 Forbidden.
+*/
 func TestAPISubmitTx_SystemAddressForge(t *testing.T) {
 	n := setupTestNode(t)
 	mux := http.NewServeMux()
@@ -251,7 +292,12 @@ func TestAPISubmitTx_SystemAddressForge(t *testing.T) {
 	}
 }
 
-func TestAPIGossipTx_SystemAddressForge(t *testing.T) {
+/*
+TestAPIGossipTx_ValidFaucet ensures that valid FAUCET transactions are
+allowed to propagate through the gossip network via /tx/gossip,
+so that other nodes can receive and mine them.
+*/
+func TestAPIGossipTx_ValidFaucet(t *testing.T) {
 	n := setupTestNode(t)
 	mux := http.NewServeMux()
 	n.setupAPI(mux)
@@ -268,11 +314,16 @@ func TestAPIGossipTx_SystemAddressForge(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusForbidden {
-		t.Errorf("handler returned wrong status code for forged system tx in gossip: got %v want %v", status, http.StatusForbidden)
+	if status := rr.Code; status != http.StatusAccepted {
+		t.Errorf("handler returned wrong status code for valid faucet tx in gossip: got %v want %v", status, http.StatusAccepted)
 	}
 }
 
+/*
+TestAPIFaucet_NegativeAmount ensures the /faucet endpoint
+rejects requests containing negative amounts, preventing
+malicious integer manipulation.
+*/
 func TestAPIFaucet_NegativeAmount(t *testing.T) {
 	n := setupTestNode(t)
 	mux := http.NewServeMux()

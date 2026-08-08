@@ -104,3 +104,8 @@ func (e *Engine) sendToPeer(peerAddr string, endpoint string, payload []byte) {
 		e.peerManager.MarkFailed(peerAddr)
 	}
 }
+
+// PurgeSeenCache triggers the cleanup of expired entries in the seen cache.
+func (e *Engine) PurgeSeenCache() {
+	e.seenCache.PurgeOldItems()
+}
