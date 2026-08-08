@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -34,11 +35,11 @@ func TestValidationAndTamperDetection(t *testing.T) {
 	addrAlice := wAlice.Address()
 	addrBob := wBob.Address()
 
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
-	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	tx2 := createSignedTx(wAlice, addrBob, 20, 1)
-	myChain.MineBlock([]block.Transaction{tx2}, "Miner")
+	myChain.MineBlock(context.Background(), []block.Transaction{tx2}, "Miner")
 
 	// Check the honest chain
 	result := myChain.Validate()
@@ -94,26 +95,26 @@ func TestAddTransaction(t *testing.T) {
 	addrAlice := wAlice.Address()
 
 	// Add money to Alice via FAUCET to test valid transfers later
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
-	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	// 1. Valid transaction
 	tx1 := createSignedTx(wAlice, "Bob", 50, 1)
-	b, _ := myChain.MineBlock([]block.Transaction{tx1}, "Miner")
+	b, _ := myChain.MineBlock(context.Background(), []block.Transaction{tx1}, "Miner")
 	if len(b.Transactions) != 2 {
 		t.Errorf("Expected valid transaction to be mined")
 	}
 // 2. Reject COINBASE sender
 	tx2 := createSignedTx(wAlice, "Alice", 100, 2)
 	tx2.Sender = "VALENCE_COINBASE" // tamper to test rejection
-	b2, _ := myChain.MineBlock([]block.Transaction{tx2}, "Miner")
+	b2, _ := myChain.MineBlock(context.Background(), []block.Transaction{tx2}, "Miner")
 	if len(b2.Transactions) > 1 {
 		t.Errorf("Expected COINBASE transaction to be rejected, got mined")
 	}
 
 	// 3. Reject overspending
 	tx3 := createSignedTx(wAlice, "Charlie", 60, 2)
-	b3, _ := myChain.MineBlock([]block.Transaction{tx3}, "Miner")
+	b3, _ := myChain.MineBlock(context.Background(), []block.Transaction{tx3}, "Miner")
 	if len(b3.Transactions) > 1 {
 		t.Errorf("Expected overspending transaction to be rejected")
 	}
@@ -130,10 +131,10 @@ func TestMineBlock(t *testing.T) {
 	/* Setup a wallet and create a faucet transaction to simulate mining a block with user transactions */
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
 	
 	/* Attempt to mine the block containing our test transaction */
-	_, err := myChain.MineBlock([]block.Transaction{fTx}, "Miner")
+	_, err := myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 	if err != nil {
 		t.Errorf("Expected successful mine, got error: %v", err)
 	}
@@ -160,8 +161,8 @@ func TestValidate_InvalidLinks(t *testing.T) {
 	myChain := NewChain(1, 5, 8, 1, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
-	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	// Tamper with Genesis block Hash
 	originalGenesisHash := myChain.blocks[0].Hash
@@ -193,8 +194,8 @@ func TestValidate_ForgedSignature(t *testing.T) {
 	addrAlice := wAlice.Address()
 
 	// Give Alice some funds
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
-	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	// Alice sends to Bob
 	tx := block.Transaction{
@@ -206,7 +207,7 @@ func TestValidate_ForgedSignature(t *testing.T) {
 	}
 	tx.Sign(wAlice.PrivateKey)
 
-	myChain.MineBlock([]block.Transaction{tx}, "Miner")
+	myChain.MineBlock(context.Background(), []block.Transaction{tx}, "Miner")
 
 	// Now tamper with the signed transaction in the mined block
 	tamperedBlock := myChain.blocks[2]
@@ -217,7 +218,7 @@ func TestValidate_ForgedSignature(t *testing.T) {
 	tamperedTx.Signature = []byte("forged-not-a-real-signature")
 
 	// Recalculate block hash and merkle root so it passes those checks
-	tamperedBlock.Mine(1) // Re-mine to get a valid hash with the tampered transaction
+	tamperedBlock.Mine(context.Background(), 1) // Re-mine to get a valid hash with the tampered transaction
 
 	result := myChain.Validate()
 	if result.IsValid {
@@ -238,8 +239,8 @@ func TestChain_JSONSerialization(t *testing.T) {
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
 
-	fTx, _ := originalChain.CreateFaucetTx(addrAlice, 100)
-	originalChain.MineBlock([]block.Transaction{fTx}, "Miner")
+	fTx, _ := originalChain.CreateFaucetTx(addrAlice, 100, nil)
+	originalChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	tx2 := createSignedTx(wAlice, "Bob", 20, 1)
 	_ = tx2
@@ -280,8 +281,8 @@ func TestValidate_DifficultyMismatch(t *testing.T) {
 
 	// Mine 4 blocks to trigger a retarget at block 4
 	for i := 0; i < 4; i++ {
-		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10)
-	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
+		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10, nil)
+	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 	}
 
 	// Tamper with the difficulty of a block
@@ -309,8 +310,8 @@ func TestValidate_TamperTimestampRetarget(t *testing.T) {
 
 	// Mine 4 blocks to trigger a retarget at block 4
 	for i := 0; i < 4; i++ {
-		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10)
-	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
+		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10, nil)
+	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 	}
 
 	// Verify it's initially valid
@@ -324,13 +325,13 @@ func TestValidate_TamperTimestampRetarget(t *testing.T) {
 	myChain.blocks[3].Header.Timestamp += 1000 // Keep them monotonic
 	myChain.blocks[4].Header.Timestamp += 1000
 	// so it reaches the expected difficulty check for Block 4.
-	myChain.blocks[2].Mine(myChain.blocks[2].Header.Difficulty)
+	myChain.blocks[2].Mine(context.Background(), myChain.blocks[2].Header.Difficulty)
 
 	myChain.blocks[3].Header.PrevHash = myChain.blocks[2].Hash
-	myChain.blocks[3].Mine(myChain.blocks[3].Header.Difficulty)
+	myChain.blocks[3].Mine(context.Background(), myChain.blocks[3].Header.Difficulty)
 
 	myChain.blocks[4].Header.PrevHash = myChain.blocks[3].Hash
-	myChain.blocks[4].Mine(myChain.blocks[4].Header.Difficulty)
+	myChain.blocks[4].Mine(context.Background(), myChain.blocks[4].Header.Difficulty)
 
 	tamperedResult := myChain.Validate()
 	if tamperedResult.IsValid {
@@ -354,8 +355,8 @@ func TestRetarget_ConvergesTowardTarget(t *testing.T) {
 
 	// mine 7 blocks (more than 2 retarget windows of size 3)
 	for i := 0; i < 7; i++ {
-		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10)
-	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
+		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10, nil)
+	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 	}
 
 	if myChain.Difficulty <= 2 {
@@ -376,8 +377,8 @@ func TestMaxTxPerBlock(t *testing.T) {
 
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100)
-	myChain.MineBlock([]block.Transaction{fTx}, "Miner")
+	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	/* Alice generates 5 transactions to exceed the MaxTxPerBlock limit of 2 */
 	var txs []block.Transaction
@@ -386,7 +387,7 @@ func TestMaxTxPerBlock(t *testing.T) {
 		txs = append(txs, tx)
 	}
 // Mine a block, it should only take 2 transactions from the pool
-	b, err := myChain.MineBlock(txs, "Miner")
+	b, err := myChain.MineBlock(context.Background(), txs, "Miner")
 	/* Retrieve the newly mined block to verify it strictly respects the transaction limits */
 	lastBlock := &b
 	if err != nil {
@@ -395,7 +396,7 @@ func TestMaxTxPerBlock(t *testing.T) {
 
 	
 
-	// The block should have 3 transactions: 1 coinbase + 2 user transactions
+	// The block should have 2 transactions: 1 coinbase + 1 user transaction
 	if len(lastBlock.Transactions) != 2 {
 		t.Errorf("Expected block to have 2 transactions (1 coinbase + 1 user), got %d", len(lastBlock.Transactions))
 	}

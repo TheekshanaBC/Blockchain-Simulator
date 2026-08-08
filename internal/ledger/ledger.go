@@ -106,7 +106,7 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 		}
 
 		if balances[tx.Sender] < tx.Amount {
-			return fmt.Errorf("insufficent funds: need %d, but have %d", tx.Amount, balances[tx.Sender])
+			return fmt.Errorf("insufficient funds: need %d, but have %d", tx.Amount, balances[tx.Sender])
 		}
 	}
 	return nil

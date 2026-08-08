@@ -1,6 +1,7 @@
 package block
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -96,7 +97,7 @@ func TestMine(t *testing.T) {
 	}
 
 	difficulty := 4
-	block.Mine(difficulty)
+	block.Mine(context.Background(), difficulty)
 
 	// check the hash starts with {difficulty} zeros after mining
 	target := strings.Repeat("0", difficulty) // target = 0000
@@ -122,7 +123,7 @@ func TestMine_ZeroDifficulty(t *testing.T) {
 		Header: BlockHeader{PrevHash: "test"},
 		Height: 1,
 	}
-	block.Mine(0)
+	block.Mine(context.Background(), 0)
 
 	expectedHash := block.CalculateHash()
 	if block.Hash != expectedHash {
@@ -149,7 +150,7 @@ func TestMine_ExistingCoinbase(t *testing.T) {
 	}
 
 	initialTxCount := len(block.Transactions)
-	block.Mine(1)
+	block.Mine(context.Background(), 1)
 
 	if len(block.Transactions) != initialTxCount {
 		t.Errorf("Expected transaction count to remain %d, got %d", initialTxCount, len(block.Transactions))
@@ -170,7 +171,7 @@ func TestMine_NoTransactions(t *testing.T) {
 		Transactions: []Transaction{},
 	}
 
-	block.Mine(1)
+	block.Mine(context.Background(), 1)
 
 	if len(block.Transactions) != 1 {
 		t.Fatalf("Expected exactly 1 transaction (COINBASE), got %d", len(block.Transactions))
@@ -196,7 +197,7 @@ func TestMine_NonceOverflow(t *testing.T) {
 	}
 
 	// difficulty 4 ensures it's highly improbable to find a hash on the very first try (1 in 65536)
-	block.Mine(4)
+	block.Mine(context.Background(), 4)
 
 	// Since we started at MaxUint32, ExtraNonce must have incremented (in Signature).
 	if string(block.Transactions[0].Signature) == "0" {

@@ -10,6 +10,7 @@ import (
 	"valence/internal/chain"
 	"valence/internal/gossip"
 	"valence/internal/peer"
+	"valence/internal/storage"
 	"valence/internal/wallet"
 )
 
@@ -33,8 +34,7 @@ type Node struct {
 	PeerManager *peer.PeerManager
 	Gossip      *gossip.Engine
 	Logger      *slog.Logger
-	server *http.Server
-	logger *slog.Logger
+	server      *http.Server
 }
 
 func NewNode(cfg Config) (*Node, error) {
@@ -72,7 +72,15 @@ func NewNode(cfg Config) (*Node, error) {
 	}
 
 	// Initialize chain
-	c := chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty)
+	chainFile := fmt.Sprintf("%s/chain.json", cfg.DataDir)
+	var c *chain.Chain
+	c, err = storage.LoadChain(chainFile)
+	if err != nil {
+		logger.Info("No existing chain found, creating genesis chain")
+		c = chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty)
+	} else {
+		logger.Info("Loaded chain from disk", "height", c.Height(), "file", chainFile)
+	}
 
 	selfAddr := fmt.Sprintf("http://localhost:%d", cfg.Port)
 
@@ -86,14 +94,22 @@ func NewNode(cfg Config) (*Node, error) {
 		Wallet:      nodeWallet,
 		Mempool:     NewMempool(),
 		PeerManager: pm,
-		Logger:      logger,
 		Gossip:      engine,
-		logger:      logger,
+		Logger:      logger,
 	}, nil
 }
 
 func (n *Node) Start() error {
-	n.logger.Info("Starting Valence Node", "port", n.Config.Port, "data_dir", n.Config.DataDir, "miner_address", n.Config.MinerAddress)
+	n.Logger.Info("Starting Valence Node", "port", n.Config.Port, "data_dir", n.Config.DataDir, "miner_address", n.Config.MinerAddress)
+
+	// Start background goroutine to purge SeenCache
+	go func() {
+		ticker := time.NewTicker(30 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			n.Gossip.PurgeSeenCache()
+		}
+	}()
 
 	// Setup HTTP endpoints
 	mux := http.NewServeMux()
@@ -108,8 +124,20 @@ func (n *Node) Start() error {
 }
 
 func (n *Node) Stop() {
-	n.logger.Info("Stopping Valence Node...")
+	n.Logger.Info("Stopping Valence Node...")
 	if n.server != nil {
-		n.server.Shutdown(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := n.server.Shutdown(ctx); err != nil {
+			n.Logger.Error("server shutdown error", "error", err)
+		}
+	}
+}
+
+// SaveState saves the current blockchain state to disk
+func (n *Node) SaveState() {
+	chainFile := fmt.Sprintf("%s/chain.json", n.Config.DataDir)
+	if err := storage.SaveChain(n.Chain, chainFile); err != nil {
+		n.Logger.Error("Failed to save chain state", "error", err)
 	}
 }

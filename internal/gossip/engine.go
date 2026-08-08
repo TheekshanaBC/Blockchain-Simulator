@@ -90,10 +90,11 @@ func (e *Engine) sendToPeer(peerAddr string, endpoint string, payload []byte) {
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
-		e.logger.Warn("gossip request failed", "peer", peerAddr, "endpoint", endpoint, "error", err)
+		e.logger.Debug("gossip request failed", "peer", peerAddr, "endpoint", endpoint, "error", err)
 		e.peerManager.MarkFailed(peerAddr)
 		return
 	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -103,4 +104,9 @@ func (e *Engine) sendToPeer(peerAddr string, endpoint string, payload []byte) {
 		e.logger.Warn("gossip request rejected by peer", "peer", peerAddr, "status", resp.StatusCode)
 		e.peerManager.MarkFailed(peerAddr)
 	}
+}
+
+// PurgeSeenCache triggers the cleanup of expired entries in the seen cache.
+func (e *Engine) PurgeSeenCache() {
+	e.seenCache.PurgeOldItems()
 }

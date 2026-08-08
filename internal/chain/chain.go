@@ -66,7 +66,16 @@ func (c *Chain) AddBlock(b block.Block) error {
 
 	balances := ledger.CalculateAvailableBalances(c.blocks, []block.Transaction{})
 	sequences := ledger.CalculatePendingSequences(c.blocks, []block.Transaction{})
+	
+	// Pre-populate faucet history from existing blocks to enforce lifetime limits
 	faucetReceived := make(map[string]int64)
+	for _, prevB := range c.blocks {
+		for _, tx := range prevB.Transactions {
+			if tx.Sender == block.SystemAddressFaucet {
+				faucetReceived[tx.Recipient] += tx.Amount
+			}
+		}
+	}
 
 	res = validateBlockTransactions(&b, balances, sequences, faucetReceived)
 	if !res.IsValid {

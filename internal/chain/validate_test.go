@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"valence/internal/block"
@@ -27,8 +28,8 @@ COINBASE transaction has an incorrect mining reward amount.
 */
 func TestValidate_CoinbaseAmountWrong(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
-	fTx, _ := c.CreateFaucetTx("recipient", 100)
-	c.MineBlock([]block.Transaction{fTx}, "Miner") // Block 1
+	fTx, _ := c.CreateFaucetTx("recipient", 100, nil)
+	c.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner") // Block 1
 
 	// Modify the COINBASE tx amount in Block 1
 	c.blocks[1].Transactions[0].Amount = 999
@@ -47,8 +48,8 @@ contains a COINBASE transaction anywhere other than the very first transaction.
 */
 func TestValidate_SecondCoinbaseMidBlock(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
-	fTx, _ := c.CreateFaucetTx("recipient", 100)
-	c.MineBlock([]block.Transaction{fTx}, "Miner")
+	fTx, _ := c.CreateFaucetTx("recipient", 100, nil)
+	c.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	secondCoinbase := block.Transaction{
 		Sender:    block.SystemAddressCoinbase,
@@ -72,8 +73,8 @@ zero transactions (missing even the COINBASE) is immediately rejected.
 */
 func TestValidate_EmptyBlockZeroTransactions(t *testing.T) {
 	c := NewChain(0, 10, 60, 0, 5)
-	fTx, _ := c.CreateFaucetTx("recipient", 100)
-	c.MineBlock([]block.Transaction{fTx}, "Miner")
+	fTx, _ := c.CreateFaucetTx("recipient", 100, nil)
+	c.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	c.blocks[1].Transactions = []block.Transaction{}
 	c.blocks[1].Header.MerkleRoot = block.CalculateMerkleRoot(c.blocks[1].Transactions)
@@ -95,8 +96,8 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 	w := wallet.NewWallet()
 	addr := w.Address()
 
-	fTx, _ := c.CreateFaucetTx(addr, 100)
-	c.MineBlock([]block.Transaction{fTx}, "Miner") // addr gets 100
+	fTx, _ := c.CreateFaucetTx(addr, 100, nil)
+	c.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner") // addr gets 100
 
 	// Create a tx spending 150
 	tx := block.Transaction{
@@ -117,8 +118,8 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 		PublicKey: w.PublicKey,
 	}
 	tx2.Sign(w.PrivateKey)
-	_, _ = c.MineBlock([]block.Transaction{tx2}, "Miner")
-	c.MineBlock([]block.Transaction{}, "Miner")
+	_, _ = c.MineBlock(context.Background(), []block.Transaction{tx2}, "Miner")
+	c.MineBlock(context.Background(), []block.Transaction{}, "Miner")
 
 	// Tamper with the mined block to force an overspend (negative balance)
 	c.blocks[2].Transactions[1] = tx // replace tx2 with the overspending tx

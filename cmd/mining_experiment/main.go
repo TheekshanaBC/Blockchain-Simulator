@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 	"valence/internal/block"
@@ -25,7 +26,7 @@ func main() {
 		}
 
 		start := time.Now()
-		b.Mine(difficulty)
+		b.Mine(context.Background(), difficulty)
 		elapsed := time.Since(start)
 
 		var extraNonce int64

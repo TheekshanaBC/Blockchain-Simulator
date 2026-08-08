@@ -43,8 +43,25 @@ func (n *Node) handleChainHeight(w http.ResponseWriter, r *http.Request) {
 
 // GET /chain
 func (n *Node) handleChain(w http.ResponseWriter, r *http.Request) {
+	blocks := n.Chain.GetBlocks()
+	limit := 50 // Default limit
 
-	respondJSON(w, http.StatusOK, n.Chain.GetBlocks())
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+	
+	// Hard limit of 100 to prevent DoS
+	if limit > 100 {
+		limit = 100
+	}
+
+	if len(blocks) > limit {
+		blocks = blocks[len(blocks)-limit:]
+	}
+
+	respondJSON(w, http.StatusOK, blocks)
 }
 
 // GET /chain/blocks/{height}
