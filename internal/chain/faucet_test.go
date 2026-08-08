@@ -63,7 +63,7 @@ func TestRequestFaucetFunds_LifetimeLimitExceeded(t *testing.T) {
 	c := NewChain(0, 10, 60, 1, 5)
 	recipient := "greedy_user"
 
-	// MaxLifetimeFaucetPerAddress is 5000 * 1e9, MaxFaucetRequest is 1000 * 1e9
+	// MaxLifetimeFaucetPerAddress is 5000 * block.ElectronsPerVCN, MaxFaucetRequest is 1000 * block.ElectronsPerVCN
 
 	// 1. Give some funds and mine them
 	c.RequestFaucetFunds(recipient, MaxFaucetRequest)

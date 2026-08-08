@@ -7,9 +7,11 @@ import (
 	"valence/internal/block"
 )
 
-// MaxTransactionAmount is the maximum coins allowed in a single transaction
-// to prevent int64 overflow vulnerabilities.
-const MaxTransactionAmount = 1_000_000_000_000_000
+// MaxTransactionAmount is 1,000,000 VCN
+const MaxTransactionAmount = 1_000_000 * block.ElectronsPerVCN
+
+const MaxFaucetRequest int64 = 1000 * block.ElectronsPerVCN
+const MaxLifetimeFaucetPerAddress int64 = 5000 * block.ElectronsPerVCN
 
 func CalculateBalances(chain []*block.Block) map[string]int64 {
 	balances := make(map[string]int64)
@@ -70,7 +72,7 @@ func CalculatePendingSequences(chain []*block.Block, pendingPool []block.Transac
 	return sequences
 }
 
-func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequences map[string]uint64) error {
+func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequences map[string]uint64, faucetReceived map[string]int64) error {
 	if tx.Amount <= 0 {
 		return errors.New("amount must be greater than 0")
 	}
@@ -85,11 +87,18 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 		return errors.New("cannot send funds to coinbase address")
 	}
 
-	if !tx.Verify() {
-		return errors.New("invalid transaction signature")
-	}
+	if tx.Sender == block.SystemAddressFaucet {
+		if tx.Amount > MaxFaucetRequest {
+			return fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
+		}
+		if faucetReceived[tx.Recipient]+tx.Amount > MaxLifetimeFaucetPerAddress {
+			return fmt.Errorf("lifetime faucet limit exceeded for address (Max: %d)", MaxLifetimeFaucetPerAddress)
+		}
+	} else if !block.IsSystemAddress(tx.Sender) {
+		if !tx.Verify() {
+			return errors.New("invalid transaction signature")
+		}
 
-	if !block.IsSystemAddress(tx.Sender) {
 		// Sequence Validation (Replay Protection)
 		expectedSeq := sequences[tx.Sender] + 1
 		if tx.Sequence != expectedSeq {

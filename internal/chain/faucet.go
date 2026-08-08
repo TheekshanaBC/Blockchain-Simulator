@@ -6,8 +6,8 @@ import (
 	"valence/internal/block"
 )
 
-const MaxFaucetRequest int64 = 1000 * 1_000_000_000
-const MaxLifetimeFaucetPerAddress int64 = 5000 * 1_000_000_000
+const MaxFaucetRequest int64 = 1000 * block.ElectronsPerVCN
+const MaxLifetimeFaucetPerAddress int64 = 5000 * block.ElectronsPerVCN
 
 // RequestFaucetFunds creates and adds a system-approved FAUCET transaction to the pending pool.
 // This bypasses the AddTransaction sender check but enforces its own limits.

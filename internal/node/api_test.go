@@ -217,3 +217,45 @@ func TestAPIGossipBlock(t *testing.T) {
 		t.Errorf("Expected chain height 1, got %v", n.Chain.Height())
 	}
 }
+
+func TestAPISubmitTx_SystemAddressForge(t *testing.T) {
+	n := setupTestNode(t)
+	mux := http.NewServeMux()
+	n.setupAPI(mux)
+
+	tx := block.Transaction{
+		Sender:    block.SystemAddressFaucet,
+		Recipient: n.Wallet.Address(),
+		Amount:    100,
+	}
+	tx.ComputeID()
+	// No signature needed since tx.Verify() returns true for system addresses
+
+	body, _ := json.Marshal(tx)
+	req, _ := http.NewRequest("POST", "/tx/submit", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusForbidden {
+		t.Errorf("handler returned wrong status code for forged system tx: got %v want %v", status, http.StatusForbidden)
+	}
+}
+
+func TestAPIFaucet_NegativeAmount(t *testing.T) {
+	n := setupTestNode(t)
+	mux := http.NewServeMux()
+	n.setupAPI(mux)
+
+	payload := map[string]interface{}{
+		"address": "test_address",
+		"amount":  -50,
+	}
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", "/faucet", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("handler returned wrong status code for negative faucet amount: got %v want %v", status, http.StatusBadRequest)
+	}
+}

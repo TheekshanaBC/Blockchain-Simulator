@@ -5,12 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
 	"valence/internal/block"
 	"valence/internal/ledger"
 )
-
-const FaucetMaxBalance = 10_000 * 1_000_000_000 // 10,000 VCN
 
 // setupAPI registers all the HTTP endpoints for the node
 func (n *Node) setupAPI(mux *http.ServeMux) {
@@ -126,6 +123,12 @@ func (n *Node) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prevent forging system transactions via client API
+	if block.IsSystemAddress(tx.Sender) {
+		respondError(w, http.StatusForbidden, "cannot submit transactions from system addresses")
+		return
+	}
+
 	// Task 2.5: Verify signature at API boundary
 	if !tx.Verify() {
 		respondError(w, http.StatusBadRequest, "invalid signature")
@@ -148,6 +151,12 @@ func (n *Node) handleGossipTx(w http.ResponseWriter, r *http.Request) {
 	var tx block.Transaction
 	if err := json.NewDecoder(r.Body).Decode(&tx); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Prevent gossiping raw system transactions (they should only come inside blocks)
+	if block.IsSystemAddress(tx.Sender) && tx.Sender != block.SystemAddressFaucet && tx.Sender != block.SystemAddressCoinbase {
+		respondError(w, http.StatusForbidden, "cannot gossip system transactions directly")
 		return
 	}
 
@@ -206,26 +215,23 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	electrons := req.Amount * 1e9
+	electrons := req.Amount * block.ElectronsPerVCN
 
-	balances := ledger.CalculateBalances(n.Chain.GetBlocks())
-
-	currentBalance := balances[req.Address]
-	if currentBalance+electrons > FaucetMaxBalance {
-		respondError(w, http.StatusBadRequest, "faucet limit exceeded")
+	// Re-use the existing Faucet Logic from internal/chain/faucet.go
+	err := n.Chain.RequestFaucetFunds(req.Address, electrons)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	tx := block.Transaction{
-		Sender:    block.SystemAddressFaucet,
-		Recipient: req.Address,
-		Amount:    electrons,
-		Sequence:  uint64(time.Now().UnixNano()),
-		Timestamp: time.Now().UnixNano(),
+	// Move the newly created Faucet transaction from the legacy pendingPool to the Mempool
+	// Note: RequestFaucetFunds locks the chain and puts the transaction in the legacy pending pool.
+	// Since we are migrating, we pull it out of the pending pool and insert it into the Mempool.
+	pool := n.Chain.GetPendingPool()
+	if len(pool) > 0 {
+		latestTx := pool[len(pool)-1]
+		n.Mempool.Add(latestTx)
 	}
-	tx.ComputeID()
-	
-	n.Mempool.Add(tx)
 
 	respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

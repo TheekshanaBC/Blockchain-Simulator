@@ -34,16 +34,12 @@ func (c *Chain) MinePendingTransactions() error {
 			if tx.Recipient == block.SystemAddressCoinbase {
 				continue
 			}
-			if tx.Amount > MaxFaucetRequest {
-				continue
+			if err := ledger.ValidateTransaction(tx, balances, sequences, faucetReceived); err == nil {
+				faucetReceived[tx.Recipient] += tx.Amount
+				validPool = append(validPool, tx)
 			}
-			if faucetReceived[tx.Recipient]+tx.Amount > MaxLifetimeFaucetPerAddress {
-				continue
-			}
-			faucetReceived[tx.Recipient] += tx.Amount
-			validPool = append(validPool, tx)
-		} else {
-			if err := ledger.ValidateTransaction(tx, balances, sequences); err == nil {
+		} else if !block.IsSystemAddress(tx.Sender) {
+			if err := ledger.ValidateTransaction(tx, balances, sequences, faucetReceived); err == nil {
 				balances[tx.Sender] -= tx.Amount
 				balances[tx.Recipient] += tx.Amount
 				sequences[tx.Sender] = tx.Sequence

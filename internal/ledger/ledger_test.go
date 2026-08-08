@@ -24,6 +24,8 @@ func TestValidateTransaction(t *testing.T) {
 		addrAlice: 0,
 	}
 
+	faucetReceived := make(map[string]int64)
+
 	createTx := func(recipient string, amount int64) block.Transaction {
 		tx := block.Transaction{
 			Sender:    addrAlice,
@@ -38,21 +40,21 @@ func TestValidateTransaction(t *testing.T) {
 
 	// Overspending
 	overTx := createTx("Bob", 150)
-	err := ValidateTransaction(overTx, balances, sequences)
+	err := ValidateTransaction(overTx, balances, sequences, faucetReceived)
 	if err == nil {
 		t.Errorf("Expected an error for overspending, but got nil")
 	}
 
 	// Zero amount transaction
 	zeroTx := createTx("Bob", 0)
-	err = ValidateTransaction(zeroTx, balances, sequences)
+	err = ValidateTransaction(zeroTx, balances, sequences, faucetReceived)
 	if err == nil {
 		t.Errorf("Expected an error for zero amount transaction, but got nil")
 	}
 
 	// Good Transaction
 	goodTx := createTx("Bob", 20)
-	err = ValidateTransaction(goodTx, balances, sequences)
+	err = ValidateTransaction(goodTx, balances, sequences, faucetReceived)
 	if err != nil {
 		t.Errorf("Did not expect an error for valid transaction, but got: %v", err)
 	}
@@ -61,28 +63,28 @@ func TestValidateTransaction(t *testing.T) {
 	badSeqTx := createTx("Bob", 20)
 	badSeqTx.Sequence = 5 // Expected 1
 	badSeqTx.Sign(wAlice.PrivateKey)
-	err = ValidateTransaction(badSeqTx, balances, sequences)
+	err = ValidateTransaction(badSeqTx, balances, sequences, faucetReceived)
 	if err == nil {
 		t.Errorf("Expected an error for invalid sequence, but got nil")
 	}
 
 	// Send to COINBASE
 	coinbaseTx := createTx("VALENCE_COINBASE", 10)
-	err = ValidateTransaction(coinbaseTx, balances, sequences)
+	err = ValidateTransaction(coinbaseTx, balances, sequences, faucetReceived)
 	if err == nil {
 		t.Errorf("Expected an error for sending to COINBASE, but got nil")
 	}
 
 	// Negative amount transaction
 	negTx := createTx("Bob", -10)
-	err = ValidateTransaction(negTx, balances, sequences)
+	err = ValidateTransaction(negTx, balances, sequences, faucetReceived)
 	if err == nil {
 		t.Errorf("Expected an error for negative amount, but got nil")
 	}
 
 	// System Senders (FAUCET/COINBASE) bypassing limits
-	sysTx := block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 10000}
-	err = ValidateTransaction(sysTx, balances, sequences)
+	sysTx := block.Transaction{Sender: "FAUCET", Recipient: addrAlice, Amount: 1000 * block.ElectronsPerVCN}
+	err = ValidateTransaction(sysTx, balances, sequences, faucetReceived)
 	if err != nil {
 		t.Errorf("Expected FAUCET to bypass balance checks, but got error: %v", err)
 	}

@@ -2,6 +2,7 @@ package chain
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"valence/internal/block"
@@ -9,9 +10,10 @@ import (
 )
 
 type Chain struct {
-	mu                 sync.RWMutex
-	blocks             []*block.Block
-	Difficulty         int `json:"difficulty"`
+	mu         sync.RWMutex
+	blocks     []*block.Block
+	Difficulty int `json:"difficulty"`
+	// Deprecated: pendingPool was used in Assessment 1. In Sprint 2 and onwards, use internal/node/Mempool instead.
 	pendingPool        []block.Transaction
 	RetargetWindow     int   `json:"retarget_window"`
 	TargetBlockTimeSec int64 `json:"target_block_time_sec"`
@@ -55,27 +57,29 @@ func (c *Chain) AddBlock(b block.Block) error {
 	}
 
 	previousBlock := c.blocks[len(c.blocks)-1]
-	
+
 	expectedDifficulty := expectedDifficultyAfterWindow(c.blocks, b.Height, c.RetargetWindow, c.TargetBlockTimeSec, c.InitialDifficulty, c.MinDifficulty, c.MaxDifficulty)
 
 	res := validateBlockAgainstPrevious(&b, previousBlock, expectedDifficulty)
 	if !res.IsValid {
-		return fmt.Errorf(res.Reason)
+		return errors.New(res.Reason)
 	}
-	
+
 	balances := ledger.CalculateAvailableBalances(c.blocks, []block.Transaction{})
 	sequences := ledger.CalculatePendingSequences(c.blocks, []block.Transaction{})
 	faucetReceived := make(map[string]int64)
 
 	res = validateBlockTransactions(&b, balances, sequences, faucetReceived)
 	if !res.IsValid {
-		return fmt.Errorf(res.Reason)
+		return errors.New(res.Reason)
 	}
 
 	c.blocks = append(c.blocks, &b)
 	return nil
 }
 
+// GetPendingPool returns the legacy pending pool.
+// Deprecated: Use node.Mempool instead for new developments.
 func (c *Chain) GetPendingPool() []block.Transaction {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -142,6 +146,8 @@ func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minD
 	}
 }
 
+// AddTransaction adds a transaction to the legacy pending pool.
+// Deprecated: Submit transactions via HTTP to the node's Mempool instead.
 func (c *Chain) AddTransaction(tx block.Transaction) error {
 	if block.IsSystemAddress(tx.Sender) {
 		return fmt.Errorf("transaction rejected: %s is reserved for system use only", tx.Sender)
@@ -152,8 +158,9 @@ func (c *Chain) AddTransaction(tx block.Transaction) error {
 
 	balances := ledger.CalculateAvailableBalances(c.blocks, c.pendingPool)
 	sequences := ledger.CalculatePendingSequences(c.blocks, c.pendingPool)
+	faucetReceived := make(map[string]int64)
 
-	err := ledger.ValidateTransaction(tx, balances, sequences)
+	err := ledger.ValidateTransaction(tx, balances, sequences, faucetReceived)
 	if err != nil {
 		return fmt.Errorf("transaction rejected: %w", err)
 	}

@@ -145,42 +145,17 @@ func validateBlockTransactions(currentBlock *block.Block, balances map[string]in
 			}
 		}
 
-		if strings.TrimSpace(tx.Recipient) == "" {
-			return ValidationResult{false, currentBlock.Height, "Recipient address cannot be empty"}
-		}
-		if tx.Recipient == block.SystemAddressCoinbase {
-			return ValidationResult{false, currentBlock.Height, "Cannot send funds to COINBASE address."}
-		}
-
-		if tx.Amount <= 0 {
-			return ValidationResult{false, currentBlock.Height, "Transaction amount must be strictly positive"}
-		}
-		if tx.Amount > ledger.MaxTransactionAmount {
-			return ValidationResult{false, currentBlock.Height, "Transaction amount exceeds maximum allowed limit"}
-		}
-		if !tx.Verify() {
-			return ValidationResult{false, currentBlock.Height, "Invalid transaction signature"}
+		// Delegate general validation to ledger
+		err := ledger.ValidateTransaction(tx, balances, sequences, faucetReceived)
+		if err != nil {
+			return ValidationResult{false, currentBlock.Height, err.Error()}
 		}
 
 		if tx.Sender == block.SystemAddressFaucet {
-			if tx.Amount > MaxFaucetRequest {
-				return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)}
-			}
-			if faucetReceived[tx.Recipient]+tx.Amount > MaxLifetimeFaucetPerAddress {
-				return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Lifetime faucet limit exceeded for address (Max: %d)", MaxLifetimeFaucetPerAddress)}
-			}
 			faucetReceived[tx.Recipient] += tx.Amount
 		} else if !block.IsSystemAddress(tx.Sender) {
-			expectedSeq := sequences[tx.Sender] + 1
-			if tx.Sequence != expectedSeq {
-				return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Ledger replay failed: invalid sequence for %s (expected %d, got %d)", tx.Sender, expectedSeq, tx.Sequence)}
-			}
 			sequences[tx.Sender] = tx.Sequence
-
 			balances[tx.Sender] -= tx.Amount
-			if balances[tx.Sender] < 0 {
-				return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Ledger replay failed: negative balance for %s", tx.Sender)}
-			}
 		}
 		balances[tx.Recipient] += tx.Amount
 	}

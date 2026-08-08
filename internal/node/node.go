@@ -25,9 +25,9 @@ type Config struct {
 }
 
 type Node struct {
-	mu     sync.RWMutex
-	Config Config
-	Chain  *chain.Chain
+	mu          sync.RWMutex
+	Config      Config
+	Chain       *chain.Chain
 	Wallet      *wallet.Wallet
 	Mempool     *Mempool
 	PeerManager *peer.PeerManager
