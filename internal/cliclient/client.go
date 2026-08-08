@@ -130,3 +130,36 @@ func HandleSubmitTx(nodeURL, keystoreFile, walletName, toAddr string, amount int
 	}
 	printJSONResponse(resp)
 }
+
+func HandlePeersAdd(nodeURL, peerAddr string) {
+	payload := map[string]interface{}{
+		"address": peerAddr,
+		"peers":   []string{},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Printf("Failed to marshal request: %v\n", err)
+		os.Exit(1)
+	}
+	resp, err := http.Post(nodeURL+"/peers/announce", "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		fmt.Printf("Error connecting to node: %v\n", err)
+		os.Exit(1)
+	}
+	printJSONResponse(resp)
+}
+
+func HandleCreateWallet(keystoreFile, walletName string) {
+	dir := filepath.Dir(keystoreFile)
+	if err := os.MkdirAll(dir, 0750); err != nil {
+		fmt.Printf("Failed to create keystore directory: %v\n", err)
+		os.Exit(1)
+	}
+	w := wallet.NewWallet()
+	err := wallet.SaveToKeystore(keystoreFile, walletName, w)
+	if err != nil {
+		fmt.Printf("Failed to save wallet: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Wallet '%s' created successfully! Address: %s\n", walletName, w.Address())
+}

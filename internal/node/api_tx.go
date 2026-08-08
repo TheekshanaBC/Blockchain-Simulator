@@ -35,6 +35,7 @@ func (n *Node) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 	}
 
 	n.Mempool.Add(tx)
+	n.Logger.Info("TX received and added to mempool", "tx_id", tx.ID, "mempool_size", n.Mempool.Size())
 	n.Gossip.BroadcastTx(tx)
 
 	respondJSON(w, http.StatusAccepted, map[string]string{
@@ -54,13 +55,14 @@ func (n *Node) handleGossipTx(w http.ResponseWriter, r *http.Request) {
 	// Always compute ID server-side
 	tx.ComputeID()
 
-	// Prevent gossiping raw system transactions
-	if block.IsSystemAddress(tx.Sender) {
-		respondError(w, http.StatusForbidden, "cannot gossip system transactions directly")
+	// Prevent gossiping coinbase transactions directly
+	if tx.Sender == block.SystemAddressCoinbase {
+		respondError(w, http.StatusForbidden, "cannot gossip coinbase transactions directly")
 		return
 	}
 
 	if n.Mempool.Has(tx.ID) {
+		n.Logger.Info("TX already seen, skipping", "tx_id", tx.ID)
 		respondJSON(w, http.StatusOK, map[string]string{"status": "already_seen"})
 		return
 	}
@@ -71,6 +73,7 @@ func (n *Node) handleGossipTx(w http.ResponseWriter, r *http.Request) {
 	}
 
 	n.Mempool.Add(tx)
+	n.Logger.Info("TX received and added to mempool", "tx_id", tx.ID, "mempool_size", n.Mempool.Size())
 	n.Gossip.BroadcastTx(tx)
 
 	respondJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
@@ -85,8 +88,10 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify block and its transactions (AddBlock takes its own lock)
+	n.Logger.Info("Block received from gossip", "height", b.Height, "hash", b.Hash)
 	err := n.Chain.AddBlock(b)
 	if err != nil {
+		n.Logger.Warn("Block rejected", "hash", b.Hash, "error", err)
 		respondError(w, http.StatusNotAcceptable, err.Error())
 		return
 	}
@@ -97,6 +102,7 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 		txIDs = append(txIDs, tx.ID)
 	}
 	n.Mempool.Remove(txIDs)
+	n.Logger.Info("Block validated and appended", "height", b.Height, "hash", b.Hash)
 	n.Gossip.BroadcastBlock(b)
 
 	respondJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
@@ -123,6 +129,7 @@ func (n *Node) handleMine(w http.ResponseWriter, r *http.Request) {
 	}
 	n.Mempool.Remove(txIDs)
 	
+	n.Logger.Info("Block mined successfully", "height", newBlock.Height, "hash", newBlock.Hash, "tx_count", len(newBlock.Transactions))
 	n.Gossip.BroadcastBlock(newBlock)
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
@@ -160,6 +167,7 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	n.Mempool.Add(tx)
+	n.Logger.Info("TX received and added to mempool", "tx_id", tx.ID, "mempool_size", n.Mempool.Size())
 	n.Gossip.BroadcastTx(tx)
 
 	respondJSON(w, http.StatusAccepted, map[string]string{"status": "ok"})
