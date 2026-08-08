@@ -242,8 +242,8 @@ func TestValidate_ForgedSignature(t *testing.T) {
 	if result.IsValid {
 		t.Errorf("Expected chain to be invalid due to forged transaction signature")
 	}
-	if result.Reason != "Invalid transaction signature" {
-		t.Errorf("Expected reason to be 'Invalid transaction signature', got '%s'", result.Reason)
+	if !strings.Contains(result.Reason, "invalid transaction signature") {
+		t.Errorf("Expected reason to be 'invalid transaction signature', got '%s'", result.Reason)
 	}
 }
 

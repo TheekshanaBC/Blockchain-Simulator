@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"sync"
 	"valence/internal/chain"
 	"valence/internal/peer"
 	"valence/internal/wallet"
@@ -25,9 +24,8 @@ type Config struct {
 }
 
 type Node struct {
-	mu     sync.RWMutex
-	Config Config
-	Chain  *chain.Chain
+	Config      Config
+	Chain       *chain.Chain
 	Wallet      *wallet.Wallet
 	Mempool     *Mempool
 	PeerManager *peer.PeerManager

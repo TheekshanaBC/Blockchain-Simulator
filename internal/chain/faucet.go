@@ -6,23 +6,23 @@ import (
 	"valence/internal/block"
 )
 
-const MaxFaucetRequest int64 = 1000 * 1_000_000_000
-const MaxLifetimeFaucetPerAddress int64 = 5000 * 1_000_000_000
+const MaxFaucetRequest int64 = 1000 * block.ElectronsPerVCN
+const MaxLifetimeFaucetPerAddress int64 = 5000 * block.ElectronsPerVCN
 
 // RequestFaucetFunds creates and adds a system-approved FAUCET transaction to the pending pool.
 // This bypasses the AddTransaction sender check but enforces its own limits.
-func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
+func (c *Chain) RequestFaucetFunds(recipient string, amount int64) (block.Transaction, error) {
 	if strings.TrimSpace(recipient) == "" {
-		return fmt.Errorf("recipient address cannot be empty")
+		return block.Transaction{}, fmt.Errorf("recipient address cannot be empty")
 	}
 	if recipient == block.SystemAddressCoinbase {
-		return fmt.Errorf("cannot request faucet funds for COINBASE address")
+		return block.Transaction{}, fmt.Errorf("cannot request faucet funds for COINBASE address")
 	}
 	if amount <= 0 {
-		return fmt.Errorf("faucet amount must be strictly positive")
+		return block.Transaction{}, fmt.Errorf("faucet amount must be strictly positive")
 	}
 	if amount > MaxFaucetRequest {
-		return fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
+		return block.Transaction{}, fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
 	}
 
 	c.mu.Lock()
@@ -44,7 +44,7 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 	}
 
 	if totalReceived+amount > MaxLifetimeFaucetPerAddress {
-		return fmt.Errorf("lifetime faucet limit exceeded for address (max: %d, already received: %d)", MaxLifetimeFaucetPerAddress, totalReceived)
+		return block.Transaction{}, fmt.Errorf("lifetime faucet limit exceeded for address (max: %d, already received: %d)", MaxLifetimeFaucetPerAddress, totalReceived)
 	}
 
 	tx := block.Transaction{
@@ -53,7 +53,8 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) error {
 		Amount:    amount,
 		// FAUCET transactions don't need a signature or sequence
 	}
+	tx.ComputeID()
 
 	c.pendingPool = append(c.pendingPool, tx)
-	return nil
+	return tx, nil
 }

@@ -38,6 +38,9 @@ const (
 	SystemAddressFaucet   = "FAUCET"
 )
 
+// ElectronsPerVCN is the number of electrons in 1 VCN (1 billion)
+const ElectronsPerVCN int64 = 1_000_000_000
+
 func IsSystemAddress(addr string) bool {
 	return addr == SystemAddressCoinbase || addr == SystemAddressFaucet
 }
@@ -70,5 +73,5 @@ func (b *Block) CalculateHash() string {
 }
 
 func FormatVCN(electrons int64) string {
-	return fmt.Sprintf("%.9f VCN", float64(electrons)/1e9)
+	return fmt.Sprintf("%.9f VCN", float64(electrons)/float64(ElectronsPerVCN))
 }

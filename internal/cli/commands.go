@@ -91,10 +91,9 @@ func handleFaucet(ctx *cliContext, args []string) {
 		fmt.Println(ColorRed + "Error: " + Reset + "Amount must be a number" + Reset)
 		return
 	}
-	amount := int64(amountVCN * 1e9)
+	amount := int64(amountVCN * float64(block.ElectronsPerVCN))
 
-	address := ctx.activeWallet.Address()
-	err = ctx.chain.RequestFaucetFunds(address, amount)
+	_, err = ctx.chain.RequestFaucetFunds(ctx.activeWallet.Address(), amount)
 	if err != nil {
 		fmt.Println(ColorRed+"Error: "+Reset+"Failed to get FAUCET funds:\n", err)
 	} else {
@@ -116,7 +115,7 @@ func handleAddTx(ctx *cliContext, args []string) {
 		fmt.Println(ColorRed + "Error: " + Reset + "Amount must be a number" + Reset)
 		return
 	}
-	amount := int64(amountVCN * 1e9)
+	amount := int64(amountVCN * float64(block.ElectronsPerVCN))
 
 	senderAddress := ctx.activeWallet.Address()
 

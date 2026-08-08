@@ -1,9 +1,17 @@
 package peer
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
+
+// normalizeAddress strips http:// and https:// prefixes to ensure consistent peer tracking
+func normalizeAddress(addr string) string {
+	addr = strings.TrimPrefix(addr, "http://")
+	addr = strings.TrimPrefix(addr, "https://")
+	return addr
+}
 
 type PeerInfo struct {
 	Address  string
@@ -21,7 +29,7 @@ type PeerManager struct {
 func NewPeerManager(selfAddr string, initialPeers []string) *PeerManager {
 	pm := &PeerManager{
 		peers:    make(map[string]*PeerInfo),
-		selfAddr: selfAddr,
+		selfAddr: normalizeAddress(selfAddr),
 	}
 
 	for _, p := range initialPeers {
@@ -33,6 +41,7 @@ func NewPeerManager(selfAddr string, initialPeers []string) *PeerManager {
 
 // AddPeer adds a new peer. Returns false if the peer is ourself or already exists.
 func (pm *PeerManager) AddPeer(address string) bool {
+	address = normalizeAddress(address)
 	if address == pm.selfAddr || address == "" {
 		return false
 	}
@@ -55,6 +64,7 @@ func (pm *PeerManager) AddPeer(address string) bool {
 
 // RemovePeer permanently removes a peer from the manager.
 func (pm *PeerManager) RemovePeer(address string) {
+	address = normalizeAddress(address)
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -91,6 +101,7 @@ func (pm *PeerManager) GetAllPeers() []*PeerInfo {
 
 // MarkSeen updates the LastSeen timestamp and resets failures to 0.
 func (pm *PeerManager) MarkSeen(address string) {
+	address = normalizeAddress(address)
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -103,6 +114,7 @@ func (pm *PeerManager) MarkSeen(address string) {
 
 // MarkFailed increments the failure count and marks the peer as unhealthy if it exceeds a threshold.
 func (pm *PeerManager) MarkFailed(address string) {
+	address = normalizeAddress(address)
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 

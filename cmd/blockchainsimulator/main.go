@@ -1,3 +1,5 @@
+// Package main provides the legacy interactive CLI for Assessment 1.
+// Deprecated: Use cmd/valence-node and cmd/valence-cli for the distributed Sprint 2+ architecture.
 package main
 
 import (
