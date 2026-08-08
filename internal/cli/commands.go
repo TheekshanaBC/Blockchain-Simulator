@@ -93,7 +93,10 @@ func handleFaucet(ctx *cliContext, args []string) {
 	}
 	amount := int64(amountVCN * float64(block.ElectronsPerVCN))
 
-	_, err = ctx.chain.RequestFaucetFunds(ctx.activeWallet.Address(), amount)
+	fTx, err := ctx.chain.CreateFaucetTx(ctx.activeWallet.Address(), amount)
+	if err == nil {
+		ctx.pendingPool = append(ctx.pendingPool, fTx)
+	}
 	if err != nil {
 		fmt.Println(ColorRed+"Error: "+Reset+"Failed to get FAUCET funds:\n", err)
 	} else {
@@ -119,7 +122,7 @@ func handleAddTx(ctx *cliContext, args []string) {
 
 	senderAddress := ctx.activeWallet.Address()
 
-	sequences := ledger.CalculatePendingSequences(ctx.chain.GetBlocks(), ctx.chain.GetPendingPool())
+	sequences := ledger.CalculatePendingSequences(ctx.chain.GetBlocks(), ctx.pendingPool)
 	nextSeq := sequences[senderAddress] + 1
 
 	tx := block.Transaction{
@@ -136,7 +139,8 @@ func handleAddTx(ctx *cliContext, args []string) {
 		return
 	}
 
-	err = ctx.chain.AddTransaction(tx)
+	err = nil
+	ctx.pendingPool = append(ctx.pendingPool, tx)
 	if err != nil {
 		fmt.Println(ColorRed+"Error: "+Reset+"Failed to add Transaction:\n", err)
 	} else {
@@ -148,7 +152,8 @@ func handleMine(ctx *cliContext, args []string) {
 	fmt.Println(ColorYellow + FormatDim + "Mining new block..." + Reset)
 	startTime := time.Now()
 	oldDiff := ctx.chain.Difficulty
-	err := ctx.chain.MinePendingTransactions()
+	_, err := ctx.chain.MineBlock(ctx.pendingPool, "Miner")
+	ctx.pendingPool = []block.Transaction{}
 	newDiff := ctx.chain.Difficulty
 	miningTime := time.Since(startTime)
 	if err != nil {
@@ -162,7 +167,7 @@ func handleMine(ctx *cliContext, args []string) {
 }
 
 func handlePool(ctx *cliContext, args []string) {
-	if len(ctx.chain.GetPendingPool()) == 0 {
+	if len(ctx.pendingPool) == 0 {
 		fmt.Println(ColorYellow + "No pending transactions!" + Reset)
 	} else {
 		wallets, err := wallet.GetAllWallets(ctx.walletFile)
@@ -170,7 +175,7 @@ func handlePool(ctx *cliContext, args []string) {
 			fmt.Println(ColorRed+"Warning: Failed to load wallets from keystore:"+Reset, err)
 		}
 		fmt.Println(ColorCyan + "--- Pending Transactions ---" + Reset)
-		for i, tx := range ctx.chain.GetPendingPool() {
+		for i, tx := range ctx.pendingPool {
 			senderLabel := getAddressLabel(tx.Sender, wallets)
 			recipientLabel := getAddressLabel(tx.Recipient, wallets)
 			fmt.Printf("%s%d.%s %s --> %s : %s\n", ColorYellow, i+1, Reset, senderLabel, recipientLabel, block.FormatVCN(tx.Amount))

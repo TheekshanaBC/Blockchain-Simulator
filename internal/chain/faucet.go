@@ -9,9 +9,9 @@ import (
 const MaxFaucetRequest int64 = 1000 * block.ElectronsPerVCN
 const MaxLifetimeFaucetPerAddress int64 = 5000 * block.ElectronsPerVCN
 
-// RequestFaucetFunds creates and adds a system-approved FAUCET transaction to the pending pool.
-// This bypasses the AddTransaction sender check but enforces its own limits.
-func (c *Chain) RequestFaucetFunds(recipient string, amount int64) (block.Transaction, error) {
+// CreateFaucetTx creates a system-approved FAUCET transaction.
+// This bypasses the sender signature check but enforces its own limits against the blockchain.
+func (c *Chain) CreateFaucetTx(recipient string, amount int64) (block.Transaction, error) {
 	if strings.TrimSpace(recipient) == "" {
 		return block.Transaction{}, fmt.Errorf("recipient address cannot be empty")
 	}
@@ -25,21 +25,15 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) (block.Transa
 		return block.Transaction{}, fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
 	}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
-	// Calculate total amount already given to this address by the faucet
 	var totalReceived int64 = 0
 	for _, b := range c.blocks {
 		for _, tx := range b.Transactions {
 			if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
 				totalReceived += tx.Amount
 			}
-		}
-	}
-	for _, tx := range c.pendingPool {
-		if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
-			totalReceived += tx.Amount
 		}
 	}
 
@@ -51,10 +45,8 @@ func (c *Chain) RequestFaucetFunds(recipient string, amount int64) (block.Transa
 		Sender:    block.SystemAddressFaucet,
 		Recipient: recipient,
 		Amount:    amount,
-		// FAUCET transactions don't need a signature or sequence
 	}
 	tx.ComputeID()
 
-	c.pendingPool = append(c.pendingPool, tx)
 	return tx, nil
 }
