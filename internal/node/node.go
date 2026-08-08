@@ -36,14 +36,14 @@ type Node struct {
 	logger *slog.Logger
 }
 
-func NewNode(cfg Config) *Node {
+func NewNode(cfg Config) (*Node, error) {
 	// Setup logger
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// Ensure data directory exists
 	if err := os.MkdirAll(cfg.DataDir, 0750); err != nil {
 		logger.Error("failed to create data directory", "error", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to create data directory: %w", err)
 	}
 
 	// Load or create wallet
@@ -51,7 +51,8 @@ func NewNode(cfg Config) *Node {
 	var nodeWallet *wallet.Wallet
 	wallets, err := wallet.GetAllWallets(keystoreFile)
 	if err == nil && len(wallets) > 0 {
-		// Just take the first one
+		// Pick the first available wallet in a non-deterministic way since map iteration is random.
+		// For a single-wallet keystore, this works fine.
 		for _, w := range wallets {
 			nodeWallet = w
 			break
@@ -61,7 +62,7 @@ func NewNode(cfg Config) *Node {
 		err = wallet.SaveToKeystore(keystoreFile, "node_wallet", nodeWallet)
 		if err != nil {
 			logger.Error("failed to save new wallet", "error", err)
-			os.Exit(1)
+			return nil, fmt.Errorf("failed to save new wallet: %w", err)
 		}
 	}
 
@@ -81,7 +82,7 @@ func NewNode(cfg Config) *Node {
 		Mempool:     NewMempool(),
 		PeerManager: peer.NewPeerManager(selfAddr, cfg.Peers),
 		logger:      logger,
-	}
+	}, nil
 }
 
 func (n *Node) Start() error {
