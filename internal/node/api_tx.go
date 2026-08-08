@@ -35,6 +35,7 @@ func (n *Node) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 	}
 
 	n.Mempool.Add(tx)
+	n.Gossip.BroadcastTx(tx)
 
 	respondJSON(w, http.StatusAccepted, map[string]string{
 		"status": "accepted",
@@ -70,6 +71,7 @@ func (n *Node) handleGossipTx(w http.ResponseWriter, r *http.Request) {
 	}
 
 	n.Mempool.Add(tx)
+	n.Gossip.BroadcastTx(tx)
 
 	respondJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
@@ -95,6 +97,7 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 		txIDs = append(txIDs, tx.ID)
 	}
 	n.Mempool.Remove(txIDs)
+	n.Gossip.BroadcastBlock(b)
 
 	respondJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }

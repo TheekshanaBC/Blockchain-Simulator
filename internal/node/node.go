@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 	"valence/internal/chain"
+	"valence/internal/gossip"
 	"valence/internal/peer"
 	"valence/internal/wallet"
 )
@@ -29,7 +31,7 @@ type Node struct {
 	Wallet      *wallet.Wallet
 	Mempool     *Mempool
 	PeerManager *peer.PeerManager
-	// Gossip      *gossip.Engine      // defined in Sprint 3 (nil initially)
+	Gossip      *gossip.Engine
 	server *http.Server
 	logger *slog.Logger
 }
@@ -73,12 +75,17 @@ func NewNode(cfg Config) (*Node, error) {
 
 	selfAddr := fmt.Sprintf("http://localhost:%d", cfg.Port)
 
+	pm := peer.NewPeerManager(selfAddr, cfg.Peers)
+	cache := gossip.NewSeenCache(1 * time.Hour)
+	engine := gossip.NewEngine(pm, cache, logger)
+
 	return &Node{
 		Config:      cfg,
 		Chain:       c,
 		Wallet:      nodeWallet,
 		Mempool:     NewMempool(),
-		PeerManager: peer.NewPeerManager(selfAddr, cfg.Peers),
+		PeerManager: pm,
+		Gossip:      engine,
 		logger:      logger,
 	}, nil
 }
