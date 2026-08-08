@@ -6,8 +6,10 @@ import (
 	"time"
 )
 
-// TestSeenCache_AddAndHas verifies the basic functionality of the cache:
-// adding an item and subsequently checking for its existence.
+/*
+TestSeenCache_AddAndHas verifies the basic functionality of the cache:
+adding an item and subsequently checking for its existence.
+*/
 func TestSeenCache_AddAndHas(t *testing.T) {
 	// Initialize cache with a 1-hour TTL
 	cache := NewSeenCache(1 * time.Hour)
@@ -26,8 +28,10 @@ func TestSeenCache_AddAndHas(t *testing.T) {
 	}
 }
 
-// TestSeenCache_AddIfNotSeen tests the atomic deduplication check.
-// It ensures that concurrent-safe logic correctly identifies new vs existing items.
+/*
+TestSeenCache_AddIfNotSeen tests the atomic deduplication check.
+It ensures that concurrent-safe logic correctly identifies new vs existing items.
+*/
 func TestSeenCache_AddIfNotSeen(t *testing.T) {
 	cache := NewSeenCache(1 * time.Hour)
 
@@ -44,8 +48,10 @@ func TestSeenCache_AddIfNotSeen(t *testing.T) {
 	}
 }
 
-// TestSeenCache_PurgeOldItems ensures that items older than the TTL
-// are successfully removed from the cache to prevent memory leaks.
+/*
+TestSeenCache_PurgeOldItems ensures that items older than the TTL
+are successfully removed from the cache to prevent memory leaks.
+*/
 func TestSeenCache_PurgeOldItems(t *testing.T) {
 	// Use a very short TTL (10ms) for testing
 	cache := NewSeenCache(10 * time.Millisecond)
@@ -72,8 +78,10 @@ func TestSeenCache_PurgeOldItems(t *testing.T) {
 	}
 }
 
-// TestSeenCache_Concurrency runs heavy parallel operations against the cache
-// to ensure there are no data races or deadlocks.
+/*
+TestSeenCache_Concurrency runs heavy parallel operations against the cache
+to ensure there are no data races or deadlocks.
+*/
 func TestSeenCache_Concurrency(t *testing.T) {
 	cache := NewSeenCache(1 * time.Hour)
 	var wg sync.WaitGroup
