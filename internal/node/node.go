@@ -115,7 +115,7 @@ func NewNode(cfg Config) (*Node, error) {
 func (n *Node) Start() error {
 	n.Logger.Info("Starting Valence Node", "port", n.Config.Port, "data_dir", n.Config.DataDir, "miner_address", n.Config.MinerAddress)
 
-	// Start background goroutine to purge SeenCache
+	// Start background goroutine to purge caches and dead peers
 	go func() {
 		ticker := time.NewTicker(30 * time.Minute)
 		defer ticker.Stop()
@@ -123,6 +123,7 @@ func (n *Node) Start() error {
 			select {
 			case <-ticker.C:
 				n.Gossip.PurgeSeenCache()
+				n.PeerManager.PruneUnhealthyPeers(1 * time.Hour)
 			case <-n.stopChan:
 				return
 			}
@@ -187,6 +188,16 @@ func (n *Node) runSync() {
 	if !switched {
 		return
 	}
+	
+	// Remove all transactions that are now in the new chain from the mempool
+	var minedTxIDs []string
+	for _, b := range n.Chain.GetBlocks() {
+		for _, tx := range b.Transactions {
+			minedTxIDs = append(minedTxIDs, tx.ID)
+		}
+	}
+	n.Mempool.Remove(minedTxIDs)
+
 	for _, tx := range orphanedTxs {
 		n.Mempool.Add(tx)
 	}
