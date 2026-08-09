@@ -3,6 +3,7 @@ package chain
 import (
 	"fmt"
 	"strings"
+	"time"
 	"valence/internal/block"
 	"valence/internal/ledger"
 )
@@ -99,6 +100,10 @@ func validateBlockAgainstPrevious(currentBlock, previousBlock *block.Block, expe
 
 	if currentBlock.Header.Timestamp < previousBlock.Header.Timestamp {
 		return ValidationResult{false, currentBlock.Height, "Timestamp is earlier than the previous block"}
+	}
+	
+	if currentBlock.Header.Timestamp > time.Now().Unix()+7200 {
+		return ValidationResult{false, currentBlock.Height, "Timestamp is too far in the future"}
 	}
 
 	if currentBlock.Hash != currentBlock.CalculateHash() {

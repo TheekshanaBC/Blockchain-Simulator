@@ -10,6 +10,7 @@ import (
 // POST /tx/submit
 func (n *Node) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 	var tx block.Transaction
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 	if err := json.NewDecoder(r.Body).Decode(&tx); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -47,6 +48,7 @@ func (n *Node) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 // POST /tx/gossip
 func (n *Node) handleGossipTx(w http.ResponseWriter, r *http.Request) {
 	var tx block.Transaction
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 	if err := json.NewDecoder(r.Body).Decode(&tx); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -55,9 +57,9 @@ func (n *Node) handleGossipTx(w http.ResponseWriter, r *http.Request) {
 	// Always compute ID server-side
 	tx.ComputeID()
 
-	// Prevent gossiping coinbase transactions directly
-	if tx.Sender == block.SystemAddressCoinbase {
-		respondError(w, http.StatusForbidden, "cannot gossip coinbase transactions directly")
+	// Prevent gossiping system transactions directly
+	if block.IsSystemAddress(tx.Sender) {
+		respondError(w, http.StatusForbidden, "cannot gossip system transactions directly")
 		return
 	}
 
@@ -82,6 +84,7 @@ func (n *Node) handleGossipTx(w http.ResponseWriter, r *http.Request) {
 // POST /block/gossip
 func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 	var b block.Block
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -148,6 +151,7 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 		Address string `json:"address"`
 		Amount    int64  `json:"amount"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
