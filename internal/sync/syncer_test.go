@@ -41,7 +41,7 @@ func TestSyncFromBestPeer_NoPeers(t *testing.T) {
 	
 	syncer := NewSyncer(localChain, pm, logger)
 	
-	txs, err := syncer.SyncFromBestPeer()
+	_, txs, err := syncer.SyncFromBestPeer()
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -71,7 +71,7 @@ func TestSyncFromBestPeer_AlreadyAtTip(t *testing.T) {
 	syncer, server := setupSyncerWithMockPeer(t, localChain, handler)
 	defer server.Close()
 
-	txs, err := syncer.SyncFromBestPeer()
+	_, txs, err := syncer.SyncFromBestPeer()
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -124,7 +124,7 @@ func TestSyncFromBestPeer_SyncsTaller(t *testing.T) {
 	syncer, server := setupSyncerWithMockPeer(t, localChain, handler)
 	defer server.Close()
 
-	_, err := syncer.SyncFromBestPeer()
+	_, _, err := syncer.SyncFromBestPeer()
 	if err != nil {
 		t.Fatalf("Sync failed: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestSyncFromBestPeer_InvalidChain(t *testing.T) {
 	syncer, server := setupSyncerWithMockPeer(t, localChain, handler)
 	defer server.Close()
 
-	_, err := syncer.SyncFromBestPeer()
+	_, _, err := syncer.SyncFromBestPeer()
 	if err == nil {
 		t.Fatal("Expected sync to fail with invalid candidate chain, but it succeeded")
 	}

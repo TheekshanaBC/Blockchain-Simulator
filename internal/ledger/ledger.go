@@ -86,6 +86,9 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 	if tx.Recipient == block.SystemAddressCoinbase {
 		return errors.New("cannot send funds to coinbase address")
 	}
+	if tx.Sender == tx.Recipient {
+		return errors.New("cannot send to self")
+	}
 
 	if tx.Sender == block.SystemAddressFaucet {
 		if tx.Amount > MaxFaucetRequest {

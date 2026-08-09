@@ -78,8 +78,15 @@ func NewNode(cfg Config) (*Node, error) {
 	chainFile := fmt.Sprintf("%s/chain.json", cfg.DataDir)
 	var c *chain.Chain
 	c, err = storage.LoadChain(chainFile)
+	if err == nil {
+		res := c.Validate()
+		if !res.IsValid {
+			logger.Warn("Loaded chain is invalid, falling back to genesis", "reason", res.Reason)
+			err = fmt.Errorf("invalid chain")
+		}
+	}
 	if err != nil {
-		logger.Info("No existing chain found, creating genesis chain")
+		logger.Info("No valid existing chain found, creating genesis chain")
 		c = chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty)
 	} else {
 		logger.Info("Loaded chain from disk", "height", c.Height(), "file", chainFile)
@@ -172,9 +179,12 @@ func (n *Node) SaveState() {
 }
 
 func (n *Node) runSync() {
-	orphanedTxs, err := n.Syncer.SyncFromBestPeer()
+	switched, orphanedTxs, err := n.Syncer.SyncFromBestPeer()
 	if err != nil {
 		n.Logger.Warn("Periodic sync failed", "error", err)
+		return
+	}
+	if !switched {
 		return
 	}
 	for _, tx := range orphanedTxs {
@@ -183,4 +193,5 @@ func (n *Node) runSync() {
 	if len(orphanedTxs) > 0 {
 		n.Logger.Info("Returned orphaned transactions to mempool", "count", len(orphanedTxs))
 	}
+	n.SaveState()
 }

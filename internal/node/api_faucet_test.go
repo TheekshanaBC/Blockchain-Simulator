@@ -32,9 +32,9 @@ func TestAPIGossipTx_FaucetLimitProtection(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	// Since system transactions are blocked at the gossip API boundary, it should return 403
-	if status := rr.Code; status != http.StatusForbidden {
-		t.Errorf("handler returned wrong status code for forged large faucet tx: got %v want %v", status, http.StatusForbidden)
+	// Since faucet transactions are allowed through the gossip boundary, it gets blocked by the Ledger validation with 400
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("handler returned wrong status code for forged large faucet tx: got %v want %v", status, http.StatusBadRequest)
 	}
 	t.Logf("Success! Forged transaction blocked by Ledger. Status: %v, Body: %v", rr.Code, rr.Body.String())
 }

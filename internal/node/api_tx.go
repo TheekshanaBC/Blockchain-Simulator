@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"valence/internal/block"
+	"valence/internal/ledger"
 )
 
 // POST /tx/submit
@@ -55,9 +56,9 @@ func (n *Node) handleGossipTx(w http.ResponseWriter, r *http.Request) {
 	// Always compute ID server-side
 	tx.ComputeID()
 
-	// Prevent gossiping system transactions directly
-	if block.IsSystemAddress(tx.Sender) {
-		respondError(w, http.StatusForbidden, "cannot gossip system transactions directly")
+	// Prevent gossiping coinbase transactions directly
+	if tx.Sender == block.SystemAddressCoinbase {
+		respondError(w, http.StatusForbidden, "cannot gossip coinbase transactions directly")
 		return
 	}
 
@@ -173,8 +174,8 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "amount must be positive")
 		return
 	}
-	if req.Amount > 1000 { // Check raw VCN before converting to prevent overflow
-		respondError(w, http.StatusBadRequest, "amount exceeds faucet limit of 1000 VCN")
+	if req.Amount > ledger.MaxFaucetRequest/block.ElectronsPerVCN { // Check raw VCN before converting to prevent overflow
+		respondError(w, http.StatusBadRequest, "amount exceeds faucet limit")
 		return
 	}
 
@@ -186,7 +187,10 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n.Mempool.Add(tx)
+	if err := n.Mempool.ValidateAndAdd(tx, n.Chain.GetBlocks()); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
 	n.Logger.Info("TX received and added to mempool", "tx_id", tx.ID, "mempool_size", n.Mempool.Size())
 	n.Gossip.BroadcastTx(tx)
 
