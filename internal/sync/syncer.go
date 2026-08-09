@@ -31,10 +31,10 @@ func NewSyncer(c *chain.Chain, pm *peer.PeerManager, logger *slog.Logger) *Synce
 
 // SyncFromBestPeer queries all healthy peers to find the one with the longest chain,
 // and then synchronizes from that peer.
-func (s *Syncer) SyncFromBestPeer() error {
+func (s *Syncer) SyncFromBestPeer() ([]block.Transaction, error) {
 	peers := s.peerMgr.GetPeers()
 	if len(peers) == 0 {
-		return nil // No peers to sync from
+		return nil, nil // No peers to sync from
 	}
 
 	bestPeer := ""
@@ -55,48 +55,54 @@ func (s *Syncer) SyncFromBestPeer() error {
 
 	if bestPeer == "" {
 		s.logger.Debug("Already at the highest chain height", "height", s.chain.Height())
-		return nil // We are at the highest height
+		return nil, nil // We are at the highest height
 	}
 
 	s.logger.Info("Found peer with longer chain, initiating sync", "peer", bestPeer, "target_height", maxHeight)
 	return s.SyncFromPeer(bestPeer)
 }
 
-// SyncFromPeer downloads missing blocks from the given peer address.
-func (s *Syncer) SyncFromPeer(peerAddr string) error {
+// SyncFromPeer downloads the full chain from the peer and attempts to switch to it.
+func (s *Syncer) SyncFromPeer(peerAddr string) ([]block.Transaction, error) {
 	peerHeight, _, err := s.getPeerHeight(peerAddr)
 	if err != nil {
-		return fmt.Errorf("failed to get peer height: %w", err)
+		return nil, fmt.Errorf("failed to get peer height: %w", err)
 	}
 
 	ourHeight := s.chain.Height()
 	if peerHeight <= ourHeight {
-		return nil // Nothing to sync
+		return nil, nil // Nothing to sync
 	}
 
-	s.logger.Info("Starting chain sync", "peer", peerAddr, "our_height", ourHeight, "peer_height", peerHeight)
+	s.logger.Info("Starting chain sync (full download)", "peer", peerAddr, "our_height", ourHeight, "peer_height", peerHeight)
 
-	// Fetch each missing block sequentially
-	for height := ourHeight + 1; height <= peerHeight; height++ {
-		b, err := s.getPeerBlock(peerAddr, height)
-		if err != nil {
-			s.logger.Warn("Sync failed: could not fetch block", "peer", peerAddr, "height", height, "error", err)
-			return err
-		}
+	// Fetch the entire candidate chain
+	url := fmt.Sprintf("http://%s/chain?limit=100000", peerAddr)
+	resp, err := s.httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch chain from peer: %w", err)
+	}
+	defer resp.Body.Close()
 
-		// Try to add the block. The Chain.AddBlock method handles validation.
-		err = s.chain.AddBlock(*b)
-		if err != nil {
-			s.logger.Warn("Sync failed: invalid block received", "peer", peerAddr, "height", height, "error", err)
-			s.peerMgr.MarkFailed(peerAddr)
-			return err
-		}
-
-		s.logger.Info("Synced block", "height", height, "hash", b.Hash)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("peer returned status %d", resp.StatusCode)
 	}
 
-	s.logger.Info("Chain sync completed successfully", "new_height", s.chain.Height())
-	return nil
+	var candidateChain []*block.Block
+	if err := json.NewDecoder(resp.Body).Decode(&candidateChain); err != nil {
+		return nil, fmt.Errorf("failed to decode candidate chain: %w", err)
+	}
+
+	// Try to switch to the new chain
+	orphanedTxs, err := s.chain.SwitchToChain(candidateChain)
+	if err != nil {
+		s.logger.Warn("Sync failed: candidate chain invalid or shorter", "peer", peerAddr, "error", err)
+		s.peerMgr.MarkFailed(peerAddr)
+		return nil, err
+	}
+
+	s.logger.Info("Chain sync/reorg completed successfully", "new_height", s.chain.Height())
+	return orphanedTxs, nil
 }
 
 func (s *Syncer) getPeerHeight(peerAddr string) (int, string, error) {

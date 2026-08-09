@@ -116,14 +116,14 @@ func (n *Node) Start() error {
 	}()
 
 	// Do initial chain sync before starting HTTP to catch up
-	n.Syncer.SyncFromBestPeer()
+	n.runSync()
 
 	// Start background periodic sync
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
-			n.Syncer.SyncFromBestPeer()
+			n.runSync()
 		}
 	}()
 
@@ -155,5 +155,19 @@ func (n *Node) SaveState() {
 	chainFile := fmt.Sprintf("%s/chain.json", n.Config.DataDir)
 	if err := storage.SaveChain(n.Chain, chainFile); err != nil {
 		n.Logger.Error("Failed to save chain state", "error", err)
+	}
+}
+
+func (n *Node) runSync() {
+	orphanedTxs, err := n.Syncer.SyncFromBestPeer()
+	if err != nil {
+		n.Logger.Warn("Periodic sync failed", "error", err)
+		return
+	}
+	for _, tx := range orphanedTxs {
+		n.Mempool.Add(tx)
+	}
+	if len(orphanedTxs) > 0 {
+		n.Logger.Info("Returned orphaned transactions to mempool", "count", len(orphanedTxs))
 	}
 }

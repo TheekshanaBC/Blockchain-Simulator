@@ -18,7 +18,11 @@ func (c *Chain) Validate() ValidationResult {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if len(c.blocks) == 0 {
+	return ValidateBlockSlice(c.blocks, c.InitialDifficulty, c.RetargetWindow, c.TargetBlockTimeSec, c.MinDifficulty, c.MaxDifficulty)
+}
+
+func ValidateBlockSlice(blocks []*block.Block, initialDifficulty, retargetWindow int, targetBlockTimeSec int64, minDifficulty, maxDifficulty int) ValidationResult {
+	if len(blocks) == 0 {
 		return ValidationResult{false, 0, "Chain is empty"}
 	}
 
@@ -26,31 +30,31 @@ func (c *Chain) Validate() ValidationResult {
 	sequences := make(map[string]uint64)
 	faucetReceived := make(map[string]int64)
 
-	res := validateGenesisBlock(c.blocks[0], balances, sequences, faucetReceived)
+	res := validateGenesisBlock(blocks[0], balances, sequences, faucetReceived)
 	if !res.IsValid {
 		return res
 	}
 
-	if len(c.blocks) < 2 {
+	if len(blocks) < 2 {
 		return ValidationResult{true, -1, "Chain is Valid"}
 	}
 
-	expectedDifficulty := c.InitialDifficulty
-	if expectedDifficulty < c.MinDifficulty {
-		expectedDifficulty = c.MinDifficulty
+	expectedDifficulty := initialDifficulty
+	if expectedDifficulty < minDifficulty {
+		expectedDifficulty = minDifficulty
 	}
-	if expectedDifficulty > c.MaxDifficulty {
-		expectedDifficulty = c.MaxDifficulty
+	if expectedDifficulty > maxDifficulty {
+		expectedDifficulty = maxDifficulty
 	}
-	for i := 1; i < len(c.blocks); i++ {
-		currentBlock := c.blocks[i]
-		previousBlock := c.blocks[i-1]
+	for i := 1; i < len(blocks); i++ {
+		currentBlock := blocks[i]
+		previousBlock := blocks[i-1]
 
 		if currentBlock.Height != previousBlock.Height+1 {
 			return ValidationResult{false, currentBlock.Height, "Block Height mismatch"}
 		}
 
-		expectedDifficulty = expectedDifficultyAfterWindow(c.blocks, currentBlock.Height, c.RetargetWindow, c.TargetBlockTimeSec, expectedDifficulty, c.MinDifficulty, c.MaxDifficulty)
+		expectedDifficulty = expectedDifficultyAfterWindow(blocks, currentBlock.Height, retargetWindow, targetBlockTimeSec, expectedDifficulty, minDifficulty, maxDifficulty)
 
 		res = validateBlockAgainstPrevious(currentBlock, previousBlock, expectedDifficulty)
 		if !res.IsValid {
