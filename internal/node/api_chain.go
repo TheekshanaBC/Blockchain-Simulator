@@ -52,9 +52,9 @@ func (n *Node) handleChain(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	// Hard limit of 100 to prevent DoS
-	if limit > 100 {
-		limit = 100
+	// Hard limit to prevent memory exhaustion, but large enough for the simulator
+	if limit > 100000 {
+		limit = 100000
 	}
 
 	if len(blocks) > limit {

@@ -91,6 +91,34 @@ func (c *Chain) AddBlock(b block.Block) error {
 	return nil
 }
 
+// SwitchToChain safely replaces the current chain with a new one if it is valid and longer.
+// It returns a slice of orphaned transactions that should be returned to the mempool.
+func (c *Chain) SwitchToChain(newBlocks []*block.Block) ([]block.Transaction, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// 1. Check length
+	if len(newBlocks) <= len(c.blocks) {
+		return nil, fmt.Errorf("candidate chain is not longer than current chain")
+	}
+
+	// 2. Validate the entire new chain from genesis
+	result := ValidateBlockSlice(newBlocks, c.InitialDifficulty, c.RetargetWindow, c.TargetBlockTimeSec, c.MinDifficulty, c.MaxDifficulty)
+	if !result.IsValid {
+		return nil, fmt.Errorf("candidate chain invalid: %s", result.Reason)
+	}
+
+	// 3. Find orphaned blocks and transactions
+	orphanedBlocks := findOrphanedBlocks(c.blocks, newBlocks)
+	orphanedTxs := collectOrphanedTxs(orphanedBlocks, newBlocks)
+
+	// 4. Switch to new chain
+	c.blocks = newBlocks
+	c.Difficulty = newBlocks[len(newBlocks)-1].Header.Difficulty
+
+	return orphanedTxs, nil
+}
+
 
 type chainAlias Chain
 

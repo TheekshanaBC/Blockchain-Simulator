@@ -11,6 +11,7 @@ import (
 	"valence/internal/gossip"
 	"valence/internal/peer"
 	"valence/internal/storage"
+	chainsync "valence/internal/sync"
 	"valence/internal/wallet"
 )
 
@@ -33,8 +34,10 @@ type Node struct {
 	Mempool     *Mempool
 	PeerManager *peer.PeerManager
 	Gossip      *gossip.Engine
+	Syncer      *chainsync.Syncer
 	Logger      *slog.Logger
 	server      *http.Server
+	stopChan    chan struct{}
 }
 
 func NewNode(cfg Config) (*Node, error) {
@@ -87,6 +90,7 @@ func NewNode(cfg Config) (*Node, error) {
 	pm := peer.NewPeerManager(selfAddr, cfg.Peers)
 	cache := gossip.NewSeenCache(1 * time.Hour)
 	engine := gossip.NewEngine(pm, cache, logger)
+	syncer := chainsync.NewSyncer(c, pm, logger)
 
 	return &Node{
 		Config:      cfg,
@@ -95,7 +99,9 @@ func NewNode(cfg Config) (*Node, error) {
 		Mempool:     NewMempool(),
 		PeerManager: pm,
 		Gossip:      engine,
+		Syncer:      syncer,
 		Logger:      logger,
+		stopChan:    make(chan struct{}),
 	}, nil
 }
 
@@ -106,8 +112,30 @@ func (n *Node) Start() error {
 	go func() {
 		ticker := time.NewTicker(30 * time.Minute)
 		defer ticker.Stop()
-		for range ticker.C {
-			n.Gossip.PurgeSeenCache()
+		for {
+			select {
+			case <-ticker.C:
+				n.Gossip.PurgeSeenCache()
+			case <-n.stopChan:
+				return
+			}
+		}
+	}()
+
+	// Do initial chain sync before starting HTTP to catch up
+	n.runSync()
+
+	// Start background periodic sync
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				n.runSync()
+			case <-n.stopChan:
+				return
+			}
 		}
 	}()
 
@@ -125,6 +153,7 @@ func (n *Node) Start() error {
 
 func (n *Node) Stop() {
 	n.Logger.Info("Stopping Valence Node...")
+	close(n.stopChan)
 	if n.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -139,5 +168,19 @@ func (n *Node) SaveState() {
 	chainFile := fmt.Sprintf("%s/chain.json", n.Config.DataDir)
 	if err := storage.SaveChain(n.Chain, chainFile); err != nil {
 		n.Logger.Error("Failed to save chain state", "error", err)
+	}
+}
+
+func (n *Node) runSync() {
+	orphanedTxs, err := n.Syncer.SyncFromBestPeer()
+	if err != nil {
+		n.Logger.Warn("Periodic sync failed", "error", err)
+		return
+	}
+	for _, tx := range orphanedTxs {
+		n.Mempool.Add(tx)
+	}
+	if len(orphanedTxs) > 0 {
+		n.Logger.Info("Returned orphaned transactions to mempool", "count", len(orphanedTxs))
 	}
 }

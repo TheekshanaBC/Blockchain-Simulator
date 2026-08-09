@@ -1,9 +1,11 @@
 package node
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 	"valence/internal/block"
+	"valence/internal/ledger"
 )
 
 type Mempool struct {
@@ -27,6 +29,30 @@ func (m *Mempool) Add(tx block.Transaction) bool {
 	}
 	m.txs[tx.ID] = tx
 	return true
+}
+
+// ValidateAndAdd atomically validates the transaction against the current ledger state and mempool,
+// and adds it if valid. This prevents TOCTOU race conditions where multiple transactions with the
+// same sequence could be validated concurrently and then both added.
+func (m *Mempool) ValidateAndAdd(tx block.Transaction, chainBlocks []*block.Block) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exists := m.txs[tx.ID]; exists {
+		return fmt.Errorf("transaction already exists")
+	}
+
+	txList := make([]block.Transaction, 0, len(m.txs))
+	for _, t := range m.txs {
+		txList = append(txList, t)
+	}
+
+	if err := ledger.ValidateTransactions([]block.Transaction{tx}, chainBlocks, txList); err != nil {
+		return err
+	}
+
+	m.txs[tx.ID] = tx
+	return nil
 }
 
 // Remove removes transactions from the mempool by their IDs.
