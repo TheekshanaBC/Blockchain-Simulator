@@ -128,22 +128,3 @@ func (s *Syncer) getPeerHeight(peerAddr string) (int, string, error) {
 	return result.Height, result.Hash, nil
 }
 
-func (s *Syncer) getPeerBlock(peerAddr string, height int) (*block.Block, error) {
-	url := fmt.Sprintf("http://%s/chain/blocks/%d", peerAddr, height)
-	resp, err := s.httpClient.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("peer returned status %d", resp.StatusCode)
-	}
-
-	var b block.Block
-	if err := json.NewDecoder(resp.Body).Decode(&b); err != nil {
-		return nil, err
-	}
-
-	return &b, nil
-}
