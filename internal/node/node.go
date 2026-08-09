@@ -11,6 +11,7 @@ import (
 	"valence/internal/gossip"
 	"valence/internal/peer"
 	"valence/internal/storage"
+	chainsync "valence/internal/sync"
 	"valence/internal/wallet"
 )
 
@@ -33,6 +34,7 @@ type Node struct {
 	Mempool     *Mempool
 	PeerManager *peer.PeerManager
 	Gossip      *gossip.Engine
+	Syncer      *chainsync.Syncer
 	Logger      *slog.Logger
 	server      *http.Server
 }
@@ -87,6 +89,7 @@ func NewNode(cfg Config) (*Node, error) {
 	pm := peer.NewPeerManager(selfAddr, cfg.Peers)
 	cache := gossip.NewSeenCache(1 * time.Hour)
 	engine := gossip.NewEngine(pm, cache, logger)
+	syncer := chainsync.NewSyncer(c, pm, logger)
 
 	return &Node{
 		Config:      cfg,
@@ -95,6 +98,7 @@ func NewNode(cfg Config) (*Node, error) {
 		Mempool:     NewMempool(),
 		PeerManager: pm,
 		Gossip:      engine,
+		Syncer:      syncer,
 		Logger:      logger,
 	}, nil
 }
@@ -108,6 +112,18 @@ func (n *Node) Start() error {
 		defer ticker.Stop()
 		for range ticker.C {
 			n.Gossip.PurgeSeenCache()
+		}
+	}()
+
+	// Do initial chain sync before starting HTTP to catch up
+	n.Syncer.SyncFromBestPeer()
+
+	// Start background periodic sync
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			n.Syncer.SyncFromBestPeer()
 		}
 	}()
 
