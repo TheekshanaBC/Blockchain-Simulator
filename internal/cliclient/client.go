@@ -13,6 +13,11 @@ import (
 	"valence/internal/wallet"
 )
 
+var httpClient = &http.Client{
+	Timeout: 10 * time.Second,
+}
+
+
 func printJSONResponse(resp *http.Response) {
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
@@ -37,7 +42,7 @@ func printJSONResponse(resp *http.Response) {
 }
 
 func HandleGet(nodeURL, endpoint string) {
-	resp, err := http.Get(nodeURL + endpoint)
+	resp, err := httpClient.Get(nodeURL + endpoint)
 	if err != nil {
 		fmt.Printf("Error connecting to node: %v\n", err)
 		os.Exit(1)
@@ -46,7 +51,7 @@ func HandleGet(nodeURL, endpoint string) {
 }
 
 func HandlePost(nodeURL, endpoint string) {
-	resp, err := http.Post(nodeURL+endpoint, "application/json", nil)
+	resp, err := httpClient.Post(nodeURL+endpoint, "application/json", nil)
 	if err != nil {
 		fmt.Printf("Error connecting to node: %v\n", err)
 		os.Exit(1)
@@ -70,7 +75,7 @@ func HandleFaucet(nodeURL, keystoreFile, walletName string, amount int64) {
 		fmt.Printf("Failed to marshal request: %v\n", err)
 		os.Exit(1)
 	}
-	resp, err := http.Post(nodeURL+"/faucet", "application/json", bytes.NewBuffer(body))
+	resp, err := httpClient.Post(nodeURL+"/faucet", "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		fmt.Printf("Error connecting to node: %v\n", err)
 		os.Exit(1)
@@ -93,7 +98,7 @@ func HandleSubmitTx(nodeURL, keystoreFile, walletName, toAddr string, amount int
 	}
 
 	// Fetch next sequence from node
-	seqResp, err := http.Get(nodeURL + "/sequence/" + w.Address())
+	seqResp, err := httpClient.Get(nodeURL + "/sequence/" + w.Address())
 	if err != nil {
 		fmt.Printf("Error fetching sequence: %v\n", err)
 		os.Exit(1)
@@ -123,7 +128,7 @@ func HandleSubmitTx(nodeURL, keystoreFile, walletName, toAddr string, amount int
 		fmt.Printf("Failed to marshal transaction: %v\n", err)
 		os.Exit(1)
 	}
-	resp, err := http.Post(nodeURL+"/tx/submit", "application/json", bytes.NewBuffer(body))
+	resp, err := httpClient.Post(nodeURL+"/tx/submit", "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		fmt.Printf("Error connecting to node: %v\n", err)
 		os.Exit(1)
@@ -141,7 +146,7 @@ func HandlePeersAdd(nodeURL, peerAddr string) {
 		fmt.Printf("Failed to marshal request: %v\n", err)
 		os.Exit(1)
 	}
-	resp, err := http.Post(nodeURL+"/peers/announce", "application/json", bytes.NewBuffer(body))
+	resp, err := httpClient.Post(nodeURL+"/peers/announce", "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		fmt.Printf("Error connecting to node: %v\n", err)
 		os.Exit(1)

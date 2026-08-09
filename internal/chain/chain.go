@@ -57,6 +57,10 @@ func (c *Chain) AddBlock(b block.Block) error {
 
 	previousBlock := c.blocks[len(c.blocks)-1]
 
+	if b.Height != previousBlock.Height+1 {
+		return fmt.Errorf("block height mismatch: expected %d, got %d", previousBlock.Height+1, b.Height)
+	}
+
 	expectedDifficulty := expectedDifficultyAfterWindow(c.blocks, b.Height, c.RetargetWindow, c.TargetBlockTimeSec, c.Difficulty, c.MinDifficulty, c.MaxDifficulty)
 
 	res := validateBlockAgainstPrevious(&b, previousBlock, expectedDifficulty)

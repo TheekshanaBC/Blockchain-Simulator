@@ -2,6 +2,7 @@ package node
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 )
 
@@ -16,8 +17,14 @@ func (n *Node) handlePeersAnnounce(w http.ResponseWriter, r *http.Request) {
 		Address string   `json:"address"`
 		Peers   []string `json:"peers"`
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if _, _, err := net.SplitHostPort(req.Address); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid peer address format")
 		return
 	}
 
@@ -25,7 +32,9 @@ func (n *Node) handlePeersAnnounce(w http.ResponseWriter, r *http.Request) {
 	n.PeerManager.MarkSeen(req.Address)
 
 	for _, p := range req.Peers {
-		n.PeerManager.AddPeer(p)
+		if _, _, err := net.SplitHostPort(p); err == nil {
+			n.PeerManager.AddPeer(p)
+		}
 	}
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{

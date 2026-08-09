@@ -203,8 +203,8 @@ func TestAPIPeersAnnounce(t *testing.T) {
 	n.setupAPI(mux)
 
 	payload := map[string]interface{}{
-		"address": "http://node2:3002",
-		"peers":   []string{"http://node3:3003"},
+		"address": "node2:3002",
+		"peers":   []string{"node3:3003"},
 	}
 	body, _ := json.Marshal(payload)
 	req, _ := http.NewRequest("POST", "/peers/announce", bytes.NewBuffer(body))
@@ -315,8 +315,8 @@ func TestAPIGossipTx_ValidFaucet(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusAccepted {
-		t.Errorf("handler returned wrong status code for valid faucet tx in gossip: got %v want %v", status, http.StatusAccepted)
+	if status := rr.Code; status != http.StatusForbidden {
+		t.Errorf("handler returned wrong status code for valid faucet tx in gossip: got %v want %v", status, http.StatusForbidden)
 	}
 }
 

@@ -127,7 +127,7 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 	c.blocks[2].Hash = c.blocks[2].CalculateHash()
 
 	res := c.Validate()
-	if res.IsValid || !strings.Contains(res.Reason, "insufficent funds") {
+	if res.IsValid || !strings.Contains(res.Reason, "insufficient funds") {
 		t.Errorf("Expected negative balance error, got: %s", res.Reason)
 	}
 }

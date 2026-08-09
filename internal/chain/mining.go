@@ -33,7 +33,10 @@ func (c *Chain) MineBlock(ctx context.Context, txs []block.Transaction, minerAdd
 	
 	finalTxs := []block.Transaction{coinbaseTx}
 	
-	maxToAdd := c.MaxTxPerBlock - 1
+	maxToAdd := 0
+	if c.MaxTxPerBlock > 1 {
+		maxToAdd = c.MaxTxPerBlock - 1
+	}
 	if len(validTxs) < maxToAdd {
 		maxToAdd = len(validTxs)
 	}
