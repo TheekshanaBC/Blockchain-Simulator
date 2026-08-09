@@ -89,6 +89,7 @@ func (b *Block) Mine(ctx context.Context, difficulty int) {
 		case <-ctx.Done():
 			b.Hash = ""
 			innerCancel()
+			wg.Wait()
 			return
 		}
 

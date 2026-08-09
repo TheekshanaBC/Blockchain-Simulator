@@ -37,6 +37,7 @@ type Node struct {
 	Syncer      *chainsync.Syncer
 	Logger      *slog.Logger
 	server      *http.Server
+	stopChan    chan struct{}
 }
 
 func NewNode(cfg Config) (*Node, error) {
@@ -100,6 +101,7 @@ func NewNode(cfg Config) (*Node, error) {
 		Gossip:      engine,
 		Syncer:      syncer,
 		Logger:      logger,
+		stopChan:    make(chan struct{}),
 	}, nil
 }
 
@@ -110,8 +112,13 @@ func (n *Node) Start() error {
 	go func() {
 		ticker := time.NewTicker(30 * time.Minute)
 		defer ticker.Stop()
-		for range ticker.C {
-			n.Gossip.PurgeSeenCache()
+		for {
+			select {
+			case <-ticker.C:
+				n.Gossip.PurgeSeenCache()
+			case <-n.stopChan:
+				return
+			}
 		}
 	}()
 
@@ -122,8 +129,13 @@ func (n *Node) Start() error {
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
-		for range ticker.C {
-			n.runSync()
+		for {
+			select {
+			case <-ticker.C:
+				n.runSync()
+			case <-n.stopChan:
+				return
+			}
 		}
 	}()
 
@@ -141,6 +153,7 @@ func (n *Node) Start() error {
 
 func (n *Node) Stop() {
 	n.Logger.Info("Stopping Valence Node...")
+	close(n.stopChan)
 	if n.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

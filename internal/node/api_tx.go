@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"valence/internal/block"
-	"valence/internal/ledger"
 )
 
 // POST /tx/submit
@@ -30,12 +29,11 @@ func (n *Node) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := ledger.ValidateTransactions([]block.Transaction{tx}, n.Chain.GetBlocks(), n.Mempool.GetAll()); err != nil {
+	if err := n.Mempool.ValidateAndAdd(tx, n.Chain.GetBlocks()); err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	n.Mempool.Add(tx)
 	n.Logger.Info("TX received and added to mempool", "tx_id", tx.ID, "mempool_size", n.Mempool.Size())
 	n.Gossip.BroadcastTx(tx)
 
@@ -69,12 +67,11 @@ func (n *Node) handleGossipTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := ledger.ValidateTransactions([]block.Transaction{tx}, n.Chain.GetBlocks(), n.Mempool.GetAll()); err != nil {
+	if err := n.Mempool.ValidateAndAdd(tx, n.Chain.GetBlocks()); err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	n.Mempool.Add(tx)
 	n.Logger.Info("TX received and added to mempool", "tx_id", tx.ID, "mempool_size", n.Mempool.Size())
 	n.Gossip.BroadcastTx(tx)
 

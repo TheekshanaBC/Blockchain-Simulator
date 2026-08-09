@@ -2,8 +2,10 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 	"valence/internal/chain"
 )
 
@@ -17,7 +19,7 @@ func SaveChain(c *chain.Chain, filename string) error {
 		return err
 	}
 
-	tempFile := filename + ".tmp"
+	tempFile := fmt.Sprintf("%s.tmp.%d", filename, time.Now().UnixNano())
 	if err := os.WriteFile(tempFile, data, 0600); err != nil { // 0600 read,write permission for owner.
 		return err
 	}
