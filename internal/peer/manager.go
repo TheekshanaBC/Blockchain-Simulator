@@ -125,3 +125,19 @@ func (pm *PeerManager) MarkFailed(address string) {
 		}
 	}
 }
+
+// PruneUnhealthyPeers permanently removes peers that have been unhealthy
+// and not seen for longer than the provided maximum age.
+func (pm *PeerManager) PruneUnhealthyPeers(maxAge time.Duration) {
+	cutoff := time.Now().Add(-maxAge)
+	
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	
+	for addr, info := range pm.peers {
+		if !info.Healthy && info.LastSeen.Before(cutoff) {
+			delete(pm.peers, addr)
+		}
+	}
+}
+

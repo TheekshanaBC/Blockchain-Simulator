@@ -3,6 +3,7 @@ package chain
 import (
 	"fmt"
 	"strings"
+	"time"
 	"valence/internal/block"
 	"valence/internal/ledger"
 )
@@ -48,6 +49,7 @@ func (c *Chain) CreateFaucetTx(recipient string, amount int64, pendingPool []blo
 		Sender:    block.SystemAddressFaucet,
 		Recipient: recipient,
 		Amount:    amount,
+		Timestamp: time.Now().UnixNano(),
 	}
 	tx.ComputeID()
 

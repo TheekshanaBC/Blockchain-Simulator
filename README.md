@@ -1,225 +1,153 @@
-# Blockchain Simulator
+# Blockchain Simulator (Round 2 - Networked Node)
 
-An educational blockchain simulator written in Go, demonstrating the core mechanics of a production-quality blockchain: cryptographic hashing, ECDSA digital signatures, Merkle trees, Proof-of-Work mining, dynamic difficulty retargeting, replay-attack protection, and a full-featured interactive CLI.
+An educational blockchain simulator written in Go, demonstrating the core mechanics of a production-quality blockchain. In Round 2, the project has evolved from a local CLI tool into a fully functional **Peer-to-Peer Networked Node** with HTTP APIs, Gossip protocols, Chain Synchronization, and Fork Resolution.
+
+## What Changed from Round 1?
+
+- **HTTP Node Architecture**: The `cmd/blockchainsimulator` CLI was removed. The application now runs as a long-lived HTTP daemon (`cmd/valence-node`).
+- **Ed25519 Cryptography**: Migrated from ECDSA (secp256r1) to Ed25519 for simpler, faster, and more robust deterministic signatures.
+- **Gossip Protocol**: Added a P2P gossip engine (`internal/gossip`) with duplicate detection (`SeenCache`) to broadcast transactions and mined blocks across the network.
+- **Chain Synchronization**: New nodes can join the network and automatically download the full chain from the highest peer (`internal/sync`).
+- **Fork Resolution & Reorg**: If two nodes mine at the same height, they resolve the fork by adopting the longest valid chain, returning any orphaned transactions to the mempool (`chain.SwitchToChain`).
+- **Concurrency**: State is now protected by `sync.RWMutex`. Mining was decoupled from the chain lock, allowing nodes to continue gossiping and syncing while Proof-of-Work runs concurrently.
+
+---
 
 ## Prerequisites
 
 - **Go 1.22** or newer
 
+---
+
 ## Project Structure
 
-```
+```text
 blockchain-simulator/
-├── cmd/
-│   ├── blockchainsimulator/    # Main CLI entry point
-│   └── mining_experiment/      # Standalone PoW benchmarking tool
-├── internal/
-│   ├── block/                  # Block, Transaction, Merkle, Mining, Signing
-│   ├── chain/                  # Chain state, validation, difficulty, faucet
-│   ├── cli/                    # Interactive CLI (commands, display)
-│   ├── ledger/                 # Account-based balance & sequence tracking
-│   ├── storage/                # JSON persistence (atomic writes)
-│   └── wallet/                 # ECDSA key generation & keystore
-└── data/                       # Runtime data (chain.json, wallet.json)
++-- cmd/
+�   +-- mining_experiment/  # Standalone PoW benchmarking tool
+�   +-- node-admin/         # Future CLI admin tool (stub)
+�   +-- valence-node/       # MAIN ENTRY: The Networked Blockchain Node
+�   +-- valence-wallet/     # Future CLI wallet (stub)
++-- internal/
+�   +-- block/              # Block, Transaction, Merkle, Ed25519 Signing, PoW Mining
+�   +-- chain/              # Chain state, validation, reorg, difficulty, faucet
+�   +-- crypto/             # Ed25519 wrappers and address generation
+�   +-- gossip/             # P2P broadcast engine & SeenCache deduplication
+�   +-- ledger/             # Account balances & sequence (nonce) tracking
+�   +-- node/               # HTTP Server, Mempool, API Endpoints
+�   +-- peer/               # Peer manager & health tracking
+�   +-- storage/            # JSON persistence (atomic writes)
+�   +-- sync/               # Chain synchronization logic
+�   +-- wallet/             # Key generation & keystore
++-- data/                   # Runtime data per node (chain.json, keystore.json)
 ```
 
-## Running the Simulator
+---
 
-Start the interactive CLI from the project root:
+## Starting a Local Cluster
+
+You can easily launch a 3-node cluster locally using the provided launch scripts. 
+
+**On Windows:**
+```powershell
+.\start-cluster.ps1
+```
+
+**On Linux / Mac (Bash):**
+```bash
+./start-cluster.sh
+```
+
+This will launch three nodes on ports `8080`, `8081`, and `8082`. Each node stores its own isolated state in `./data/nodeA`, `./data/nodeB`, and `./data/nodeC`. They will automatically connect to each other via the `-peers` flag.
+
+### Running a Node Manually
 
 ```bash
-go run ./cmd/blockchainsimulator
+go run ./cmd/valence-node -port 3001 -data-dir ./data/node1 -peers localhost:3002,localhost:3003
 ```
 
-### Command-Line Flags
-
-The simulator accepts optional flags to tune chain parameters at startup. These are only applied when **creating a new chain**; a loaded chain retains its own saved parameters.
+#### Command-Line Flags
 
 | Flag | Default | Description |
 |---|---|---|
-| `-diff` | `4` | Initial mining difficulty (leading zeros required in hash) |
+| `-port` | `3001` | HTTP port to listen on |
+| `-data-dir` | `./data/node1` | Directory to store `chain.json` and `keystore.json` |
+| `-peers` | `""` | Comma-separated list of peer addresses to connect to on startup |
+| `-difficulty` | `3` | Initial mining difficulty |
 | `-retarget-window` | `4` | Number of blocks between difficulty retargets |
-| `-target-block-time` | `10` | Target time per block in seconds |
-| `-min-diff` | `3` | Minimum allowed difficulty |
-| `-max-diff` | `8` | Maximum allowed difficulty |
+| `-target-block-time`| `10` | Target time per block in seconds |
 
-**Example — fast/easy chain for experimentation:**
+---
 
-```bash
-go run ./cmd/blockchainsimulator -diff 2 -min-diff 1 -max-diff 5 -retarget-window 3 -target-block-time 5
-```
+## HTTP API Reference
 
-## Available CLI Commands
+The node exposes a JSON HTTP API. You can interact with it using `curl` or Postman.
 
-Once the CLI is running, interact with your blockchain using these commands:
+### Introspection Endpoints
 
-| Command | Description |
-|---|---|
-| `createwallet <name>` | Generate a new ECDSA wallet and save it to disk |
-| `loadwallet <name>` | Load an existing wallet from the keystore |
-| `wallets` | List all saved wallets and their addresses |
-| `mywallet` | Show your active wallet's address and confirmed balance |
-| `faucet <amount>` | Request free test funds (max 1,000 per request; 5,000 lifetime per address) |
-| `addtx <to> <amount>` | Sign and submit a transaction to the pending pool |
-| `mine` | Mine all pending transactions into a new block |
-| `pool` | View all pending transactions |
-| `balances` | View all confirmed account balances |
-| `validate` | Cryptographically validate the entire blockchain |
-| `print` | Visualize the chain structure with block details |
-| `help` | Display all available commands |
-| `clear` | Clear the terminal screen |
-| `exit` | Save the chain to disk and exit |
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/status` | Node status (height, head hash, peer count, mempool size, node address). |
+| `GET` | `/chain/height` | Current blockchain height. |
+| `GET` | `/chain` | Full blockchain (limited to 100k blocks). |
+| `GET` | `/chain/blocks/{h}`| Get block at specific height. |
+| `GET` | `/balances` | Confirmed balances of all accounts. |
+| `GET` | `/sequence/{addr}` | Next expected sequence number (nonce) for an address. |
+| `GET` | `/mempool` | List of all pending transactions. |
+| `GET` | `/peers` | List of all healthy connected peers. |
 
-## Simulating a Transaction (Walkthrough)
+### Action Endpoints
 
-All accounts start at zero. Use the `faucet` to bootstrap initial funds.
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/faucet` | Request up to 1000 VCN. Body: `{"address": "...", "amount": 100}` |
+| `POST` | `/mine` | Mine a new block from the mempool. |
+| `POST` | `/tx/submit` | Submit a signed transaction. Broadcasts to peers. |
 
-**1. Create your first wallet:**
-```
-createwallet Alice
-```
+### Network Endpoints (Used by Nodes internally)
 
-**2. Request test funds from the faucet:**
-```
-faucet 100
-```
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/tx/gossip` | Receive a gossiped transaction from a peer. |
+| `POST` | `/block/gossip`| Receive a mined block from a peer. |
+| `POST` | `/peers/announce`| Register a new peer and exchange peer lists. |
 
-**3. Mine the faucet transaction into a block:**
-```
-mine
-```
-
-**4. Create a second wallet:**
-```
-createwallet Bob
-```
-
-**5. Send funds to Bob:**
-```
-loadwallet Alice
-addtx <Bob's Address> 50
-mine
-balances
-```
-
-**6. Validate the chain:**
-```
-validate
-```
-
-## Mining Experiment Tool
-
-A standalone benchmarking utility measures mining time and hash attempts across difficulty levels 1–8 using the parallel PoW implementation.
-
-```bash
-go run ./cmd/mining_experiment
-```
-
-Sample output:
-
-```
-Difficulty   | Time Taken   | Hashes Tried
-----------------------------------------------
-1            | 0s           | 1
-2            | 0s           | 43
-3            | 1ms          | 412
-4            | 12ms         | 3218
-...
-```
+---
 
 ## Architecture & Design Decisions
 
-### Block & Transaction Structure
+### 1. Gossip Deduplication (`SeenCache`)
+To prevent infinite broadcast loops, `internal/gossip` uses a `SeenCache`. Every broadcasted block hash and transaction ID is tracked. The cache prevents re-forwarding items we've recently seen. The Mempool provides a secondary layer of deduplication by rejecting duplicates at the API edge.
 
-- **`Transaction`**: Contains `Sender`, `Recipient`, `Amount`, a `Sequence` number (replay protection), an ECDSA `PublicKey`, and a cryptographic `Signature`.
-- **`BlockHeader`**: Contains `PrevHash`, `MerkleRoot`, `Timestamp`, `Difficulty`, and `Nonce`.
-- **`Block`**: Combines a `BlockHeader`, block `Height`, the transaction list, and the computed `Hash`.
-- **Double SHA-256 Hashing**: All hashes use `SHA256(SHA256(data))`, matching Bitcoin's approach and providing protection against length-extension attacks.
+### 2. Proof-of-Work & Concurrency
+Proof-of-Work mining is computationally intensive. In Round 2, `MineBlock` was decoupled from the main Chain `sync.RWMutex`. 
+1. The node acquires a read lock to validate transactions and build the block header.
+2. It **releases the lock** and performs PoW locally.
+3. Once the hash is found, it calls `AddBlock`, which re-acquires a write lock, validates the block, and appends it.
+This allows the node to continue handling gossip and sync requests while mining.
 
-### Proof-of-Work & Parallel Mining
+### 3. Chain Synchronization & Fork Resolution
+If a node receives a block via gossip that is further ahead than its current height + 1, it triggers `SyncFromBestPeer()`. 
+The node queries all known peers, finds the tallest chain, downloads it, and calls `chain.SwitchToChain()`. 
+`SwitchToChain` validates the entire candidate chain from Genesis. If valid, it swaps out the local chain, finds any "orphaned" transactions from the abandoned fork, and returns them to the mempool to be re-mined.
 
-Mining uses a concurrent Proof-of-Work algorithm. A block is valid when its hash has at least `Difficulty` leading zero hex characters. The implementation:
+### 4. Account-Based Ledger with Replay Protection
+The simulator uses an account-based ledger (like Ethereum). 
+- **`CalculateAvailableBalances`** deducts pending mempool transactions from confirmed balances to prevent double-spending attacks.
+- **Sequence Numbers**: Every transaction carries a strict, monotonic sequence number per sender, preventing replay attacks.
 
-1. Splits the `uint32` nonce space across all available CPU cores (one goroutine per CPU).
-2. Uses Go's `context.WithCancel` so all workers stop as soon as any one finds a valid nonce.
-3. **ExtraNonce for Infinite Search Space**: If the entire `uint32` nonce space (~4.3 billion values) is exhausted, the coinbase transaction's signature field is incremented (`extraNonce++`) and the Merkle Root is recalculated, creating a new effective search space. This repeats until a valid hash is found.
+### 5. Data Persistence
+State is persisted to `./data/.../chain.json` using atomic writes (writing to a `.tmp` file and running `os.Rename`). This ensures that if the node crashes mid-write, the blockchain file is not corrupted.
 
-### Dynamic Difficulty Retargeting
-
-After every `RetargetWindow` blocks, the chain automatically adjusts the mining difficulty to maintain the `TargetBlockTimeSec` goal:
-
-- If blocks were mined **faster than half** the target time → difficulty **increases by 1**.
-- If blocks were mined **slower than double** the target time → difficulty **decreases by 1**.
-- Difficulty is always clamped to `[MinDifficulty, MaxDifficulty]`.
-- The `validate` command replays the retargeting logic to ensure every block in the chain used the correct difficulty.
-
-### Digital Signatures (ECDSA)
-
-Transactions are signed using **ECDSA on the P-256 (secp256r1) curve**. Key features:
-
-- **Low-S Normalization**: Both signing and verification enforce that the S component of the signature satisfies `s <= N/2`. Signatures with a high-S value are rejected, eliminating signature malleability.
-- **Fixed 64-byte Signature**: R and S are each zero-padded to exactly 32 bytes, giving a canonical 64-byte signature format.
-- **Address Binding**: Verification confirms that the embedded `PublicKey` actually hashes to the `Sender` address, preventing key substitution attacks.
-
-### Merkle Tree
-
-Transaction integrity is committed via a Merkle tree:
-
-- Each transaction is individually hashed (double SHA-256, including `Sender`, `Recipient`, `Amount`, `PublicKey`, `Signature`).
-- Leaf pairs are concatenated with a type-byte prefix (`\x00` for leaves, `\x01` for internal nodes) before hashing, preventing second-preimage attacks.
-- Odd-length levels promote the unpaired node unchanged (Bitcoin-compatible).
-- Only the fixed-length **Merkle Root** is stored in the block header.
-
-### Account-Based Ledger with Replay Protection
-
-The simulator uses an **account-based ledger** (not UTXO):
-
-- Balances are computed by replaying all transactions from the genesis block.
-- **`CalculateAvailableBalances`** deducts pending pool transactions from confirmed balances to prevent double-spending before a block is mined.
-- **Sequence Numbers**: Every non-system transaction carries a monotonically increasing `Sequence` number per sender (similar to an Ethereum nonce). The chain rejects any transaction whose sequence is not exactly `lastConfirmedSequence + 1`, preventing replay attacks.
-
-### System Addresses & Faucet
-
-Two reserved system addresses bypass normal signature validation:
-
-- **`COINBASE`**: Created automatically by the miner as the first transaction of every block, awarding the fixed `MiningReward` of **50 coins** to `"Miner"`.
-- **`FAUCET`**: A test-only dispenser. Maximum **1,000 coins per request** and a **5,000 coin lifetime cap per address**. These limits are enforced both at submission time and during full chain validation.
-
-### Full Chain Validation
-
-`validate` performs a complete cryptographic audit of the chain:
-
-1. **Genesis block**: Verifies fixed hash, Merkle Root, and zero difficulty.
-2. **Each subsequent block**: Verifies height continuity, timestamp ordering, hash correctness, Merkle Root, previous hash linkage, PoW target, and the expected retargeted difficulty.
-3. **Each transaction**: Verifies ECDSA signatures, sequence numbers, balance solvency, faucet limits, and COINBASE rules (first tx only, correct reward amount).
-
-### Wallet & Keystore
-
-- A wallet is an ECDSA P-256 key pair. The **address** is `SHA-256(compressed_public_key)` encoded as a hex string.
-- The keystore (`data/wallet.json`) is a JSON map of `name -> DER-encoded private key`, supporting multiple named wallets in a single file.
-
-### Data Persistence (Atomic Writes)
-
-The chain is serialized to `data/chain.json` as human-readable JSON using an **atomic write** pattern (write to `.tmp`, then `os.Rename`), preventing corruption on crash. The file is loaded and validated on startup.
+---
 
 ## Running Tests
 
+The test suite runs with the Go race detector enabled to ensure complete concurrency safety.
+
 ```bash
-go test ./...
+go test -race ./... -timeout 120s
 ```
 
-Tests cover:
+Tests cover cryptographic signing, gossip deduplication, chain reorg logic, mempool race safety, peer management, and complete validation of tampered state (invalid signatures, broken merkle roots, fake difficulty timestamps).
 
-- **`internal/block`**: Merkle tree correctness (including edge cases), block hashing, PoW mining, ECDSA signing & verification.
-- **`internal/chain`**: Chain creation, transaction submission, mining, difficulty retargeting, and full `Validate()` scenarios (tampered blocks, double-spends, invalid signatures, bad sequences, faucet limits).
-- **`internal/ledger`**: Balance calculation and transaction validation logic.
-- **`internal/wallet`**: Key generation, keystore save/load round-trips.
-- **`internal/storage`**: JSON persistence.
-- **`internal/cli`**: Basic CLI smoke tests.
-
-## Known Limitations
-
-- **No Peer Network**: The simulator is a single local process. There is no P2P networking, peer discovery, or consensus across multiple nodes — no longest-chain rule applies.
-- **Static Block Reward**: The mining reward is hardcoded at 50 coins to `"Miner"` with no halving schedule or transaction fee model.
-- **ExtraNonce Location**: In production blockchains (e.g., Bitcoin), the extra nonce lives inside the Coinbase script field. Here it is stored in the Coinbase transaction's `Signature` field for simplicity.
-- **No Mempool Eviction**: The pending transaction pool has no size limit, expiry, or fee-based prioritization.

@@ -78,8 +78,15 @@ func NewNode(cfg Config) (*Node, error) {
 	chainFile := fmt.Sprintf("%s/chain.json", cfg.DataDir)
 	var c *chain.Chain
 	c, err = storage.LoadChain(chainFile)
+	if err == nil {
+		res := c.Validate()
+		if !res.IsValid {
+			logger.Warn("Loaded chain is invalid, falling back to genesis", "reason", res.Reason)
+			err = fmt.Errorf("invalid chain")
+		}
+	}
 	if err != nil {
-		logger.Info("No existing chain found, creating genesis chain")
+		logger.Info("No valid existing chain found, creating genesis chain")
 		c = chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty)
 	} else {
 		logger.Info("Loaded chain from disk", "height", c.Height(), "file", chainFile)
@@ -108,7 +115,7 @@ func NewNode(cfg Config) (*Node, error) {
 func (n *Node) Start() error {
 	n.Logger.Info("Starting Valence Node", "port", n.Config.Port, "data_dir", n.Config.DataDir, "miner_address", n.Config.MinerAddress)
 
-	// Start background goroutine to purge SeenCache
+	// Start background goroutine to purge caches and dead peers
 	go func() {
 		ticker := time.NewTicker(30 * time.Minute)
 		defer ticker.Stop()
@@ -116,6 +123,7 @@ func (n *Node) Start() error {
 			select {
 			case <-ticker.C:
 				n.Gossip.PurgeSeenCache()
+				n.PeerManager.PruneUnhealthyPeers(1 * time.Hour)
 			case <-n.stopChan:
 				return
 			}
@@ -172,15 +180,29 @@ func (n *Node) SaveState() {
 }
 
 func (n *Node) runSync() {
-	orphanedTxs, err := n.Syncer.SyncFromBestPeer()
+	switched, orphanedTxs, err := n.Syncer.SyncFromBestPeer()
 	if err != nil {
 		n.Logger.Warn("Periodic sync failed", "error", err)
 		return
 	}
+	if !switched {
+		return
+	}
+	
+	// Remove all transactions that are now in the new chain from the mempool
+	var minedTxIDs []string
+	for _, b := range n.Chain.GetBlocks() {
+		for _, tx := range b.Transactions {
+			minedTxIDs = append(minedTxIDs, tx.ID)
+		}
+	}
+	n.Mempool.Remove(minedTxIDs)
+
 	for _, tx := range orphanedTxs {
 		n.Mempool.Add(tx)
 	}
 	if len(orphanedTxs) > 0 {
 		n.Logger.Info("Returned orphaned transactions to mempool", "count", len(orphanedTxs))
 	}
+	n.SaveState()
 }

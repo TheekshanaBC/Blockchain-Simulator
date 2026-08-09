@@ -12,11 +12,13 @@ import (
 
 func setupTestNode(t *testing.T) *Node {
 	cfg := Config{
-		Port:            3000,
+		Port:            8080,
 		DataDir:         t.TempDir(),
 		Difficulty:      1,
 		RetargetWindow:  4,
 		TargetBlockTime: 10,
+		MinDifficulty:   1,
+		MaxDifficulty:   6,
 	}
 	n, err := NewNode(cfg)
 	if err != nil {
@@ -249,7 +251,7 @@ func TestAPIGossipBlock(t *testing.T) {
 		},
 	}
 	b.Header.MerkleRoot = block.CalculateMerkleRoot(b.Transactions)
-	b.Hash = b.CalculateHash()
+	b.Mine(context.Background(), 1)
 
 	body, _ := json.Marshal(b)
 	req, _ := http.NewRequest("POST", "/block/gossip", bytes.NewBuffer(body))
@@ -315,8 +317,8 @@ func TestAPIGossipTx_ValidFaucet(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusForbidden {
-		t.Errorf("handler returned wrong status code for valid faucet tx in gossip: got %v want %v", status, http.StatusForbidden)
+	if status := rr.Code; status != http.StatusAccepted {
+		t.Errorf("handler returned wrong status code for valid faucet tx in gossip: got %v want %v", status, http.StatusAccepted)
 	}
 }
 

@@ -20,7 +20,6 @@ func (n *Node) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"head_hash":    hash,
 		"peers":        len(n.PeerManager.GetPeers()),
 		"mempool_size": n.Mempool.Size(),
-		"mining":       false, // TODO: Update when mining worker is implemented
 		"address":      n.Wallet.Address(),
 	}
 	respondJSON(w, http.StatusOK, status)
