@@ -17,53 +17,46 @@ var httpClient = &http.Client{
 	Timeout: 10 * time.Second,
 }
 
-
-func printJSONResponse(resp *http.Response) {
+func parseJSONResponse(resp *http.Response) (interface{}, error) {
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("Error reading response: %v\n", err)
-		return
+		return nil, fmt.Errorf("error reading response: %v", err)
 	}
 
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(body, &parsed); err == nil {
-		prettyJSON, _ := json.MarshalIndent(parsed, "", "  ")
-		fmt.Println(string(prettyJSON))
-	} else {
-		var parsedArray []interface{}
-		if err := json.Unmarshal(body, &parsedArray); err == nil {
-			prettyJSON, _ := json.MarshalIndent(parsedArray, "", "  ")
-			fmt.Println(string(prettyJSON))
-		} else {
-			fmt.Println(string(body))
-		}
+		return parsed, nil
 	}
+
+	var parsedArray []interface{}
+	if err := json.Unmarshal(body, &parsedArray); err == nil {
+		return parsedArray, nil
+	}
+
+	return string(body), nil
 }
 
-func HandleGet(nodeURL, endpoint string) {
+func HandleGet(nodeURL, endpoint string) (interface{}, error) {
 	resp, err := httpClient.Get(nodeURL + endpoint)
 	if err != nil {
-		fmt.Printf("Error connecting to node: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("error connecting to node: %v", err)
 	}
-	printJSONResponse(resp)
+	return parseJSONResponse(resp)
 }
 
-func HandlePost(nodeURL, endpoint string) {
+func HandlePost(nodeURL, endpoint string) (interface{}, error) {
 	resp, err := httpClient.Post(nodeURL+endpoint, "application/json", nil)
 	if err != nil {
-		fmt.Printf("Error connecting to node: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("error connecting to node: %v", err)
 	}
-	printJSONResponse(resp)
+	return parseJSONResponse(resp)
 }
 
-func HandleFaucet(nodeURL, keystoreFile, walletName string, amount int64) {
+func HandleFaucet(nodeURL, keystoreFile, walletName string, amount int64) (interface{}, error) {
 	w, err := wallet.LoadFromKeystore(keystoreFile, walletName)
 	if err != nil {
-		fmt.Printf("Wallet '%s' not found. Use 'valence-cli wallet create' to create one.\n", walletName)
-		os.Exit(1)
+		return nil, fmt.Errorf("wallet '%s' not found. Use 'create-wallet' to create one", walletName)
 	}
 
 	payload := map[string]interface{}{
@@ -72,36 +65,30 @@ func HandleFaucet(nodeURL, keystoreFile, walletName string, amount int64) {
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Printf("Failed to marshal request: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to marshal request: %v", err)
 	}
 	resp, err := httpClient.Post(nodeURL+"/faucet", "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		fmt.Printf("Error connecting to node: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("error connecting to node: %v", err)
 	}
-	printJSONResponse(resp)
+	return parseJSONResponse(resp)
 }
 
-func HandleSubmitTx(nodeURL, keystoreFile, walletName, toAddr string, amount int64) {
+func HandleSubmitTx(nodeURL, keystoreFile, walletName, toAddr string, amount int64) (interface{}, error) {
 	dir := filepath.Dir(keystoreFile)
 	if err := os.MkdirAll(dir, 0750); err != nil {
-		fmt.Printf("Failed to create keystore directory: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to create keystore directory: %v", err)
 	}
 
 	w, err := wallet.LoadFromKeystore(keystoreFile, walletName)
 	if err != nil {
-		fmt.Printf("Failed to load wallet '%s': %v\n", walletName, err)
-		fmt.Println("To create a wallet, you can run the faucet command or generate one programmatically.")
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to load wallet '%s': %v. Create one first", walletName, err)
 	}
 
 	// Fetch next sequence from node
 	seqResp, err := httpClient.Get(nodeURL + "/sequence/" + w.Address())
 	if err != nil {
-		fmt.Printf("Error fetching sequence: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("error fetching sequence: %v", err)
 	}
 	defer seqResp.Body.Close()
 
@@ -109,8 +96,7 @@ func HandleSubmitTx(nodeURL, keystoreFile, walletName, toAddr string, amount int
 		NextSequence uint64 `json:"next_sequence"`
 	}
 	if err := json.NewDecoder(seqResp.Body).Decode(&seqData); err != nil {
-		fmt.Printf("Error parsing sequence response: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("error parsing sequence response: %v", err)
 	}
 
 	tx := block.Transaction{
@@ -125,46 +111,41 @@ func HandleSubmitTx(nodeURL, keystoreFile, walletName, toAddr string, amount int
 
 	body, err := json.Marshal(tx)
 	if err != nil {
-		fmt.Printf("Failed to marshal transaction: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to marshal transaction: %v", err)
 	}
 	resp, err := httpClient.Post(nodeURL+"/tx/submit", "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		fmt.Printf("Error connecting to node: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("error connecting to node: %v", err)
 	}
-	printJSONResponse(resp)
+	return parseJSONResponse(resp)
 }
 
-func HandlePeersAdd(nodeURL, peerAddr string) {
+func HandlePeersAdd(nodeURL, peerAddr string) (interface{}, error) {
 	payload := map[string]interface{}{
 		"address": peerAddr,
 		"peers":   []string{},
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Printf("Failed to marshal request: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to marshal request: %v", err)
 	}
 	resp, err := httpClient.Post(nodeURL+"/peers/announce", "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		fmt.Printf("Error connecting to node: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("error connecting to node: %v", err)
 	}
-	printJSONResponse(resp)
+	return parseJSONResponse(resp)
 }
 
-func HandleCreateWallet(keystoreFile, walletName string) {
+func HandleCreateWallet(keystoreFile, walletName string) error {
 	dir := filepath.Dir(keystoreFile)
 	if err := os.MkdirAll(dir, 0750); err != nil {
-		fmt.Printf("Failed to create keystore directory: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to create keystore directory: %v", err)
 	}
 	w := wallet.NewWallet()
 	err := wallet.SaveToKeystore(keystoreFile, walletName, w)
 	if err != nil {
-		fmt.Printf("Failed to save wallet: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to save wallet: %v", err)
 	}
-	fmt.Printf("Wallet '%s' created successfully! Address: %s\n", walletName, w.Address())
+	fmt.Printf(ColorGreen+"Wallet '%s' created successfully! Address: %s\n"+Reset, walletName, w.Address())
+	return nil
 }
