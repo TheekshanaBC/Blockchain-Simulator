@@ -24,21 +24,20 @@ An educational blockchain simulator written in Go, demonstrating the core mechan
 ```text
 blockchain-simulator/
 +-- cmd/
-¦   +-- mining_experiment/  # Standalone PoW benchmarking tool
-¦   +-- node-admin/         # Future CLI admin tool (stub)
-¦   +-- valence-node/       # MAIN ENTRY: The Networked Blockchain Node
-¦   +-- valence-wallet/     # Future CLI wallet (stub)
+Â¦   +-- mining_experiment/  # Standalone PoW benchmarking tool
+   +-- valence-cli/        # The Universal Client (Wallet & Admin Tool)
+   +-- valenced/           # MAIN ENTRY: The Networked Blockchain Node Daemon
 +-- internal/
-¦   +-- block/              # Block, Transaction, Merkle, Ed25519 Signing, PoW Mining
-¦   +-- chain/              # Chain state, validation, reorg, difficulty, faucet
-¦   +-- crypto/             # Ed25519 wrappers and address generation
-¦   +-- gossip/             # P2P broadcast engine & SeenCache deduplication
-¦   +-- ledger/             # Account balances & sequence (nonce) tracking
-¦   +-- node/               # HTTP Server, Mempool, API Endpoints
-¦   +-- peer/               # Peer manager & health tracking
-¦   +-- storage/            # JSON persistence (atomic writes)
-¦   +-- sync/               # Chain synchronization logic
-¦   +-- wallet/             # Key generation & keystore
+Â¦   +-- block/              # Block, Transaction, Merkle, Ed25519 Signing, PoW Mining
+Â¦   +-- chain/              # Chain state, validation, reorg, difficulty, faucet
+Â¦   +-- crypto/             # Ed25519 wrappers and address generation
+Â¦   +-- gossip/             # P2P broadcast engine & SeenCache deduplication
+Â¦   +-- ledger/             # Account balances & sequence (nonce) tracking
+Â¦   +-- node/               # HTTP Server, Mempool, API Endpoints
+Â¦   +-- peer/               # Peer manager & health tracking
+Â¦   +-- storage/            # JSON persistence (atomic writes)
+Â¦   +-- sync/               # Chain synchronization logic
+Â¦   +-- wallet/             # Key generation & keystore
 +-- data/                   # Runtime data per node (chain.json, keystore.json)
 ```
 
@@ -63,7 +62,18 @@ This will launch three nodes on ports `8080`, `8081`, and `8082`. Each node stor
 ### Running a Node Manually
 
 ```bash
-go run ./cmd/valence-node -port 3001 -data-dir ./data/node1 -peers localhost:3002,localhost:3003
+go run ./cmd/valenced -port 3001 -data-dir ./data/node1 -peers localhost:3002,localhost:3003
+```
+
+### The Client CLI (`valence-cli`)
+
+Instead of raw `curl` commands, you can manage wallets and interact with the nodes using our unified `valence-cli` tool.
+
+**Full Guide:** See [docs/cli_guide.md](./docs/cli_guide.md) for detailed instructions.
+
+```bash
+# Example: Check Alice's balance on Node B
+go run ./cmd/valence-cli -node http://localhost:8081 -wallet alice getbalance
 ```
 
 #### Command-Line Flags
