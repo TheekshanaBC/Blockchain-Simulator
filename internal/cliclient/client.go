@@ -146,6 +146,6 @@ func HandleCreateWallet(keystoreFile, walletName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to save wallet: %v", err)
 	}
-	fmt.Printf(ColorGreen+"Wallet '%s' created successfully! Address: %s\n"+Reset, walletName, w.Address())
+	fmt.Printf("Wallet '%s' created successfully! Address: %s\n", walletName, w.Address())
 	return nil
 }
