@@ -10,8 +10,11 @@ import (
 func normalizeAddress(addr string) string {
 	addr = strings.TrimPrefix(addr, "http://")
 	addr = strings.TrimPrefix(addr, "https://")
-	// Fix M7(c): Normalize localhost to 127.0.0.1 to prevent self-peering via alias
-	addr = strings.Replace(addr, "localhost:", "127.0.0.1:", 1)
+	// Fix R5: Use HasPrefix to avoid corrupting hostnames that contain "localhost:" as a substring
+	// (e.g. "mylocalhost:3001" should not become "my127.0.0.1:3001")
+	if strings.HasPrefix(addr, "localhost:") {
+		addr = "127.0.0.1:" + addr[len("localhost:"):]
+	}
 	return strings.TrimSpace(addr)
 }
 

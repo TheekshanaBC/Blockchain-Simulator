@@ -1,6 +1,8 @@
 package chain
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"strings"
 	"time"
@@ -45,11 +47,22 @@ func (c *Chain) CreateFaucetTx(recipient string, amount int64, pendingPool []blo
 		return block.Transaction{}, fmt.Errorf("lifetime faucet limit exceeded for address (max: %d, already received: %d)", ledger.MaxLifetimeFaucetPerAddress, totalReceived)
 	}
 
+	// Fix R4: On Windows, time.Now().UnixNano() has ~0.5–15ms clock granularity,
+	// meaning two rapid requests produce identical Timestamps and thus identical IDs.
+	// We inject a cryptographically random nonce into the Sequence field to guarantee
+	// uniqueness even within the same clock tick.
+	var nonceBuf [8]byte
+	if _, err := rand.Read(nonceBuf[:]); err != nil {
+		return block.Transaction{}, fmt.Errorf("failed to generate faucet nonce: %w", err)
+	}
+	nonce := binary.LittleEndian.Uint64(nonceBuf[:])
+
 	tx := block.Transaction{
 		Sender:    block.SystemAddressFaucet,
 		Recipient: recipient,
 		Amount:    amount,
 		Timestamp: time.Now().UnixNano(),
+		Sequence:  nonce, // random nonce ensures unique ID regardless of clock granularity
 	}
 	tx.ComputeID()
 

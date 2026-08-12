@@ -1,12 +1,11 @@
 package chain
 
 import (
-	"valence/internal/ledger"
 	"context"
-	"valence/internal/block"
 	"strings"
 	"testing"
-	"time"
+	"valence/internal/block"
+	"valence/internal/ledger"
 )
 
 /*
@@ -75,7 +74,7 @@ func TestCreateFaucetTx_LifetimeLimitExceeded(t *testing.T) {
 			t.Fatalf("Failed to create faucet tx: %v", err)
 		}
 		c.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
-		time.Sleep(1 * time.Millisecond)
+		// No sleep needed: R4 fix ensures faucet IDs are unique via crypto/rand nonce
 	}
 
 	/* 2. After reaching the lifetime limit of 5000 VCN, any subsequent request must be rejected by the system */

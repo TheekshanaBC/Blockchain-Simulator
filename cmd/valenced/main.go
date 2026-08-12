@@ -37,6 +37,30 @@ func main() {
 	flag.StringVar(&announceAddr, "announce-addr", "", "Address to announce to peers (e.g. http://192.168.1.100:3001)")
 	flag.Parse()
 
+	// Fix R3: Fail fast on invalid flag combinations rather than silently stalling later.
+	// A negative min-diff causes strings.Repeat to panic; max < min causes an impossible
+	// difficulty range; bad ports are caught here before the OS gives an unhelpful error.
+	if port < 1 || port > 65535 {
+		slog.Error("invalid -port: must be in range 1–65535", "port", port)
+		os.Exit(1)
+	}
+	if minDiff < 0 {
+		slog.Error("invalid -min-diff: must be >= 0", "min-diff", minDiff)
+		os.Exit(1)
+	}
+	if maxDiff < minDiff {
+		slog.Error("invalid -max-diff: must be >= -min-diff", "min-diff", minDiff, "max-diff", maxDiff)
+		os.Exit(1)
+	}
+	if difficulty < minDiff || difficulty > maxDiff {
+		slog.Error("invalid -difficulty: must be in [min-diff, max-diff]", "difficulty", difficulty, "min-diff", minDiff, "max-diff", maxDiff)
+		os.Exit(1)
+	}
+	if maxTxPerBlock < 1 {
+		slog.Error("invalid -max-tx-per-block: must be >= 1", "max-tx-per-block", maxTxPerBlock)
+		os.Exit(1)
+	}
+
 	var peers []string
 	if peersStr != "" {
 		peers = strings.Split(peersStr, ",")

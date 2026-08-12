@@ -2,6 +2,7 @@
 
 An educational blockchain simulator written in Go, demonstrating the core mechanics of a production-quality blockchain. In Round 2, the project has evolved from a local CLI tool into a fully functional **Peer-to-Peer Networked Node** with HTTP APIs, Gossip protocols, Chain Synchronization, and Fork Resolution.
 
+
 ## What Changed from Round 1?
 
 - **HTTP Node Architecture**: The `cmd/blockchainsimulator` CLI was removed. The application now runs as a long-lived HTTP daemon (`cmd/valence-node`).
