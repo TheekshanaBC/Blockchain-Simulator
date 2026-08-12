@@ -97,9 +97,11 @@ func (c *Chain) SwitchToChain(newBlocks []*block.Block) ([]block.Transaction, er
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// 1. Check length
-	if len(newBlocks) <= len(c.blocks) {
-		return nil, fmt.Errorf("candidate chain is not longer than current chain")
+	// 1. Check cumulative work
+	currentWork := CumulativeWork(c.blocks)
+	newWork := CumulativeWork(newBlocks)
+	if newWork.Cmp(currentWork) <= 0 {
+		return nil, fmt.Errorf("candidate chain does not have more cumulative work than current chain")
 	}
 
 	// 2. Validate the entire new chain from genesis
