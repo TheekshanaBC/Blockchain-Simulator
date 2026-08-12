@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"strings"
 )
 
 // GET /peers
@@ -23,7 +24,9 @@ func (n *Node) handlePeersAnnounce(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, _, err := net.SplitHostPort(req.Address); err != nil {
+	cleanAddr := strings.TrimPrefix(req.Address, "http://")
+	cleanAddr = strings.TrimPrefix(cleanAddr, "https://")
+	if _, _, err := net.SplitHostPort(cleanAddr); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid peer address format")
 		return
 	}
@@ -32,8 +35,14 @@ func (n *Node) handlePeersAnnounce(w http.ResponseWriter, r *http.Request) {
 	n.PeerManager.MarkSeen(req.Address)
 
 	for _, p := range req.Peers {
-		if _, _, err := net.SplitHostPort(p); err == nil {
-			n.PeerManager.AddPeer(p)
+		cleanP := strings.TrimPrefix(p, "http://")
+		cleanP = strings.TrimPrefix(cleanP, "https://")
+		if _, _, err := net.SplitHostPort(cleanP); err == nil {
+			isNew := n.PeerManager.AddPeer(p)
+			if isNew {
+				// Asynchronously introduce ourselves to this newly discovered peer
+				go n.announceToPeer(p)
+			}
 		}
 	}
 

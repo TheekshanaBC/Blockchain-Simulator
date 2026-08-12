@@ -1,11 +1,14 @@
 package node
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 	"valence/internal/chain"
 	"valence/internal/gossip"
@@ -133,6 +136,13 @@ func (n *Node) Start() error {
 	// Do initial chain sync before starting HTTP to catch up
 	n.runSync()
 
+	// Initial peer announcement
+	go func() {
+		for _, p := range n.Config.Peers {
+			n.announceToPeer(p)
+		}
+	}()
+
 	// Start background periodic sync
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
@@ -141,6 +151,20 @@ func (n *Node) Start() error {
 			select {
 			case <-ticker.C:
 				n.runSync()
+			case <-n.stopChan:
+				return
+			}
+		}
+	}()
+
+	// Start health check loop
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				n.healthCheckPeers()
 			case <-n.stopChan:
 				return
 			}
@@ -205,4 +229,84 @@ func (n *Node) runSync() {
 		n.Logger.Info("Returned orphaned transactions to mempool", "count", len(orphanedTxs))
 	}
 	n.SaveState()
+}
+
+func (n *Node) announceToPeer(peerAddr string) {
+	peerURL := peerAddr
+	if !strings.HasPrefix(peerURL, "http://") && !strings.HasPrefix(peerURL, "https://") {
+		peerURL = "http://" + peerURL
+	}
+	peerURL = peerURL + "/peers/announce"
+
+	payload := map[string]interface{}{
+		"address": fmt.Sprintf("http://localhost:%d", n.Config.Port),
+		"peers":   n.PeerManager.GetPeers(),
+	}
+
+	jsonData, _ := json.Marshal(payload)
+	req, err := http.NewRequest("POST", peerURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		n.Logger.Debug("Failed to announce to peer", "peer", peerAddr, "error", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		n.PeerManager.MarkSeen(peerAddr)
+
+		var respData struct {
+			Peers []string `json:"peers"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&respData); err == nil {
+			for _, p := range respData.Peers {
+				cleanP := strings.TrimPrefix(p, "http://")
+				cleanP = strings.TrimPrefix(cleanP, "https://")
+				
+				// Don't add ourselves or the peer we just announced to
+				selfPortStr := fmt.Sprintf(":%d", n.Config.Port)
+				if strings.HasSuffix(cleanP, selfPortStr) {
+					continue
+				}
+
+				if isNew := n.PeerManager.AddPeer(cleanP); isNew {
+					go n.announceToPeer(cleanP)
+				}
+			}
+		}
+	}
+}
+
+func (n *Node) healthCheckPeers() {
+	peers := n.PeerManager.GetAllPeers()
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	for _, pInfo := range peers {
+		// Only check peers that haven't failed too many times, or maybe check all of them?
+		// We'll check all of them so they can recover if they come back online before being pruned.
+		go func(peerAddr string) {
+			url := peerAddr
+			if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+				url = "http://" + url
+			}
+			url = url + "/status"
+
+			resp, err := client.Get(url)
+			if err != nil || resp.StatusCode != http.StatusOK {
+				n.PeerManager.MarkFailed(peerAddr)
+				n.Logger.Debug("Peer health check failed", "peer", peerAddr)
+			} else {
+				n.PeerManager.MarkSeen(peerAddr)
+				if resp != nil && resp.Body != nil {
+					resp.Body.Close()
+				}
+			}
+		}(pInfo.Address)
+	}
 }

@@ -53,6 +53,11 @@ func (pm *PeerManager) AddPeer(address string) bool {
 		return false
 	}
 
+	// Enforce Max Peer Limit (e.g., 50 peers) to prevent network overload
+	if len(pm.peers) >= 50 {
+		return false
+	}
+
 	pm.peers[address] = &PeerInfo{
 		Address:  address,
 		LastSeen: time.Now(),
