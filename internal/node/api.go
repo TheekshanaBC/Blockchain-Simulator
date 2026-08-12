@@ -16,6 +16,7 @@ func (n *Node) setupAPI(mux *http.ServeMux) {
 	mux.HandleFunc("GET /chain/blocks/{height}/proof/{txIndex}", n.handleGetMerkleProof)
 	mux.HandleFunc("POST /chain/blocks/{height}/verify-proof", n.handleVerifyMerkleProof)
 	mux.HandleFunc("GET /balances", n.handleBalances)
+	mux.HandleFunc("GET /balances/{address}", n.handleBalanceForAddress)
 	mux.HandleFunc("GET /sequence/{address}", n.handleSequence)
 
 	// Transaction & Mempool endpoints (api_tx.go)
@@ -42,3 +43,4 @@ func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
 func respondError(w http.ResponseWriter, status int, message string) {
 	respondJSON(w, status, map[string]string{"error": message})
 }
+

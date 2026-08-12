@@ -15,7 +15,7 @@ import (
 )
 
 func setupTestChain() *chain.Chain {
-	return chain.NewChain(1, 5, 10, 1, 10)
+	return chain.NewChain(1, 5, 10, 1, 10, 10)
 }
 
 func setupSyncerWithMockPeer(t *testing.T, localChain *chain.Chain, handler http.HandlerFunc) (*Syncer, *httptest.Server) {
@@ -93,7 +93,7 @@ func TestSyncFromBestPeer_SyncsTaller(t *testing.T) {
 		Height: 1,
 		Header: block.BlockHeader{
 			PrevHash:   tallerChain.GetLastBlock().Hash,
-			Timestamp:  time.Now().Unix(),
+			Timestamp:  time.Now().UnixNano(),
 			Difficulty: 1,
 		},
 		Transactions: []block.Transaction{
@@ -178,14 +178,14 @@ func TestSyncFromBestPeer_InvalidChain(t *testing.T) {
 
 func TestSyncFromBestPeer_SyncsHeaviest(t *testing.T) {
 	// Local chain with diff 1, 6 blocks (longer but lighter)
-	localChain := chain.NewChain(1, 2, 10, 1, 10)
+	localChain := chain.NewChain(1, 2, 10, 1, 10, 10)
 	baseTime := localChain.GetLastBlock().Header.Timestamp
 	for i := 1; i <= 6; i++ {
 		lb := block.Block{
 			Height: i,
 			Header: block.BlockHeader{
 				PrevHash:   localChain.GetLastBlock().Hash,
-				Timestamp:  baseTime + int64(i)*10,
+				Timestamp:  baseTime + int64(i)*10*1_000_000_000,
 				Difficulty: 1,
 			},
 			Transactions: []block.Transaction{
@@ -201,7 +201,7 @@ func TestSyncFromBestPeer_SyncsHeaviest(t *testing.T) {
 	}
 
 	// Heavier chain with diff 3, 5 blocks
-	heavierChain := chain.NewChain(1, 2, 10, 1, 10)
+	heavierChain := chain.NewChain(1, 2, 10, 1, 10, 10)
 	for i := 1; i <= 5; i++ {
 		expectedDiff := 1
 		if i >= 3 {
@@ -215,7 +215,7 @@ func TestSyncFromBestPeer_SyncsHeaviest(t *testing.T) {
 			Height: i,
 			Header: block.BlockHeader{
 				PrevHash:   heavierChain.GetLastBlock().Hash,
-				Timestamp:  baseTime + int64(i),
+				Timestamp:  baseTime + int64(i)*1_000_000_000,
 				Difficulty: expectedDiff,
 			},
 			Transactions: []block.Transaction{

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 	"valence/internal/chain"
@@ -20,6 +21,7 @@ import (
 
 type Config struct {
 	Port            int
+	AnnounceAddr    string // Address to announce to peers (e.g., "http://192.168.1.100:3001")
 	Peers           []string // initial peer addresses, e.g., ["localhost:3002"]
 	DataDir         string   // per-node data directory, e.g., "./data/node1"
 	Difficulty      int
@@ -28,6 +30,7 @@ type Config struct {
 	MinDifficulty   int
 	MaxDifficulty   int
 	MinerAddress    string // address to receive mining rewards (from node's wallet)
+	MaxTxPerBlock   int    // maximum transactions allowed per block
 }
 
 type Node struct {
@@ -53,16 +56,26 @@ func NewNode(cfg Config) (*Node, error) {
 		return nil, fmt.Errorf("failed to create data directory: %w", err)
 	}
 
+	// Clean up any stale temp files from previous crashes
+	if err := storage.CleanupTempFiles(cfg.DataDir); err != nil {
+		logger.Warn("failed to clean up temp files", "error", err)
+	}
+
 	// Load or create wallet
 	keystoreFile := fmt.Sprintf("%s/keystore.json", cfg.DataDir)
 	var nodeWallet *wallet.Wallet
 	wallets, err := wallet.GetAllWallets(keystoreFile)
 	if err == nil && len(wallets) > 0 {
-		// Pick the first available wallet in a non-deterministic way since map iteration is random.
-		// For a single-wallet keystore, this works fine.
-		for _, w := range wallets {
+		// Prioritize "node_wallet" if it exists, otherwise pick deterministically
+		if w, exists := wallets["node_wallet"]; exists {
 			nodeWallet = w
-			break
+		} else {
+			var names []string
+			for name := range wallets {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			nodeWallet = wallets[names[0]]
 		}
 	} else {
 		nodeWallet = wallet.NewWallet()
@@ -90,12 +103,15 @@ func NewNode(cfg Config) (*Node, error) {
 	}
 	if err != nil {
 		logger.Info("No valid existing chain found, creating genesis chain")
-		c = chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty)
+		c = chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty, cfg.MaxTxPerBlock)
 	} else {
 		logger.Info("Loaded chain from disk", "height", c.Height(), "file", chainFile)
 	}
 
-	selfAddr := fmt.Sprintf("http://localhost:%d", cfg.Port)
+	selfAddr := cfg.AnnounceAddr
+	if selfAddr == "" {
+		selfAddr = fmt.Sprintf("http://localhost:%d", cfg.Port)
+	}
 
 	pm := peer.NewPeerManager(selfAddr, cfg.Peers)
 	cache := gossip.NewSeenCache(1 * time.Hour)
@@ -106,7 +122,7 @@ func NewNode(cfg Config) (*Node, error) {
 		Config:      cfg,
 		Chain:       c,
 		Wallet:      nodeWallet,
-		Mempool:     NewMempool(),
+		Mempool:     NewMempool(5000), // Max 5000 transactions in mempool
 		PeerManager: pm,
 		Gossip:      engine,
 		Syncer:      syncer,
@@ -185,7 +201,16 @@ func (n *Node) Start() error {
 
 func (n *Node) Stop() {
 	n.Logger.Info("Stopping Valence Node...")
-	close(n.stopChan)
+	
+	select {
+	case <-n.stopChan:
+		// already closed
+	default:
+		close(n.stopChan)
+	}
+
+	n.SaveState()
+
 	if n.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -238,8 +263,13 @@ func (n *Node) announceToPeer(peerAddr string) {
 	}
 	peerURL = peerURL + "/peers/announce"
 
+	announceAddr := n.Config.AnnounceAddr
+	if announceAddr == "" {
+		announceAddr = fmt.Sprintf("http://localhost:%d", n.Config.Port)
+	}
+
 	payload := map[string]interface{}{
-		"address": fmt.Sprintf("http://localhost:%d", n.Config.Port),
+		"address": announceAddr,
 		"peers":   n.PeerManager.GetPeers(),
 	}
 
@@ -269,12 +299,7 @@ func (n *Node) announceToPeer(peerAddr string) {
 				cleanP := strings.TrimPrefix(p, "http://")
 				cleanP = strings.TrimPrefix(cleanP, "https://")
 				
-				// Don't add ourselves or the peer we just announced to
-				selfPortStr := fmt.Sprintf(":%d", n.Config.Port)
-				if strings.HasSuffix(cleanP, selfPortStr) {
-					continue
-				}
-
+				// pm.AddPeer will automatically reject our own address based on normalizeAddress matching
 				if isNew := n.PeerManager.AddPeer(cleanP); isNew {
 					go n.announceToPeer(cleanP)
 				}
@@ -298,14 +323,18 @@ func (n *Node) healthCheckPeers() {
 			url = url + "/status"
 
 			resp, err := client.Get(url)
-			if err != nil || resp.StatusCode != http.StatusOK {
+			if err != nil {
 				n.PeerManager.MarkFailed(peerAddr)
-				n.Logger.Debug("Peer health check failed", "peer", peerAddr)
+				n.Logger.Debug("Peer health check failed", "peer", peerAddr, "error", err)
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				n.PeerManager.MarkFailed(peerAddr)
+				n.Logger.Debug("Peer health check failed (bad status)", "peer", peerAddr, "status", resp.StatusCode)
 			} else {
 				n.PeerManager.MarkSeen(peerAddr)
-				if resp != nil && resp.Body != nil {
-					resp.Body.Close()
-				}
 			}
 		}(pInfo.Address)
 	}

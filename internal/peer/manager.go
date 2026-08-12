@@ -10,7 +10,9 @@ import (
 func normalizeAddress(addr string) string {
 	addr = strings.TrimPrefix(addr, "http://")
 	addr = strings.TrimPrefix(addr, "https://")
-	return addr
+	// Fix M7(c): Normalize localhost to 127.0.0.1 to prevent self-peering via alias
+	addr = strings.Replace(addr, "localhost:", "127.0.0.1:", 1)
+	return strings.TrimSpace(addr)
 }
 
 type PeerInfo struct {

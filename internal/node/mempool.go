@@ -9,13 +9,18 @@ import (
 )
 
 type Mempool struct {
-	mu  sync.RWMutex
-	txs map[string]block.Transaction // key = tx.ID
+	mu      sync.RWMutex
+	txs     map[string]block.Transaction // key = tx.ID
+	maxSize int
 }
 
-func NewMempool() *Mempool {
+func NewMempool(maxSize int) *Mempool {
+	if maxSize <= 0 {
+		maxSize = 5000 // default max size
+	}
 	return &Mempool{
-		txs: make(map[string]block.Transaction),
+		txs:     make(map[string]block.Transaction),
+		maxSize: maxSize,
 	}
 }
 
@@ -26,6 +31,9 @@ func (m *Mempool) Add(tx block.Transaction) bool {
 
 	if _, exists := m.txs[tx.ID]; exists {
 		return false
+	}
+	if len(m.txs) >= m.maxSize {
+		return false // Silently reject if mempool is full (or should we return error? For gossip Add, returning false is fine)
 	}
 	m.txs[tx.ID] = tx
 	return true
@@ -40,6 +48,9 @@ func (m *Mempool) ValidateAndAdd(tx block.Transaction, chainBlocks []*block.Bloc
 
 	if _, exists := m.txs[tx.ID]; exists {
 		return fmt.Errorf("transaction already exists")
+	}
+	if len(m.txs) >= m.maxSize {
+		return fmt.Errorf("mempool is full")
 	}
 
 	txList := make([]block.Transaction, 0, len(m.txs))

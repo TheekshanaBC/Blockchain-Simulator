@@ -18,10 +18,10 @@ func (c *Chain) Validate() ValidationResult {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return ValidateBlockSlice(c.blocks, c.InitialDifficulty, c.RetargetWindow, c.TargetBlockTimeSec, c.MinDifficulty, c.MaxDifficulty)
+	return ValidateBlockSlice(c.blocks, c.InitialDifficulty, c.RetargetWindow, c.TargetBlockTimeSec, c.MinDifficulty, c.MaxDifficulty, c.MaxTxPerBlock)
 }
 
-func ValidateBlockSlice(blocks []*block.Block, initialDifficulty, retargetWindow int, targetBlockTimeSec int64, minDifficulty, maxDifficulty int) ValidationResult {
+func ValidateBlockSlice(blocks []*block.Block, initialDifficulty, retargetWindow int, targetBlockTimeSec int64, minDifficulty, maxDifficulty, maxTxPerBlock int) ValidationResult {
 	if len(blocks) == 0 {
 		return ValidationResult{false, 0, "Chain is empty"}
 	}
@@ -61,7 +61,7 @@ func ValidateBlockSlice(blocks []*block.Block, initialDifficulty, retargetWindow
 			return res
 		}
 
-		res = validateBlockTransactions(currentBlock, balances, sequences, faucetReceived)
+		res = validateBlockTransactions(currentBlock, balances, sequences, faucetReceived, maxTxPerBlock)
 		if !res.IsValid {
 			return res
 		}
@@ -106,7 +106,7 @@ func validateBlockAgainstPrevious(currentBlock, previousBlock *block.Block, expe
 		return ValidationResult{false, currentBlock.Height, "Timestamp is earlier than the previous block"}
 	}
 	
-	if currentBlock.Header.Timestamp > time.Now().Unix()+7200 {
+	if currentBlock.Header.Timestamp > time.Now().UnixNano()+(900*1_000_000_000) {
 		return ValidationResult{false, currentBlock.Height, "Timestamp is too far in the future"}
 	}
 
@@ -126,6 +126,10 @@ func validateBlockAgainstPrevious(currentBlock, previousBlock *block.Block, expe
 		return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Difficulty retarget mismatch: expected %d, got %d", expectedDifficulty, currentBlock.Header.Difficulty)}
 	}
 
+	if currentBlock.Header.Difficulty < 0 {
+		return ValidationResult{false, currentBlock.Height, "Difficulty cannot be negative"}
+	}
+
 	target := strings.Repeat("0", currentBlock.Header.Difficulty)
 
 	if !strings.HasPrefix(currentBlock.Hash, target) {
@@ -134,9 +138,12 @@ func validateBlockAgainstPrevious(currentBlock, previousBlock *block.Block, expe
 	return ValidationResult{true, -1, ""}
 }
 
-func validateBlockTransactions(currentBlock *block.Block, balances map[string]int64, sequences map[string]uint64, faucetReceived map[string]int64) ValidationResult {
+func validateBlockTransactions(currentBlock *block.Block, balances map[string]int64, sequences map[string]uint64, faucetReceived map[string]int64, maxTxPerBlock int) ValidationResult {
 	if len(currentBlock.Transactions) == 0 {
 		return ValidationResult{false, currentBlock.Height, "Block must contain at least one transaction (COINBASE)"}
+	}
+	if len(currentBlock.Transactions) > maxTxPerBlock {
+		return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Block exceeds maximum allowed transactions (%d > %d)", len(currentBlock.Transactions), maxTxPerBlock)}
 	}
 
 	for i, tx := range currentBlock.Transactions {

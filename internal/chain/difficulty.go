@@ -26,7 +26,7 @@ func expectedDifficultyAfterWindow(blocks []*block.Block, nextHeight, N int, tar
 
 	firstBlock := blocks[firstBlockIndex]
 	actual := lastBlock.Header.Timestamp - firstBlock.Header.Timestamp
-	expected := targetBlockTime * int64(expectedIntervals)
+	expected := targetBlockTime * 1_000_000_000 * int64(expectedIntervals)
 
 	return adjustDifficulty(prevDifficulty, actual, expected, min, max)
 }

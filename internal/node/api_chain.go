@@ -94,6 +94,22 @@ func (n *Node) handleBalances(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, balances)
 }
 
+// GET /balances/{address}
+func (n *Node) handleBalanceForAddress(w http.ResponseWriter, r *http.Request) {
+	address := r.PathValue("address")
+	if address == "" {
+		respondError(w, http.StatusBadRequest, "address is required")
+		return
+	}
+
+	balances := ledger.CalculateBalances(n.Chain.GetBlocks())
+	balance := balances[address]
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"address": address,
+		"balance": balance,
+	})
+}
+
 // GET /sequence/{address}
 func (n *Node) handleSequence(w http.ResponseWriter, r *http.Request) {
 	address := r.PathValue("address")

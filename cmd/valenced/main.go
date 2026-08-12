@@ -20,6 +20,8 @@ func main() {
 	var targetBlockTime int64
 	var minDiff int
 	var maxDiff int
+	var minerAddress string
+	var maxTxPerBlock int
 
 	flag.IntVar(&port, "port", 3001, "Port to listen on")
 	flag.StringVar(&peersStr, "peers", "", "Comma-separated list of peer addresses (e.g. localhost:3002)")
@@ -29,6 +31,10 @@ func main() {
 	flag.Int64Var(&targetBlockTime, "target-block-time", 10, "Target block time in seconds")
 	flag.IntVar(&minDiff, "min-diff", 2, "Minimum difficulty")
 	flag.IntVar(&maxDiff, "max-diff", 6, "Maximum difficulty")
+	flag.StringVar(&minerAddress, "miner-address", "", "Address to receive mining rewards")
+	flag.IntVar(&maxTxPerBlock, "max-tx-per-block", 10, "Maximum transactions per block")
+	var announceAddr string
+	flag.StringVar(&announceAddr, "announce-addr", "", "Address to announce to peers (e.g. http://192.168.1.100:3001)")
 	flag.Parse()
 
 	var peers []string
@@ -38,6 +44,7 @@ func main() {
 
 	cfg := node.Config{
 		Port:            port,
+		AnnounceAddr:    announceAddr,
 		Peers:           peers,
 		DataDir:         dataDir,
 		Difficulty:      difficulty,
@@ -45,6 +52,8 @@ func main() {
 		TargetBlockTime: targetBlockTime,
 		MinDifficulty:   minDiff,
 		MaxDifficulty:   maxDiff,
+		MinerAddress:    minerAddress,
+		MaxTxPerBlock:   maxTxPerBlock,
 	}
 
 	n, err := node.NewNode(cfg)

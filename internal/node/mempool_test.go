@@ -13,7 +13,7 @@ ensuring transactions can be added, duplicates are rejected,
 and existence checks (Has) work correctly.
 */
 func TestMempoolAddAndHas(t *testing.T) {
-	m := NewMempool()
+	m := NewMempool(100)
 
 	tx1 := block.Transaction{ID: "tx1", Sender: "Alice"}
 	tx2 := block.Transaction{ID: "tx2", Sender: "Bob"}
@@ -46,7 +46,7 @@ TestMempoolRemove verifies that transactions can be successfully
 removed from the pool using their IDs (e.g., after a block is mined).
 */
 func TestMempoolRemove(t *testing.T) {
-	m := NewMempool()
+	m := NewMempool(100)
 	m.Add(block.Transaction{ID: "tx1"})
 	m.Add(block.Transaction{ID: "tx2"})
 	m.Add(block.Transaction{ID: "tx3"})
@@ -71,7 +71,7 @@ TestMempoolGetAll verifies that GetAll returns a copy of transactions
 sorted correctly by Sequence, then Sender.
 */
 func TestMempoolGetAll(t *testing.T) {
-	m := NewMempool()
+	m := NewMempool(100)
 	m.Add(block.Transaction{ID: "tx1", Sender: "B", Sequence: 2})
 	m.Add(block.Transaction{ID: "tx2", Sender: "A", Sequence: 1})
 	m.Add(block.Transaction{ID: "tx3", Sender: "A", Sequence: 2})
@@ -93,7 +93,7 @@ when accessed by multiple goroutines concurrently.
 This test should be run with the -race flag.
 */
 func TestMempoolConcurrency(t *testing.T) {
-	m := NewMempool()
+	m := NewMempool(100)
 	var wg sync.WaitGroup
 
 	// Add transactions concurrently

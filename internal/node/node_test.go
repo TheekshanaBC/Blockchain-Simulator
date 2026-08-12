@@ -9,7 +9,7 @@ import (
 )
 
 func TestNode_HealthCheckPeers(t *testing.T) {
-	cfg := Config{Port: 9999, DataDir: t.TempDir()}
+	cfg := Config{Port: 9999, DataDir: t.TempDir(), MaxTxPerBlock: 10}
 	node, err := NewNode(cfg)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
@@ -33,8 +33,16 @@ func TestNode_HealthCheckPeers(t *testing.T) {
 	// Trigger health check 3 times
 	for i := 0; i < 3; i++ {
 		node.healthCheckPeers()
-		// Wait briefly for async health checks to complete
-		time.Sleep(50 * time.Millisecond)
+	}
+
+	// Wait for async health checks to complete
+	deadline := time.Now().Add(1 * time.Second)
+	for time.Now().Before(deadline) {
+		peers = node.PeerManager.GetAllPeers()
+		if len(peers) == 1 && peers[0].Failures >= 3 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	peers = node.PeerManager.GetAllPeers()
@@ -50,7 +58,7 @@ func TestNode_HealthCheckPeers(t *testing.T) {
 }
 
 func TestNode_AnnounceToPeer(t *testing.T) {
-	cfg := Config{Port: 9998, DataDir: t.TempDir()}
+	cfg := Config{Port: 9998, DataDir: t.TempDir(), MaxTxPerBlock: 10}
 	node, err := NewNode(cfg)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)

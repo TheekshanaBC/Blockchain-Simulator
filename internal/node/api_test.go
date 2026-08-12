@@ -19,6 +19,7 @@ func setupTestNode(t *testing.T) *Node {
 		TargetBlockTime: 10,
 		MinDifficulty:   1,
 		MaxDifficulty:   6,
+		MaxTxPerBlock:   10,
 	}
 	n, err := NewNode(cfg)
 	if err != nil {
@@ -401,5 +402,57 @@ func TestAPIMerkleProof(t *testing.T) {
 	json.Unmarshal(rr.Body.Bytes(), &verifyResp)
 	if !verifyResp["valid"] {
 		t.Errorf("expected proof to be verified as valid")
+	}
+}
+
+func TestAPIPeers(t *testing.T) {
+	n := setupTestNode(t)
+	mux := http.NewServeMux()
+	n.setupAPI(mux)
+
+	// Add peer manually
+	n.PeerManager.AddPeer("127.0.0.1:4000")
+
+	req, _ := http.NewRequest("GET", "/peers", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	var peers []string
+	json.Unmarshal(rr.Body.Bytes(), &peers)
+	if len(peers) != 1 || peers[0] != "127.0.0.1:4000" {
+		t.Errorf("Expected [127.0.0.1:4000], got %v", peers)
+	}
+}
+
+func TestAPIBalances(t *testing.T) {
+	n := setupTestNode(t)
+	mux := http.NewServeMux()
+	n.setupAPI(mux)
+
+	// Faucet gives 100 to Alice
+	fTx, _ := n.Chain.CreateFaucetTx("Alice", 100, nil)
+	n.Chain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
+
+	req, _ := http.NewRequest("GET", "/balances/Alice", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	var balanceResp map[string]interface{}
+	json.Unmarshal(rr.Body.Bytes(), &balanceResp)
+	
+	balanceFloat, ok := balanceResp["balance"].(float64)
+	if !ok {
+		t.Fatalf("Expected float64 balance")
+	}
+	if int64(balanceFloat) != 100 {
+		t.Errorf("Expected balance 100, got %v", balanceFloat)
 	}
 }

@@ -28,6 +28,7 @@ func (c *Chain) MineBlock(ctx context.Context, txs []block.Transaction, minerAdd
 		Sender:    block.SystemAddressCoinbase,
 		Recipient: minerAddress,
 		Amount:    block.MiningReward,
+		Timestamp: time.Now().UnixNano(),
 	}
 	coinbaseTx.ComputeID()
 	
@@ -55,7 +56,7 @@ func (c *Chain) MineBlock(ctx context.Context, txs []block.Transaction, minerAdd
 		Transactions: finalTxs,
 		Header: block.BlockHeader{
 			PrevHash:   lastBlock.Hash,
-			Timestamp:  time.Now().Unix(),
+			Timestamp:  time.Now().UnixNano(),
 		},
 	}
 	

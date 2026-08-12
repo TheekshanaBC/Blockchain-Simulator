@@ -120,25 +120,32 @@ func ValidateTransactions(txs []block.Transaction, chain []*block.Block, pending
 	balances := CalculateAvailableBalances(chain, pendingPool)
 	sequences := CalculatePendingSequences(chain, pendingPool)
 	faucetReceived := make(map[string]int64)
+	existingTxIDs := make(map[string]bool)
 
-	// Pre-populate faucetReceived from chain and pending pool
+	// Pre-populate faucetReceived and existingTxIDs from chain and pending pool
 	for _, b := range chain {
 		for _, tx := range b.Transactions {
+			existingTxIDs[tx.ID] = true
 			if tx.Sender == block.SystemAddressFaucet {
 				faucetReceived[tx.Recipient] += tx.Amount
 			}
 		}
 	}
 	for _, tx := range pendingPool {
+		existingTxIDs[tx.ID] = true
 		if tx.Sender == block.SystemAddressFaucet {
 			faucetReceived[tx.Recipient] += tx.Amount
 		}
 	}
 
 	for _, tx := range txs {
+		if existingTxIDs[tx.ID] {
+			return fmt.Errorf("transaction %s already exists in the chain or pending pool", tx.ID)
+		}
 		if err := ValidateTransaction(tx, balances, sequences, faucetReceived); err != nil {
 			return err
 		}
+		existingTxIDs[tx.ID] = true
 		// Update state for subsequent transactions in this batch
 		if !block.IsSystemAddress(tx.Sender) {
 			balances[tx.Sender] -= tx.Amount
@@ -157,9 +164,11 @@ func FilterValidTransactions(pendingPool []block.Transaction, chain []*block.Blo
 	balances := CalculateAvailableBalances(chain, []block.Transaction{})
 	sequences := CalculatePendingSequences(chain, []block.Transaction{})
 	faucetReceived := make(map[string]int64)
+	existingTxIDs := make(map[string]bool)
 
 	for _, b := range chain {
 		for _, tx := range b.Transactions {
+			existingTxIDs[tx.ID] = true
 			if tx.Sender == block.SystemAddressFaucet {
 				faucetReceived[tx.Recipient] += tx.Amount
 			}
@@ -168,12 +177,17 @@ func FilterValidTransactions(pendingPool []block.Transaction, chain []*block.Blo
 
 	var validPool []block.Transaction
 	for _, tx := range pendingPool {
+		if existingTxIDs[tx.ID] {
+			continue // Skip already mined transactions
+		}
+
 		if tx.Sender == block.SystemAddressFaucet {
 			if tx.Recipient == block.SystemAddressCoinbase {
 				continue
 			}
 			if err := ValidateTransaction(tx, balances, sequences, faucetReceived); err == nil {
 				faucetReceived[tx.Recipient] += tx.Amount
+				existingTxIDs[tx.ID] = true
 				validPool = append(validPool, tx)
 			}
 		} else if !block.IsSystemAddress(tx.Sender) {
@@ -181,6 +195,7 @@ func FilterValidTransactions(pendingPool []block.Transaction, chain []*block.Blo
 				balances[tx.Sender] -= tx.Amount
 				balances[tx.Recipient] += tx.Amount
 				sequences[tx.Sender] = tx.Sequence
+				existingTxIDs[tx.ID] = true
 				validPool = append(validPool, tx)
 			}
 		}

@@ -7,17 +7,22 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // proof of work algorithm
 func (b *Block) Mine(ctx context.Context, difficulty int) {
+	if difficulty < 0 {
+		difficulty = 0
+	}
 	b.Header.Difficulty = difficulty
 	b.Header.MerkleRoot = CalculateMerkleRoot(b.Transactions)
 	target := strings.Repeat("0", difficulty)
 
 	// add coinbase transaction for reward miner
 	if len(b.Transactions) == 0 || b.Transactions[0].Sender != SystemAddressCoinbase {
-		coinbaseTx := Transaction{Sender: SystemAddressCoinbase, Recipient: "Miner", Amount: MiningReward, Signature: []byte("0")}
+		coinbaseTx := Transaction{Sender: SystemAddressCoinbase, Recipient: "Miner", Amount: MiningReward, Signature: []byte("0"), Timestamp: time.Now().UnixNano()}
+		coinbaseTx.ComputeID()
 		b.Transactions = append([]Transaction{coinbaseTx}, b.Transactions...)
 	}
 
