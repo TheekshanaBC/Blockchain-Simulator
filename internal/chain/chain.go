@@ -81,7 +81,7 @@ func (c *Chain) AddBlock(b block.Block) error {
 		}
 	}
 
-	res = validateBlockTransactions(&b, balances, sequences, faucetReceived)
+	res = validateBlockTransactions(&b, balances, sequences, faucetReceived, c.MaxTxPerBlock)
 	if !res.IsValid {
 		return errors.New(res.Reason)
 	}
@@ -105,7 +105,7 @@ func (c *Chain) SwitchToChain(newBlocks []*block.Block) ([]block.Transaction, er
 	}
 
 	// 2. Validate the entire new chain from genesis
-	result := ValidateBlockSlice(newBlocks, c.InitialDifficulty, c.RetargetWindow, c.TargetBlockTimeSec, c.MinDifficulty, c.MaxDifficulty)
+	result := ValidateBlockSlice(newBlocks, c.InitialDifficulty, c.RetargetWindow, c.TargetBlockTimeSec, c.MinDifficulty, c.MaxDifficulty, c.MaxTxPerBlock)
 	if !result.IsValid {
 		return nil, fmt.Errorf("candidate chain invalid: %s", result.Reason)
 	}
@@ -152,7 +152,7 @@ func (c *Chain) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minDifficulty int, maxDifficulty int) *Chain {
+func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minDifficulty int, maxDifficulty int, maxTxPerBlock int) *Chain {
 	if retargetWindow < 2 {
 		retargetWindow = 2
 	}
@@ -171,7 +171,7 @@ func NewChain(difficulty int, retargetWindow int, targetBlockTimeSec int64, minD
 		MaxDifficulty:      maxDifficulty,
 		MinDifficulty:      minDifficulty,
 		InitialDifficulty:  difficulty,
-		MaxTxPerBlock:      10, // Default size limit per block
+		MaxTxPerBlock:      maxTxPerBlock,
 	}
 }
 

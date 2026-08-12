@@ -18,7 +18,7 @@ func TestSaveAndLoadChain(t *testing.T) {
 	filename := filepath.Join(tempDir, "test_chain.json")
 
 	// Create a dummy chain
-	c := chain.NewChain(2, 10, 60, 1, 5)
+	c := chain.NewChain(2, 10, 60, 1, 5, 10)
 
 	// Save
 	if err := SaveChain(c, filename); err != nil {

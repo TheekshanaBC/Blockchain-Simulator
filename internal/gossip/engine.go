@@ -100,9 +100,12 @@ func (e *Engine) sendToPeer(peerAddr string, endpoint string, payload []byte) {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		// Success
 		e.peerManager.MarkSeen(peerAddr)
-	} else if resp.StatusCode != http.StatusConflict && resp.StatusCode != http.StatusOK {
-		e.logger.Warn("gossip request rejected by peer", "peer", peerAddr, "status", resp.StatusCode)
+	} else if resp.StatusCode >= 500 && resp.StatusCode < 600 {
+		e.logger.Warn("gossip request rejected by peer due to server error", "peer", peerAddr, "status", resp.StatusCode)
 		e.peerManager.MarkFailed(peerAddr)
+	} else {
+		// 4xx client errors: peer is healthy but rejected our payload
+		e.logger.Debug("gossip request rejected by peer (client error)", "peer", peerAddr, "status", resp.StatusCode)
 	}
 }
 

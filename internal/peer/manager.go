@@ -10,7 +10,12 @@ import (
 func normalizeAddress(addr string) string {
 	addr = strings.TrimPrefix(addr, "http://")
 	addr = strings.TrimPrefix(addr, "https://")
-	return addr
+	// Fix R5: Use HasPrefix to avoid corrupting hostnames that contain "localhost:" as a substring
+	// (e.g. "mylocalhost:3001" should not become "my127.0.0.1:3001")
+	if strings.HasPrefix(addr, "localhost:") {
+		addr = "127.0.0.1:" + addr[len("localhost:"):]
+	}
+	return strings.TrimSpace(addr)
 }
 
 type PeerInfo struct {
@@ -50,6 +55,11 @@ func (pm *PeerManager) AddPeer(address string) bool {
 	defer pm.mu.Unlock()
 
 	if _, exists := pm.peers[address]; exists {
+		return false
+	}
+
+	// Enforce Max Peer Limit (e.g., 50 peers) to prevent network overload
+	if len(pm.peers) >= 50 {
 		return false
 	}
 

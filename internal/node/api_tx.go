@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"valence/internal/block"
@@ -136,7 +137,7 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 func (n *Node) handleMine(w http.ResponseWriter, r *http.Request) {
 	txs := n.Mempool.GetAll()
 	
-	newBlock, err := n.Chain.MineBlock(r.Context(), txs, n.Config.MinerAddress)
+	newBlock, err := n.Chain.MineBlock(context.Background(), txs, n.Config.MinerAddress)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -174,13 +175,13 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "amount must be positive")
 		return
 	}
-	if req.Amount > ledger.MaxFaucetRequest/block.ElectronsPerVCN { // Check raw VCN before converting to prevent overflow
+	if req.Amount > ledger.MaxFaucetRequest { // Check raw electrons
 		respondError(w, http.StatusBadRequest, "amount exceeds faucet limit")
 		return
 	}
 
 	// Re-use the existing Faucet Logic from internal/chain/faucet.go
-	electrons := req.Amount * block.ElectronsPerVCN
+	electrons := req.Amount
 	tx, err := n.Chain.CreateFaucetTx(req.Address, electrons, n.Mempool.GetAll())
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -194,7 +195,10 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 	n.Logger.Info("TX received and added to mempool", "tx_id", tx.ID, "mempool_size", n.Mempool.Size())
 	n.Gossip.BroadcastTx(tx)
 
-	respondJSON(w, http.StatusAccepted, map[string]string{"status": "ok"})
+	respondJSON(w, http.StatusAccepted, map[string]string{
+		"status": "ok",
+		"tx_id":  tx.ID,
+	})
 }
 
 // GET /mempool

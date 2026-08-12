@@ -49,18 +49,19 @@ func TestEngine_BroadcastTx(t *testing.T) {
 	engine.BroadcastTx(tx)
 
 	// Wait briefly for asynchronous goroutines to finish
-	time.Sleep(100 * time.Millisecond)
-
-	// 5. Verify the peer received the broadcast
-	mu.Lock()
-	if receivedCount != 1 {
-		t.Errorf("Expected 1 broadcast reception, got %d", receivedCount)
-	}
-	mu.Unlock()
+	assertEventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return receivedCount == 1
+	}, 1*time.Second, "Expected 1 broadcast reception")
 
 	// 6. Attempt to broadcast the exact same transaction again
 	engine.BroadcastTx(tx)
-	time.Sleep(100 * time.Millisecond)
+	
+	// Since we expect no change, we can just sleep a very tiny amount to ensure
+	// the goroutine runs and finishes, or use a sync wait group if we could.
+	// But actually, we just wait a bit and assert it hasn't changed.
+	time.Sleep(50 * time.Millisecond)
 
 	// 7. Verify the cache prevented the second broadcast
 	mu.Lock()
@@ -91,12 +92,22 @@ func TestEngine_PeerFailure(t *testing.T) {
 	tx := block.Transaction{ID: "tx_fail_test"}
 	engine.BroadcastTx(tx)
 
-	// Wait briefly for asynchronous HTTP request to fail
-	time.Sleep(100 * time.Millisecond)
-
-	// 3. Verify the peer was marked as failed
-	peerInfo = pm.GetAllPeers()[0]
-	if peerInfo.Failures != 1 {
-		t.Errorf("Expected peer to have 1 failure after unreachable request, got %d", peerInfo.Failures)
-	}
+	// Wait for peer to be marked as failed
+	assertEventually(t, func() bool {
+		peerInfo = pm.GetAllPeers()[0]
+		return peerInfo.Failures == 1
+	}, 1*time.Second, "Expected peer to have 1 failure after unreachable request")
 }
+
+func assertEventually(t *testing.T, condition func() bool, timeout time.Duration, msg string) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if condition() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal(msg)
+}
+

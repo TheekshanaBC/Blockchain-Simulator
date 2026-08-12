@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 	"valence/internal/block"
 	"valence/internal/wallet"
 )
@@ -17,6 +18,7 @@ func createSignedTx(w *wallet.Wallet, recipient string, amount int64, sequence u
 		Sequence:  sequence,
 		PublicKey: w.PublicKey,
 	}
+	tx.ComputeID()
 	tx.Sign(w.PrivateKey)
 	return tx
 }
@@ -29,7 +31,7 @@ in an already mined block and asserts that the blockchain becomes invalid
 and successfully pinpoints the exact block height where the tampering occurred.
 */
 func TestValidationAndTamperDetection(t *testing.T) {
-	myChain := NewChain(2, 5, 8, 1, 10)
+	myChain := NewChain(2, 5, 8, 1, 10, 10)
 	wAlice := wallet.NewWallet()
 	wBob := wallet.NewWallet()
 	addrAlice := wAlice.Address()
@@ -69,7 +71,7 @@ the given difficulty, an empty pending pool, and exactly one valid Genesis block
 */
 func TestNewChain(t *testing.T) {
 	difficulty := 2
-	myChain := NewChain(difficulty, 5, 8, 1, 10)
+	myChain := NewChain(difficulty, 5, 8, 1, 10, 10)
 
 	if myChain.Difficulty != difficulty {
 		t.Errorf("Expected difficulty %d, got %d", difficulty, myChain.Difficulty)
@@ -90,7 +92,7 @@ It checks for successful additions, rejection of reserved COINBASE sender, and
 rejection of invalid transactions (like overspending).
 */
 func TestAddTransaction(t *testing.T) {
-	myChain := NewChain(2, 5, 8, 1, 10)
+	myChain := NewChain(2, 5, 8, 1, 10, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
 
@@ -106,7 +108,7 @@ func TestAddTransaction(t *testing.T) {
 	}
 // 2. Reject COINBASE sender
 	tx2 := createSignedTx(wAlice, "Alice", 100, 2)
-	tx2.Sender = "VALENCE_COINBASE" // tamper to test rejection
+	tx2.Sender = block.SystemAddressCoinbase // tamper to test rejection
 	b2, _ := myChain.MineBlock(context.Background(), []block.Transaction{tx2}, "Miner")
 	if len(b2.Transactions) > 1 {
 		t.Errorf("Expected COINBASE transaction to be rejected, got mined")
@@ -126,7 +128,7 @@ mined into a new block, the pending pool is cleared, and the block is linked pro
 It also verifies it fails if there are no pending transactions.
 */
 func TestMineBlock(t *testing.T) {
-	myChain := NewChain(2, 5, 8, 1, 10)
+	myChain := NewChain(2, 5, 8, 1, 10, 10)
 
 	/* Setup a wallet and create a faucet transaction to simulate mining a block with user transactions */
 	wAlice := wallet.NewWallet()
@@ -158,7 +160,7 @@ TestValidate_InvalidLinks tests that tampering with block hashes or links
 (e.g., breaking the PrevHash chain) correctly invalidates the blockchain.
 */
 func TestValidate_InvalidLinks(t *testing.T) {
-	myChain := NewChain(1, 5, 8, 1, 10)
+	myChain := NewChain(1, 5, 8, 1, 10, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
 	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
@@ -189,7 +191,7 @@ after it has been mined into a block correctly invalidates the blockchain,
 even if the block's hash and Merkle root are recalculated.
 */
 func TestValidate_ForgedSignature(t *testing.T) {
-	myChain := NewChain(1, 5, 8, 1, 10)
+	myChain := NewChain(1, 5, 8, 1, 10, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
 
@@ -205,6 +207,7 @@ func TestValidate_ForgedSignature(t *testing.T) {
 		Sequence:  1,
 		PublicKey: wAlice.PublicKey,
 	}
+	tx.ComputeID()
 	tx.Sign(wAlice.PrivateKey)
 
 	myChain.MineBlock(context.Background(), []block.Transaction{tx}, "Miner")
@@ -235,7 +238,7 @@ including its blocks, headers, transactions, and pending pool, can be safely
 converted to JSON and restored without losing structural integrity.
 */
 func TestChain_JSONSerialization(t *testing.T) {
-	originalChain := NewChain(3, 5, 8, 1, 10)
+	originalChain := NewChain(3, 5, 8, 1, 10, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
 
@@ -275,7 +278,7 @@ correctly detects and rejects blocks that have tampered with their difficulty
 target when a retarget was expected.
 */
 func TestValidate_DifficultyMismatch(t *testing.T) {
-	myChain := NewChain(2, 3, 10, 1, 10) // N=3
+	myChain := NewChain(2, 3, 10, 1, 10, 10) // N=3
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
 
@@ -304,7 +307,7 @@ catches malicious attempts to manipulate block timestamps to artificially
 lower the difficulty during a retarget window.
 */
 func TestValidate_TamperTimestampRetarget(t *testing.T) {
-	myChain := NewChain(2, 3, 10, 1, 10)
+	myChain := NewChain(2, 3, 10, 1, 10, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
 
@@ -321,9 +324,9 @@ func TestValidate_TamperTimestampRetarget(t *testing.T) {
 	}
 
 	// Tamper with a timestamp inside the first window (e.g. Block 2)
-	myChain.blocks[2].Header.Timestamp += 1000 // Make it look very slow
-	myChain.blocks[3].Header.Timestamp += 1000 // Keep them monotonic
-	myChain.blocks[4].Header.Timestamp += 1000
+	myChain.blocks[2].Header.Timestamp += 800 * 1_000_000_000 // Make it look very slow
+	myChain.blocks[3].Header.Timestamp += 800 * 1_000_000_000 // Keep them monotonic
+	myChain.blocks[4].Header.Timestamp += 800 * 1_000_000_000
 	// so it reaches the expected difficulty check for Block 4.
 	myChain.blocks[2].Mine(context.Background(), myChain.blocks[2].Header.Difficulty)
 
@@ -349,7 +352,7 @@ and asserts that the difficulty correctly increases to compensate.
 */
 func TestRetarget_ConvergesTowardTarget(t *testing.T) {
 	// targetBlockTimeSec is 100, which is far above actual mine time (almost instant)
-	myChain := NewChain(2, 3, 100, 1, 10)
+	myChain := NewChain(2, 3, 100, 1, 10, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
 
@@ -370,7 +373,7 @@ limit, properly slicing the pending pool so that only the allowed number of
 transactions are included in the new block, leaving the rest pending.
 */
 func TestMaxTxPerBlock(t *testing.T) {
-	myChain := NewChain(1, 5, 8, 1, 10)
+	myChain := NewChain(1, 5, 8, 1, 10, 10)
 
 	// Override the max tx limit for testing
 	myChain.MaxTxPerBlock = 2
@@ -410,13 +413,13 @@ is properly clamped between MinDifficulty and MaxDifficulty.
 */
 func TestNewChain_DifficultyClamping(t *testing.T) {
 	// Test difficulty < minDifficulty
-	c1 := NewChain(0, 10, 60, 2, 5)
+	c1 := NewChain(0, 10, 60, 2, 5, 10)
 	if c1.Difficulty != 2 {
 		t.Errorf("Expected difficulty to be clamped up to MinDifficulty (2), got %d", c1.Difficulty)
 	}
 
 	// Test difficulty > maxDifficulty
-	c2 := NewChain(10, 10, 60, 2, 5)
+	c2 := NewChain(10, 10, 60, 2, 5, 10)
 	if c2.Difficulty != 5 {
 		t.Errorf("Expected difficulty to be clamped down to MaxDifficulty (5), got %d", c2.Difficulty)
 	}
@@ -424,7 +427,7 @@ func TestNewChain_DifficultyClamping(t *testing.T) {
 
 func TestSwitchToChain_HeaviestChain(t *testing.T) {
 	// Retarget window of 2, target block time 10s
-	myChain := NewChain(1, 2, 10, 1, 10)
+	myChain := NewChain(1, 2, 10, 1, 10, 10)
 
 	baseTime := myChain.blocks[0].Header.Timestamp
 
@@ -434,7 +437,7 @@ func TestSwitchToChain_HeaviestChain(t *testing.T) {
 			Height: i,
 			Header: block.BlockHeader{
 				PrevHash:   myChain.GetLastBlock().Hash,
-				Timestamp:  baseTime + int64(i)*10, // Exactly target block time
+				Timestamp:  baseTime + int64(i)*10*1_000_000_000, // Exactly target block time
 				Difficulty: 1,
 			},
 			Transactions: []block.Transaction{
@@ -450,7 +453,7 @@ func TestSwitchToChain_HeaviestChain(t *testing.T) {
 	}
 
 	// Create a heavier chain starting from the same genesis
-	heavierChain := NewChain(1, 2, 10, 1, 10)
+	heavierChain := NewChain(1, 2, 10, 1, 10, 10)
 
 
 	// Mine 5 blocks very fast so difficulty increases
@@ -475,7 +478,7 @@ func TestSwitchToChain_HeaviestChain(t *testing.T) {
 			Height: i,
 			Header: block.BlockHeader{
 				PrevHash:   heavierChain.GetLastBlock().Hash,
-				Timestamp:  baseTime + int64(i), // 1 second apart
+				Timestamp:  baseTime + int64(i)*1_000_000_000, // Fast blocks, 1 second apart
 				Difficulty: expectedDiff,
 			},
 			Transactions: []block.Transaction{
@@ -501,5 +504,44 @@ func TestSwitchToChain_HeaviestChain(t *testing.T) {
 
 	if myChain.Height() != 5 {
 		t.Errorf("Expected height to be 5, got %d", myChain.Height())
+	}
+}
+
+func TestValidate_OversizedBlock(t *testing.T) {
+	c := NewChain(1, 10, 60, 1, 5, 2) // MaxTxPerBlock = 2
+
+	// Manually construct an oversized block
+	coinbaseTx := block.Transaction{
+		Sender:    block.SystemAddressCoinbase,
+		Recipient: "Miner",
+		Amount:    block.MiningReward,
+		Timestamp: time.Now().UnixNano(),
+	}
+	fTx1, _ := c.CreateFaucetTx("Alice", 100, nil)
+	fTx2, _ := c.CreateFaucetTx("Bob", 100, nil)
+	
+	newBlock := block.Block{
+		Height:       1,
+		Transactions: []block.Transaction{coinbaseTx, fTx1, fTx2}, // 3 txs > 2
+		Header: block.BlockHeader{
+			PrevHash:   c.GetBlocks()[0].Hash,
+			Difficulty: c.Difficulty,
+			Timestamp:  time.Now().UnixNano(),
+		},
+	}
+	newBlock.Header.MerkleRoot = block.CalculateMerkleRoot(newBlock.Transactions)
+	// Perform minimal PoW
+	target := strings.Repeat("0", c.Difficulty)
+	for {
+		newBlock.Header.Nonce++
+		newBlock.Hash = newBlock.CalculateHash()
+		if strings.HasPrefix(newBlock.Hash, target) {
+			break
+		}
+	}
+	
+	err := c.AddBlock(newBlock)
+	if err == nil || !strings.Contains(err.Error(), "exceeds maximum allowed transactions") {
+		t.Errorf("Expected error for oversized block, got: %v", err)
 	}
 }

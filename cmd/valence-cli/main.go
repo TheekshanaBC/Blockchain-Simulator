@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
+	"strings"
 	"valence/internal/block"
 	"valence/internal/cliclient"
 	"valence/internal/wallet"
@@ -21,8 +23,7 @@ func printJSON(data interface{}, err error) {
 }
 
 func main() {
-	// Global flags
-	nodeURL := flag.String("node", "http://localhost:8080", "Node URL")
+	nodeURL := flag.String("node", "http://localhost:3001", "Node URL")
 	keystorePath := flag.String("keystore", "./data/wallets/keys.json", "Path to keystore file")
 	walletName := flag.String("wallet", "primary", "Wallet name/index to use")
 	
@@ -42,6 +43,23 @@ func main() {
 		fmt.Println("  generate                       Manually mine a block")
 	}
 
+	// Fix L4: Rearrange os.Args so that flags can appear after subcommands
+	var newArgs []string
+	var positional []string
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		if strings.HasPrefix(arg, "-") {
+			newArgs = append(newArgs, arg)
+			if !strings.Contains(arg, "=") && i+1 < len(os.Args) && !strings.HasPrefix(os.Args[i+1], "-") {
+				newArgs = append(newArgs, os.Args[i+1])
+				i++
+			}
+		} else {
+			positional = append(positional, arg)
+		}
+	}
+	os.Args = append([]string{os.Args[0]}, append(newArgs, positional...)...)
+
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -50,6 +68,10 @@ func main() {
 	}
 
 	command := flag.Arg(0)
+
+	// Since we are extracting arguments manually, we should use flag.Args() for subcommands
+	args := flag.Args()[1:] // everything after the command
+
 
 	switch command {
 	case "createwallet":
@@ -60,8 +82,8 @@ func main() {
 		}
 	case "getbalance":
 		addr := *walletName 
-		if flag.NArg() > 1 {
-			addr = flag.Arg(1)
+		if len(args) > 0 {
+			addr = args[0]
 		} else {
 			// If no address provided, try to load from keystore
 			w, err := wallet.LoadFromKeystore(*keystorePath, *walletName)
@@ -75,18 +97,18 @@ func main() {
 		printJSON(res, err)
 
 	case "sendtoaddress":
-		if flag.NArg() < 3 {
+		if len(args) < 2 {
 			fmt.Println("Usage: valence-cli sendtoaddress <address> <amount>")
 			os.Exit(1)
 		}
-		toAddr := flag.Arg(1)
-		amountStr := flag.Arg(2)
+		toAddr := args[0]
+		amountStr := args[1]
 		amountFloat, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Invalid amount: %v\n", err)
 			os.Exit(1)
 		}
-		amountInt := int64(amountFloat * float64(block.ElectronsPerVCN)) // convert VCN to Electrons
+		amountInt := int64(math.Round(amountFloat * float64(block.ElectronsPerVCN))) // convert VCN to Electrons
 		res, err := cliclient.HandleSubmitTx(*nodeURL, *keystorePath, *walletName, toAddr, amountInt)
 		printJSON(res, err)
 
@@ -95,17 +117,17 @@ func main() {
 		printJSON(res, err)
 
 	case "faucet":
-		if flag.NArg() < 2 {
+		if len(args) < 1 {
 			fmt.Println("Usage: valence-cli faucet <amount>")
 			os.Exit(1)
 		}
-		amountStr := flag.Arg(1)
+		amountStr := args[0]
 		amountFloat, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Invalid amount: %v\n", err)
 			os.Exit(1)
 		}
-		amountInt := int64(amountFloat) // Do NOT multiply by ElectronsPerVCN, API expects raw VCN
+		amountInt := int64(math.Round(amountFloat * float64(block.ElectronsPerVCN))) // convert VCN to Electrons
 		res, err := cliclient.HandleFaucet(*nodeURL, *keystorePath, *walletName, amountInt)
 		printJSON(res, err)
 
@@ -118,11 +140,11 @@ func main() {
 		printJSON(res, err)
 
 	case "addnode":
-		if flag.NArg() < 2 {
+		if len(args) < 1 {
 			fmt.Println("Usage: valence-cli addnode <address>")
 			os.Exit(1)
 		}
-		res, err := cliclient.HandlePeersAdd(*nodeURL, flag.Arg(1))
+		res, err := cliclient.HandlePeersAdd(*nodeURL, args[0])
 		printJSON(res, err)
 
 	case "generate":

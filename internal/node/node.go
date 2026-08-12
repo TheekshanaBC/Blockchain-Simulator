@@ -1,11 +1,15 @@
 package node
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"sort"
+	"strings"
 	"time"
 	"valence/internal/chain"
 	"valence/internal/gossip"
@@ -17,6 +21,7 @@ import (
 
 type Config struct {
 	Port            int
+	AnnounceAddr    string // Address to announce to peers (e.g., "http://192.168.1.100:3001")
 	Peers           []string // initial peer addresses, e.g., ["localhost:3002"]
 	DataDir         string   // per-node data directory, e.g., "./data/node1"
 	Difficulty      int
@@ -25,6 +30,7 @@ type Config struct {
 	MinDifficulty   int
 	MaxDifficulty   int
 	MinerAddress    string // address to receive mining rewards (from node's wallet)
+	MaxTxPerBlock   int    // maximum transactions allowed per block
 }
 
 type Node struct {
@@ -50,16 +56,26 @@ func NewNode(cfg Config) (*Node, error) {
 		return nil, fmt.Errorf("failed to create data directory: %w", err)
 	}
 
+	// Clean up any stale temp files from previous crashes
+	if err := storage.CleanupTempFiles(cfg.DataDir); err != nil {
+		logger.Warn("failed to clean up temp files", "error", err)
+	}
+
 	// Load or create wallet
 	keystoreFile := fmt.Sprintf("%s/keystore.json", cfg.DataDir)
 	var nodeWallet *wallet.Wallet
 	wallets, err := wallet.GetAllWallets(keystoreFile)
 	if err == nil && len(wallets) > 0 {
-		// Pick the first available wallet in a non-deterministic way since map iteration is random.
-		// For a single-wallet keystore, this works fine.
-		for _, w := range wallets {
+		// Prioritize "node_wallet" if it exists, otherwise pick deterministically
+		if w, exists := wallets["node_wallet"]; exists {
 			nodeWallet = w
-			break
+		} else {
+			var names []string
+			for name := range wallets {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			nodeWallet = wallets[names[0]]
 		}
 	} else {
 		nodeWallet = wallet.NewWallet()
@@ -87,12 +103,15 @@ func NewNode(cfg Config) (*Node, error) {
 	}
 	if err != nil {
 		logger.Info("No valid existing chain found, creating genesis chain")
-		c = chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty)
+		c = chain.NewChain(cfg.Difficulty, cfg.RetargetWindow, cfg.TargetBlockTime, cfg.MinDifficulty, cfg.MaxDifficulty, cfg.MaxTxPerBlock)
 	} else {
 		logger.Info("Loaded chain from disk", "height", c.Height(), "file", chainFile)
 	}
 
-	selfAddr := fmt.Sprintf("http://localhost:%d", cfg.Port)
+	selfAddr := cfg.AnnounceAddr
+	if selfAddr == "" {
+		selfAddr = fmt.Sprintf("http://localhost:%d", cfg.Port)
+	}
 
 	pm := peer.NewPeerManager(selfAddr, cfg.Peers)
 	cache := gossip.NewSeenCache(1 * time.Hour)
@@ -103,7 +122,7 @@ func NewNode(cfg Config) (*Node, error) {
 		Config:      cfg,
 		Chain:       c,
 		Wallet:      nodeWallet,
-		Mempool:     NewMempool(),
+		Mempool:     NewMempool(5000), // Max 5000 transactions in mempool
 		PeerManager: pm,
 		Gossip:      engine,
 		Syncer:      syncer,
@@ -133,6 +152,13 @@ func (n *Node) Start() error {
 	// Do initial chain sync before starting HTTP to catch up
 	n.runSync()
 
+	// Initial peer announcement
+	go func() {
+		for _, p := range n.Config.Peers {
+			n.announceToPeer(p)
+		}
+	}()
+
 	// Start background periodic sync
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
@@ -141,6 +167,20 @@ func (n *Node) Start() error {
 			select {
 			case <-ticker.C:
 				n.runSync()
+			case <-n.stopChan:
+				return
+			}
+		}
+	}()
+
+	// Start health check loop
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				n.healthCheckPeers()
 			case <-n.stopChan:
 				return
 			}
@@ -161,7 +201,16 @@ func (n *Node) Start() error {
 
 func (n *Node) Stop() {
 	n.Logger.Info("Stopping Valence Node...")
-	close(n.stopChan)
+	
+	select {
+	case <-n.stopChan:
+		// already closed
+	default:
+		close(n.stopChan)
+	}
+
+	n.SaveState()
+
 	if n.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -205,4 +254,88 @@ func (n *Node) runSync() {
 		n.Logger.Info("Returned orphaned transactions to mempool", "count", len(orphanedTxs))
 	}
 	n.SaveState()
+}
+
+func (n *Node) announceToPeer(peerAddr string) {
+	peerURL := peerAddr
+	if !strings.HasPrefix(peerURL, "http://") && !strings.HasPrefix(peerURL, "https://") {
+		peerURL = "http://" + peerURL
+	}
+	peerURL = peerURL + "/peers/announce"
+
+	announceAddr := n.Config.AnnounceAddr
+	if announceAddr == "" {
+		announceAddr = fmt.Sprintf("http://localhost:%d", n.Config.Port)
+	}
+
+	payload := map[string]interface{}{
+		"address": announceAddr,
+		"peers":   n.PeerManager.GetPeers(),
+	}
+
+	jsonData, _ := json.Marshal(payload)
+	req, err := http.NewRequest("POST", peerURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		n.Logger.Debug("Failed to announce to peer", "peer", peerAddr, "error", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		n.PeerManager.MarkSeen(peerAddr)
+
+		var respData struct {
+			Peers []string `json:"peers"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&respData); err == nil {
+			for _, p := range respData.Peers {
+				cleanP := strings.TrimPrefix(p, "http://")
+				cleanP = strings.TrimPrefix(cleanP, "https://")
+				
+				// pm.AddPeer will automatically reject our own address based on normalizeAddress matching
+				if isNew := n.PeerManager.AddPeer(cleanP); isNew {
+					go n.announceToPeer(cleanP)
+				}
+			}
+		}
+	}
+}
+
+func (n *Node) healthCheckPeers() {
+	peers := n.PeerManager.GetAllPeers()
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	for _, pInfo := range peers {
+		// Only check peers that haven't failed too many times, or maybe check all of them?
+		// We'll check all of them so they can recover if they come back online before being pruned.
+		go func(peerAddr string) {
+			url := peerAddr
+			if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+				url = "http://" + url
+			}
+			url = url + "/status"
+
+			resp, err := client.Get(url)
+			if err != nil {
+				n.PeerManager.MarkFailed(peerAddr)
+				n.Logger.Debug("Peer health check failed", "peer", peerAddr, "error", err)
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				n.PeerManager.MarkFailed(peerAddr)
+				n.Logger.Debug("Peer health check failed (bad status)", "peer", peerAddr, "status", resp.StatusCode)
+			} else {
+				n.PeerManager.MarkSeen(peerAddr)
+			}
+		}(pInfo.Address)
+	}
 }

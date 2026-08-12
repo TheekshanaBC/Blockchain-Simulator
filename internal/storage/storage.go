@@ -49,5 +49,28 @@ func LoadChain(filename string) (*chain.Chain, error) {
 		c.MaxTxPerBlock = 10
 	}
 
+
 	return &c, nil
+}
+
+func CleanupTempFiles(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			if matched, _ := filepath.Match("*.tmp.*", entry.Name()); matched {
+				os.Remove(filepath.Join(dir, entry.Name()))
+			}
+			// Also clean up keystore temp files (which end with .tmp)
+			if matched, _ := filepath.Match("*.tmp", entry.Name()); matched {
+				os.Remove(filepath.Join(dir, entry.Name()))
+			}
+		}
+	}
+	return nil
 }

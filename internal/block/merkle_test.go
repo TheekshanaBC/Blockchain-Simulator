@@ -161,3 +161,61 @@ func TestCalculateMerkleRoot_Deep(t *testing.T) {
 		t.Errorf("Expected %s, got %s", expectedRoot, root)
 	}
 }
+
+func TestMerkleProof_Valid(t *testing.T) {
+	txs := []Transaction{
+		{Sender: "A", Recipient: "B", Amount: 1},
+		{Sender: "B", Recipient: "C", Amount: 2},
+		{Sender: "C", Recipient: "D", Amount: 3},
+		{Sender: "D", Recipient: "E", Amount: 4},
+		{Sender: "E", Recipient: "F", Amount: 5},
+	}
+	root := CalculateMerkleRoot(txs)
+
+	for i := range txs {
+		proof := BuildMerkleProof(txs, i)
+		if proof == nil {
+			t.Fatalf("Expected valid proof for index %d", i)
+		}
+		valid := VerifyMerkleProof(txs[i], proof, root)
+		if !valid {
+			t.Errorf("Expected proof for tx %d to be valid", i)
+		}
+	}
+}
+
+func TestMerkleProof_Invalid(t *testing.T) {
+	txs := []Transaction{
+		{Sender: "A", Recipient: "B", Amount: 1},
+		{Sender: "B", Recipient: "C", Amount: 2},
+		{Sender: "C", Recipient: "D", Amount: 3},
+	}
+	root := CalculateMerkleRoot(txs)
+
+	// Test invalid index
+	if proof := BuildMerkleProof(txs, -1); proof != nil {
+		t.Errorf("Expected nil proof for invalid index")
+	}
+	if proof := BuildMerkleProof(txs, 3); proof != nil {
+		t.Errorf("Expected nil proof for invalid index")
+	}
+
+	proof := BuildMerkleProof(txs, 1)
+
+	// Tamper with the proof
+	tamperedProof := make([]ProofNode, len(proof))
+	copy(tamperedProof, proof)
+	if len(tamperedProof) > 0 {
+		tamperedProof[0].Hash = "0000000000000000000000000000000000000000000000000000000000000000"
+	}
+	valid := VerifyMerkleProof(txs[1], tamperedProof, root)
+	if valid {
+		t.Errorf("Expected tampered proof to be invalid")
+	}
+
+	// Verify proof with wrong transaction
+	valid = VerifyMerkleProof(txs[0], proof, root)
+	if valid {
+		t.Errorf("Expected proof to be invalid for a different transaction")
+	}
+}

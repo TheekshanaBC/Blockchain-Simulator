@@ -13,7 +13,7 @@ TestValidate_GenesisMerkleRootMismatch ensures that if the Genesis block's
 Merkle Root is tampered with, validation fails appropriately at the root check.
 */
 func TestValidate_GenesisMerkleRootMismatch(t *testing.T) {
-	c := NewChain(1, 10, 60, 1, 5)
+	c := NewChain(1, 10, 60, 1, 5, 10)
 	c.blocks[0].Header.MerkleRoot = "tampered_root"
 
 	res := c.Validate()
@@ -27,7 +27,7 @@ TestValidate_CoinbaseAmountWrong ensures that a block is rejected if its
 COINBASE transaction has an incorrect mining reward amount.
 */
 func TestValidate_CoinbaseAmountWrong(t *testing.T) {
-	c := NewChain(0, 10, 60, 0, 5)
+	c := NewChain(0, 10, 60, 0, 5, 10)
 	fTx, _ := c.CreateFaucetTx("recipient", 100, nil)
 	c.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner") // Block 1
 
@@ -47,7 +47,7 @@ TestValidate_SecondCoinbaseMidBlock ensures that a block is rejected if it
 contains a COINBASE transaction anywhere other than the very first transaction.
 */
 func TestValidate_SecondCoinbaseMidBlock(t *testing.T) {
-	c := NewChain(0, 10, 60, 0, 5)
+	c := NewChain(0, 10, 60, 0, 5, 10)
 	fTx, _ := c.CreateFaucetTx("recipient", 100, nil)
 	c.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
@@ -72,7 +72,7 @@ TestValidate_EmptyBlockZeroTransactions ensures that a block with exactly
 zero transactions (missing even the COINBASE) is immediately rejected.
 */
 func TestValidate_EmptyBlockZeroTransactions(t *testing.T) {
-	c := NewChain(0, 10, 60, 0, 5)
+	c := NewChain(0, 10, 60, 0, 5, 10)
 	fTx, _ := c.CreateFaucetTx("recipient", 100, nil)
 	c.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
@@ -91,7 +91,7 @@ TestValidate_NegativeBalanceFromReplay ensures that if a series of transactions
 results in a negative balance during ledger replay, the chain is invalidated.
 */
 func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
-	c := NewChain(0, 10, 60, 0, 5)
+	c := NewChain(0, 10, 60, 0, 5, 10)
 
 	w := wallet.NewWallet()
 	addr := w.Address()
@@ -107,6 +107,7 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 		Sequence:  1,
 		PublicKey: w.PublicKey,
 	}
+	tx.ComputeID()
 	tx.Sign(w.PrivateKey)
 
 	// Add a valid transaction first to mine a block
@@ -117,6 +118,7 @@ func TestValidate_NegativeBalanceFromReplay(t *testing.T) {
 		Sequence:  1,
 		PublicKey: w.PublicKey,
 	}
+	tx2.ComputeID()
 	tx2.Sign(w.PrivateKey)
 	_, _ = c.MineBlock(context.Background(), []block.Transaction{tx2}, "Miner")
 	c.MineBlock(context.Background(), []block.Transaction{}, "Miner")

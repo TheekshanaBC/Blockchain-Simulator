@@ -19,6 +19,7 @@ func setupTestNode(t *testing.T) *Node {
 		TargetBlockTime: 10,
 		MinDifficulty:   1,
 		MaxDifficulty:   6,
+		MaxTxPerBlock:   10,
 	}
 	n, err := NewNode(cfg)
 	if err != nil {
@@ -343,5 +344,115 @@ func TestAPIFaucet_NegativeAmount(t *testing.T) {
 
 	if status := rr.Code; status != http.StatusBadRequest {
 		t.Errorf("handler returned wrong status code for negative faucet amount: got %v want %v", status, http.StatusBadRequest)
+	}
+}
+
+/*
+TestAPIMerkleProof verifies the /chain/blocks/{height}/proof/{txIndex} and
+/chain/blocks/{height}/verify-proof endpoints.
+*/
+func TestAPIMerkleProof(t *testing.T) {
+	n := setupTestNode(t)
+	mux := http.NewServeMux()
+	n.setupAPI(mux)
+
+	// Create a block with multiple transactions
+	fTx1, _ := n.Chain.CreateFaucetTx("Alice", 100, nil)
+	fTx2, _ := n.Chain.CreateFaucetTx("Bob", 200, nil)
+	fTx3, _ := n.Chain.CreateFaucetTx("Charlie", 300, nil)
+	n.Chain.MineBlock(context.Background(), []block.Transaction{fTx1, fTx2, fTx3}, "Miner")
+
+	// 1. Get the proof for txIndex 1 (Bob's transaction)
+	req, _ := http.NewRequest("GET", "/chain/blocks/1/proof/1", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("handler returned wrong status code for proof: got %v want %v (body: %s)", status, http.StatusOK, rr.Body.String())
+	}
+
+	var proofResp struct {
+		Proof       []block.ProofNode `json:"proof"`
+		Root        string            `json:"root"`
+		Transaction block.Transaction `json:"transaction"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &proofResp); err != nil {
+		t.Fatalf("failed to decode proof response: %v", err)
+	}
+
+	if len(proofResp.Proof) == 0 {
+		t.Errorf("expected non-empty proof")
+	}
+
+	// 2. Verify the proof via API
+	verifyPayload := map[string]interface{}{
+		"transaction": proofResp.Transaction,
+		"proof":       proofResp.Proof,
+	}
+	body, _ := json.Marshal(verifyPayload)
+	req, _ = http.NewRequest("POST", "/chain/blocks/1/verify-proof", bytes.NewBuffer(body))
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("handler returned wrong status code for verify: got %v want %v", status, http.StatusOK)
+	}
+
+	var verifyResp map[string]bool
+	json.Unmarshal(rr.Body.Bytes(), &verifyResp)
+	if !verifyResp["valid"] {
+		t.Errorf("expected proof to be verified as valid")
+	}
+}
+
+func TestAPIPeers(t *testing.T) {
+	n := setupTestNode(t)
+	mux := http.NewServeMux()
+	n.setupAPI(mux)
+
+	// Add peer manually
+	n.PeerManager.AddPeer("127.0.0.1:4000")
+
+	req, _ := http.NewRequest("GET", "/peers", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	var peers []string
+	json.Unmarshal(rr.Body.Bytes(), &peers)
+	if len(peers) != 1 || peers[0] != "127.0.0.1:4000" {
+		t.Errorf("Expected [127.0.0.1:4000], got %v", peers)
+	}
+}
+
+func TestAPIBalances(t *testing.T) {
+	n := setupTestNode(t)
+	mux := http.NewServeMux()
+	n.setupAPI(mux)
+
+	// Faucet gives 100 to Alice
+	fTx, _ := n.Chain.CreateFaucetTx("Alice", 100, nil)
+	n.Chain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
+
+	req, _ := http.NewRequest("GET", "/balances/Alice", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	var balanceResp map[string]interface{}
+	json.Unmarshal(rr.Body.Bytes(), &balanceResp)
+	
+	balanceFloat, ok := balanceResp["balance"].(float64)
+	if !ok {
+		t.Fatalf("Expected float64 balance")
+	}
+	if int64(balanceFloat) != 100 {
+		t.Errorf("Expected balance 100, got %v", balanceFloat)
 	}
 }

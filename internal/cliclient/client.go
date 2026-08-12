@@ -14,7 +14,7 @@ import (
 )
 
 var httpClient = &http.Client{
-	Timeout: 10 * time.Second,
+	Timeout: 5 * time.Minute,
 }
 
 func parseJSONResponse(resp *http.Response) (interface{}, error) {
@@ -26,7 +26,17 @@ func parseJSONResponse(resp *http.Response) (interface{}, error) {
 
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(body, &parsed); err == nil {
+		if resp.StatusCode >= 400 {
+			if errMsg, ok := parsed["error"].(string); ok {
+				return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, errMsg)
+			}
+			return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+		}
 		return parsed, nil
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
 	}
 
 	var parsedArray []interface{}

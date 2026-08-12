@@ -50,14 +50,14 @@ func NewGenesisBlock() *Block {
 	block := &Block{
 		Header: BlockHeader{
 			PrevHash:   GenesisPrevHash,
-			Timestamp:  1700000000,
+			Timestamp:  1700000000000000000,
 			Difficulty: 0,
 			Nonce:      0,
 		},
 		Height: 0,
 		// Note: The genesis block rewards the "Genesis" address, which has no corresponding
 		// private key. This ensures the initial 50 VCN are permanently locked (inflation burn).
-		Transactions: []Transaction{{Sender: SystemAddressCoinbase, Recipient: "Genesis", Amount: 0, Signature: []byte("0")}},
+		Transactions: []Transaction{{Sender: SystemAddressCoinbase, Recipient: "Genesis", Amount: 50 * ElectronsPerVCN, Signature: []byte("0")}},
 	}
 	block.Header.MerkleRoot = CalculateMerkleRoot(block.Transactions)
 	block.Hash = block.CalculateHash()

@@ -47,7 +47,11 @@ func SaveToKeystore(filename string, name string, w *Wallet) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filename, file, 0600)
+	tempFile := filename + ".tmp"
+	if err := os.WriteFile(tempFile, file, 0600); err != nil {
+		return err
+	}
+	return os.Rename(tempFile, filename)
 }
 
 // loads a specific wallet from the keystore
