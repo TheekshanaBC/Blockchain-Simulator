@@ -1,8 +1,10 @@
 package node
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
+	"valence/internal/block"
 	"valence/internal/chain"
 	"valence/internal/ledger"
 )
@@ -106,5 +108,74 @@ func (n *Node) handleSequence(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"address":       address,
 		"next_sequence": nextSeq,
+	})
+}
+
+// GET /chain/blocks/{height}/proof/{txIndex}
+func (n *Node) handleGetMerkleProof(w http.ResponseWriter, r *http.Request) {
+	heightStr := r.PathValue("height")
+	height, err := strconv.Atoi(heightStr)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid height")
+		return
+	}
+
+	txIndexStr := r.PathValue("txIndex")
+	txIndex, err := strconv.Atoi(txIndexStr)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid txIndex")
+		return
+	}
+
+	blocks := n.Chain.GetBlocks()
+	if height < 0 || height >= len(blocks) {
+		respondError(w, http.StatusNotFound, "block not found")
+		return
+	}
+
+	b := blocks[height]
+	if txIndex < 0 || txIndex >= len(b.Transactions) {
+		respondError(w, http.StatusNotFound, "transaction not found in block")
+		return
+	}
+
+	proof := block.BuildMerkleProof(b.Transactions, txIndex)
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"proof":       proof,
+		"root":        b.Header.MerkleRoot,
+		"transaction": b.Transactions[txIndex],
+	})
+}
+
+// POST /chain/blocks/{height}/verify-proof
+func (n *Node) handleVerifyMerkleProof(w http.ResponseWriter, r *http.Request) {
+	heightStr := r.PathValue("height")
+	height, err := strconv.Atoi(heightStr)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid height")
+		return
+	}
+
+	blocks := n.Chain.GetBlocks()
+	if height < 0 || height >= len(blocks) {
+		respondError(w, http.StatusNotFound, "block not found")
+		return
+	}
+
+	b := blocks[height]
+
+	var req struct {
+		Transaction block.Transaction `json:"transaction"`
+		Proof       []block.ProofNode `json:"proof"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	valid := block.VerifyMerkleProof(req.Transaction, req.Proof, b.Header.MerkleRoot)
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"valid": valid,
 	})
 }

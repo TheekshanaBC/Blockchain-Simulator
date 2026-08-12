@@ -13,6 +13,8 @@ func (n *Node) setupAPI(mux *http.ServeMux) {
 	mux.HandleFunc("GET /chain/height", n.handleChainHeight)
 	mux.HandleFunc("GET /chain", n.handleChain)
 	mux.HandleFunc("GET /chain/blocks/{height}", n.handleBlockByHeight)
+	mux.HandleFunc("GET /chain/blocks/{height}/proof/{txIndex}", n.handleGetMerkleProof)
+	mux.HandleFunc("POST /chain/blocks/{height}/verify-proof", n.handleVerifyMerkleProof)
 	mux.HandleFunc("GET /balances", n.handleBalances)
 	mux.HandleFunc("GET /sequence/{address}", n.handleSequence)
 
