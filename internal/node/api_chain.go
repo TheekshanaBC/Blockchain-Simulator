@@ -3,6 +3,7 @@ package node
 import (
 	"net/http"
 	"strconv"
+	"valence/internal/chain"
 	"valence/internal/ledger"
 )
 
@@ -34,9 +35,12 @@ func (n *Node) handleChainHeight(w http.ResponseWriter, r *http.Request) {
 		hash = lastBlock.Hash
 	}
 
+	work := chain.CumulativeWork(n.Chain.GetBlocks())
+
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"height": n.Chain.Height(),
 		"hash":   hash,
+		"work":   work.String(),
 	})
 }
 

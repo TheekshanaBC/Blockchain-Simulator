@@ -62,6 +62,7 @@ func TestSyncFromBestPeer_AlreadyAtTip(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"height": 0,
 				"hash":   localChain.GetLastBlock().Hash,
+				"work":   "0",
 			})
 			return
 		}
@@ -111,6 +112,7 @@ func TestSyncFromBestPeer_SyncsTaller(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"height": tallerChain.Height(),
 				"hash":   tallerChain.GetLastBlock().Hash,
+				"work":   chain.CumulativeWork(tallerChain.GetBlocks()).String(),
 			})
 			return
 		}
@@ -146,6 +148,7 @@ func TestSyncFromBestPeer_InvalidChain(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"height": 5,
 				"hash":   "fake_hash",
+				"work":   "99999999",
 			})
 			return
 		}
@@ -170,6 +173,88 @@ func TestSyncFromBestPeer_InvalidChain(t *testing.T) {
 	// Local chain should still be at genesis
 	if localChain.Height() != 0 {
 		t.Errorf("Expected local chain to remain at height 0, got %d", localChain.Height())
+	}
+}
+
+func TestSyncFromBestPeer_SyncsHeaviest(t *testing.T) {
+	// Local chain with diff 1, 6 blocks (longer but lighter)
+	localChain := chain.NewChain(1, 2, 10, 1, 10)
+	baseTime := localChain.GetLastBlock().Header.Timestamp
+	for i := 1; i <= 6; i++ {
+		lb := block.Block{
+			Height: i,
+			Header: block.BlockHeader{
+				PrevHash:   localChain.GetLastBlock().Hash,
+				Timestamp:  baseTime + int64(i)*10,
+				Difficulty: 1,
+			},
+			Transactions: []block.Transaction{
+				{Sender: block.SystemAddressCoinbase, Recipient: "Miner", Amount: block.MiningReward},
+			},
+		}
+		lb.Header.MerkleRoot = block.CalculateMerkleRoot(lb.Transactions)
+		lb.Mine(context.Background(), 1)
+		err := localChain.AddBlock(lb)
+		if err != nil {
+			t.Fatalf("localChain AddBlock failed at height %d: %v", i, err)
+		}
+	}
+
+	// Heavier chain with diff 3, 5 blocks
+	heavierChain := chain.NewChain(1, 2, 10, 1, 10)
+	for i := 1; i <= 5; i++ {
+		expectedDiff := 1
+		if i >= 3 {
+			expectedDiff = 2
+		}
+		if i >= 5 {
+			expectedDiff = 3
+		}
+
+		b := block.Block{
+			Height: i,
+			Header: block.BlockHeader{
+				PrevHash:   heavierChain.GetLastBlock().Hash,
+				Timestamp:  baseTime + int64(i),
+				Difficulty: expectedDiff,
+			},
+			Transactions: []block.Transaction{
+				{Sender: block.SystemAddressCoinbase, Recipient: "Miner", Amount: block.MiningReward},
+			},
+		}
+		b.Header.MerkleRoot = block.CalculateMerkleRoot(b.Transactions)
+		b.Mine(context.Background(), expectedDiff)
+		err := heavierChain.AddBlock(b)
+		if err != nil {
+			t.Fatalf("heavierChain AddBlock failed at height %d: %v", i, err)
+		}
+	}
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/chain/height" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"height": heavierChain.Height(),
+				"hash":   heavierChain.GetLastBlock().Hash,
+				"work":   chain.CumulativeWork(heavierChain.GetBlocks()).String(),
+			})
+			return
+		}
+		if r.URL.Path == "/chain" {
+			json.NewEncoder(w).Encode(heavierChain.GetBlocks())
+			return
+		}
+	}
+
+	syncer, server := setupSyncerWithMockPeer(t, localChain, handler)
+	defer server.Close()
+
+	_, _, err := syncer.SyncFromBestPeer()
+	if err != nil {
+		t.Fatalf("Sync failed: %v", err)
+	}
+
+	if localChain.Height() != 5 {
+		t.Errorf("Expected local chain to sync to heavier chain (height 5), got %d", localChain.Height())
 	}
 }
 

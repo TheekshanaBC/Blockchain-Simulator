@@ -421,3 +421,85 @@ func TestNewChain_DifficultyClamping(t *testing.T) {
 		t.Errorf("Expected difficulty to be clamped down to MaxDifficulty (5), got %d", c2.Difficulty)
 	}
 }
+
+func TestSwitchToChain_HeaviestChain(t *testing.T) {
+	// Retarget window of 2, target block time 10s
+	myChain := NewChain(1, 2, 10, 1, 10)
+
+	baseTime := myChain.blocks[0].Header.Timestamp
+
+	// Create 6 blocks with normal time spacing on myChain, so difficulty stays 1
+	for i := 1; i <= 6; i++ {
+		b := block.Block{
+			Height: i,
+			Header: block.BlockHeader{
+				PrevHash:   myChain.GetLastBlock().Hash,
+				Timestamp:  baseTime + int64(i)*10, // Exactly target block time
+				Difficulty: 1,
+			},
+			Transactions: []block.Transaction{
+				{Sender: block.SystemAddressCoinbase, Recipient: "Miner", Amount: block.MiningReward},
+			},
+		}
+		b.Header.MerkleRoot = block.CalculateMerkleRoot(b.Transactions)
+		b.Mine(context.Background(), 1)
+		err := myChain.AddBlock(b)
+		if err != nil {
+			t.Fatalf("AddBlock failed for myChain at height %d: %v", i, err)
+		}
+	}
+
+	// Create a heavier chain starting from the same genesis
+	heavierChain := NewChain(1, 2, 10, 1, 10)
+
+
+	// Mine 5 blocks very fast so difficulty increases
+	// Genesis: H=0, Diff=1, T=baseTime
+	// Block 1: H=1, Diff=1, T=baseTime+1
+	// Block 2: H=2, Diff=1, T=baseTime+2
+	// Block 3: H=3, Diff=2, T=baseTime+3 (Retargets here because T2-T1 = 1 < 10)
+	// Block 4: H=4, Diff=2, T=baseTime+4
+	// Block 5: H=5, Diff=3, T=baseTime+5 (Retargets here because T4-T2 = 2 < 20)
+
+	for i := 1; i <= 5; i++ {
+		// Calculate what the difficulty SHOULD be
+		expectedDiff := 1
+		if i >= 3 {
+			expectedDiff = 2
+		}
+		if i >= 5 {
+			expectedDiff = 3
+		}
+
+		b := block.Block{
+			Height: i,
+			Header: block.BlockHeader{
+				PrevHash:   heavierChain.GetLastBlock().Hash,
+				Timestamp:  baseTime + int64(i), // 1 second apart
+				Difficulty: expectedDiff,
+			},
+			Transactions: []block.Transaction{
+				{Sender: block.SystemAddressCoinbase, Recipient: "Miner", Amount: block.MiningReward},
+			},
+		}
+		b.Header.MerkleRoot = block.CalculateMerkleRoot(b.Transactions)
+		b.Mine(context.Background(), expectedDiff)
+		err := heavierChain.AddBlock(b)
+		if err != nil {
+			t.Fatalf("AddBlock failed for heavierChain at height %d: %v", i, err)
+		}
+	}
+
+	// myChain has 6 blocks of diff 1. Cumulative work = 16 * 7 = 112
+	// heavierChain has 5 blocks. Works: 16 (gen) + 16 (B1) + 16 (B2) + 256 (B3) + 256 (B4) + 4096 (B5) = 4656
+	// heavierChain is shorter (height 5 vs 6) but heavier.
+
+	_, err := myChain.SwitchToChain(heavierChain.GetBlocks())
+	if err != nil {
+		t.Fatalf("SwitchToChain failed, heavier chain should win: %v", err)
+	}
+
+	if myChain.Height() != 5 {
+		t.Errorf("Expected height to be 5, got %d", myChain.Height())
+	}
+}

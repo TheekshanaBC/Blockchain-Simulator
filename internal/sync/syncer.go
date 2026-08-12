@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"time"
 	"valence/internal/block"
@@ -38,43 +39,43 @@ func (s *Syncer) SyncFromBestPeer() (bool, []block.Transaction, error) {
 	}
 
 	bestPeer := ""
-	maxHeight := s.chain.Height()
+	maxWork := chain.CumulativeWork(s.chain.GetBlocks())
 
 	for _, p := range peers {
-		height, _, err := s.getPeerHeight(p)
+		_, _, work, err := s.getPeerHeight(p)
 		if err != nil {
-			s.logger.Debug("Failed to get height from peer", "peer", p, "error", err)
+			s.logger.Debug("Failed to get height/work from peer", "peer", p, "error", err)
 			continue
 		}
 
-		if height > maxHeight {
-			maxHeight = height
+		if work.Cmp(maxWork) > 0 {
+			maxWork = work
 			bestPeer = p
 		}
 	}
 
 	if bestPeer == "" {
-		s.logger.Debug("Already at the highest chain height", "height", s.chain.Height())
-		return false, nil, nil // We are at the highest height
+		s.logger.Debug("Already at the heaviest chain", "work", maxWork.String())
+		return false, nil, nil // We are at the highest work
 	}
 
-	s.logger.Info("Found peer with longer chain, initiating sync", "peer", bestPeer, "target_height", maxHeight)
+	s.logger.Info("Found peer with heavier chain, initiating sync", "peer", bestPeer, "target_work", maxWork.String())
 	return s.SyncFromPeer(bestPeer)
 }
 
 // SyncFromPeer downloads the full chain from the peer and attempts to switch to it.
 func (s *Syncer) SyncFromPeer(peerAddr string) (bool, []block.Transaction, error) {
-	peerHeight, _, err := s.getPeerHeight(peerAddr)
+	peerHeight, _, peerWork, err := s.getPeerHeight(peerAddr)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to get peer height: %w", err)
 	}
 
-	ourHeight := s.chain.Height()
-	if peerHeight <= ourHeight {
+	ourWork := chain.CumulativeWork(s.chain.GetBlocks())
+	if peerWork.Cmp(ourWork) <= 0 {
 		return false, nil, nil // Nothing to sync
 	}
 
-	s.logger.Info("Starting chain sync (full download)", "peer", peerAddr, "our_height", ourHeight, "peer_height", peerHeight)
+	s.logger.Info("Starting chain sync (full download)", "peer", peerAddr, "our_work", ourWork.String(), "peer_work", peerWork.String(), "peer_height", peerHeight)
 
 	// Fetch the entire candidate chain
 	url := fmt.Sprintf("http://%s/chain?limit=100000", peerAddr)
@@ -105,26 +106,32 @@ func (s *Syncer) SyncFromPeer(peerAddr string) (bool, []block.Transaction, error
 	return true, orphanedTxs, nil
 }
 
-func (s *Syncer) getPeerHeight(peerAddr string) (int, string, error) {
+func (s *Syncer) getPeerHeight(peerAddr string) (int, string, *big.Int, error) {
 	url := fmt.Sprintf("http://%s/chain/height", peerAddr)
 	resp, err := s.httpClient.Get(url)
 	if err != nil {
-		return 0, "", err
+		return 0, "", nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, "", fmt.Errorf("peer returned status %d", resp.StatusCode)
+		return 0, "", nil, fmt.Errorf("peer returned status %d", resp.StatusCode)
 	}
 
 	var result struct {
 		Height int    `json:"height"`
 		Hash   string `json:"hash"`
+		Work   string `json:"work"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return 0, "", err
+		return 0, "", nil, err
 	}
 
-	return result.Height, result.Hash, nil
+	work, ok := new(big.Int).SetString(result.Work, 10)
+	if !ok {
+		work = big.NewInt(0)
+	}
+
+	return result.Height, result.Hash, work, nil
 }
 
