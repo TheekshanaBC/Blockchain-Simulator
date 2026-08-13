@@ -24,8 +24,8 @@ func TestNewGenesisBlock(t *testing.T) {
 		t.Errorf("Expected PrevHash %s, got %s", GenesisPrevHash, block.Header.PrevHash)
 	}
 
-	if len(block.Transactions) != 1 {
-		t.Fatalf("Expected exactly 1 transaction in Genesis block, got %d", len(block.Transactions))
+	if len(block.Transactions) != 2 {
+		t.Fatalf("Expected exactly 2 transactions in Genesis block, got %d", len(block.Transactions))
 	}
 
 	if block.Transactions[0].Sender != SystemAddressCoinbase {

@@ -161,6 +161,11 @@ func (n *Node) handleMine(w http.ResponseWriter, r *http.Request) {
 
 // POST /faucet
 func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
+	if n.FaucetWallet == nil {
+		respondError(w, http.StatusNotImplemented, "This node is not configured as a faucet")
+		return
+	}
+
 	var req struct {
 		Address string `json:"address"`
 		Amount    int64  `json:"amount"`
@@ -182,7 +187,16 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 
 	// Re-use the existing Faucet Logic from internal/chain/faucet.go
 	electrons := req.Amount
-	tx, err := n.Chain.CreateFaucetTx(req.Address, electrons, n.Mempool.GetAll())
+
+	mempoolTxs := n.Mempool.GetAll()
+	blocks := n.Chain.GetBlocks()
+	sequences := ledger.CalculatePendingSequences(blocks, mempoolTxs)
+	balances := ledger.CalculateAvailableBalances(blocks, mempoolTxs)
+	
+	faucetSeq := sequences[n.FaucetWallet.Address()] + 1
+	faucetBal := balances[n.FaucetWallet.Address()]
+
+	tx, err := n.Chain.CreateFaucetTx(req.Address, electrons, n.FaucetWallet, faucetSeq, faucetBal, mempoolTxs)
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return

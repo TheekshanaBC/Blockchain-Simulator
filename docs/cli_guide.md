@@ -39,6 +39,9 @@ go run ./cmd/valence-cli -wallet charlie createwallet
 
 ### `faucet <amount>`
 Requests free test coins (VCN) from the network to get started. *(Limit: 1000 VCN per request).*
+> [!IMPORTANT]
+> The node you are connecting to must be running with the `--faucet-key` flag enabled, otherwise it will return a `501 Not Implemented` error.
+
 ```bash
 go run ./cmd/valence-cli -wallet charlie faucet 500
 ```

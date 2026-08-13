@@ -9,7 +9,7 @@ New-Item -ItemType Directory -Force -Path .\data\nodeB | Out-Null
 New-Item -ItemType Directory -Force -Path .\data\nodeC | Out-Null
 
 Write-Host "Starting Node A on port 8080..."
-Start-Process -FilePath "go" -ArgumentList "run ./cmd/valenced -port 8080 -data-dir ./data/nodeA -peers localhost:8081,localhost:8082" -WindowStyle Normal
+Start-Process -FilePath "go" -ArgumentList "run ./cmd/valenced -port 8080 -data-dir ./data/nodeA -peers localhost:8081,localhost:8082 -faucet-key AdUl1LWR0NtSPlR6NktiYVptv2sKOwAZ8djfTt9u1Mk=" -WindowStyle Normal
 
 Start-Sleep -Seconds 2
 
