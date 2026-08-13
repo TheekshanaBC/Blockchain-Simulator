@@ -35,14 +35,13 @@ const GenesisPrevHash = "0000000000000000000000000000000000000000000000000000000
 
 const (
 	SystemAddressCoinbase = "VALENCE_COINBASE"
-	SystemAddressFaucet   = "FAUCET"
 )
 
 // ElectronsPerVCN is the number of electrons in 1 VCN (1 billion)
 const ElectronsPerVCN int64 = 1_000_000_000
 
 func IsSystemAddress(addr string) bool {
-	return addr == SystemAddressCoinbase || addr == SystemAddressFaucet
+	return addr == SystemAddressCoinbase
 }
 
 // create and return the first block of the blockchain
@@ -57,7 +56,11 @@ func NewGenesisBlock() *Block {
 		Height: 0,
 		// Note: The genesis block rewards the "Genesis" address, which has no corresponding
 		// private key. This ensures the initial 50 VCN are permanently locked (inflation burn).
-		Transactions: []Transaction{{Sender: SystemAddressCoinbase, Recipient: "Genesis", Amount: 50 * ElectronsPerVCN, Signature: []byte("0")}},
+		// It also funds the Development Faucet with 1,000,000,000 VCN.
+		Transactions: []Transaction{
+			{Sender: SystemAddressCoinbase, Recipient: "Genesis", Amount: 50 * ElectronsPerVCN, Signature: []byte("0")},
+			{Sender: SystemAddressCoinbase, Recipient: "b2be6b76fa3f8e9d88de9128285f73b1deb13e8e1bd44df24e5423fce0171607", Amount: 1_000_000_000 * ElectronsPerVCN, Signature: []byte("0")},
+		},
 	}
 	block.Header.MerkleRoot = CalculateMerkleRoot(block.Transactions)
 	block.Hash = block.CalculateHash()

@@ -31,14 +31,16 @@ type Config struct {
 	MaxDifficulty   int
 	MinerAddress    string // address to receive mining rewards (from node's wallet)
 	MaxTxPerBlock   int    // maximum transactions allowed per block
+	FaucetKey       string // base64 private key for the Faucet wallet
 }
 
 type Node struct {
-	Config      Config
-	Chain       *chain.Chain
-	Wallet      *wallet.Wallet
-	Mempool     *Mempool
-	PeerManager *peer.PeerManager
+	Config       Config
+	Chain        *chain.Chain
+	Wallet       *wallet.Wallet
+	FaucetWallet *wallet.Wallet
+	Mempool      *Mempool
+	PeerManager  *peer.PeerManager
 	Gossip      *gossip.Engine
 	Syncer      *chainsync.Syncer
 	Logger      *slog.Logger
@@ -59,6 +61,16 @@ func NewNode(cfg Config) (*Node, error) {
 	// Clean up any stale temp files from previous crashes
 	if err := storage.CleanupTempFiles(cfg.DataDir); err != nil {
 		logger.Warn("failed to clean up temp files", "error", err)
+	}
+
+	var faucetWallet *wallet.Wallet
+	if cfg.FaucetKey != "" {
+		fw, err := wallet.WalletFromBase64(cfg.FaucetKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse faucet key: %w", err)
+		}
+		faucetWallet = fw
+		logger.Info("Faucet wallet loaded", "address", faucetWallet.Address())
 	}
 
 	// Load or create wallet
@@ -119,10 +131,11 @@ func NewNode(cfg Config) (*Node, error) {
 	syncer := chainsync.NewSyncer(c, pm, logger)
 
 	return &Node{
-		Config:      cfg,
-		Chain:       c,
-		Wallet:      nodeWallet,
-		Mempool:     NewMempool(5000), // Max 5000 transactions in mempool
+		Config:       cfg,
+		Chain:        c,
+		Wallet:       nodeWallet,
+		FaucetWallet: faucetWallet,
+		Mempool:      NewMempool(5000), // Max 5000 transactions in mempool
 		PeerManager: pm,
 		Gossip:      engine,
 		Syncer:      syncer,

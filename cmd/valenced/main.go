@@ -35,6 +35,8 @@ func main() {
 	flag.IntVar(&maxTxPerBlock, "max-tx-per-block", 10, "Maximum transactions per block")
 	var announceAddr string
 	flag.StringVar(&announceAddr, "announce-addr", "", "Address to announce to peers (e.g. http://192.168.1.100:3001)")
+	var faucetKey string
+	flag.StringVar(&faucetKey, "faucet-key", "", "Base64 encoded private key for the Faucet wallet")
 	flag.Parse()
 
 	// Fix R3: Fail fast on invalid flag combinations rather than silently stalling later.
@@ -78,6 +80,7 @@ func main() {
 		MaxDifficulty:   maxDiff,
 		MinerAddress:    minerAddress,
 		MaxTxPerBlock:   maxTxPerBlock,
+		FaucetKey:       faucetKey,
 	}
 
 	n, err := node.NewNode(cfg)

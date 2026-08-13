@@ -8,6 +8,8 @@ import (
 )
 
 type walletData struct {
+	Address    string `json:"address,omitempty"`
+	PublicKey  []byte `json:"public_key,omitempty"`
 	PrivateKey []byte `json:"private_key"`
 }
 
@@ -41,7 +43,11 @@ func SaveToKeystore(filename string, name string, w *Wallet) error {
 		return fmt.Errorf("wallet '%s' already exists", name)
 	}
 
-	keystore[name] = walletData{PrivateKey: w.PrivateKey.Seed()}
+	keystore[name] = walletData{
+		Address:    w.Address(),
+		PublicKey:  w.PublicKey,
+		PrivateKey: w.PrivateKey.Seed(),
+	}
 
 	file, err := json.MarshalIndent(keystore, "", "  ")
 	if err != nil {

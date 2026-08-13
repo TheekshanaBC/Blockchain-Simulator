@@ -9,7 +9,7 @@ mkdir -p ./data/nodeA ./data/nodeB ./data/nodeC
 
 # Start Node A
 echo "Starting Node A on port 8080..."
-go run ./cmd/valenced -port 8080 -data-dir ./data/nodeA -peers localhost:8081,localhost:8082 > ./data/nodeA/node.log 2>&1 &
+go run ./cmd/valenced -port 8080 -data-dir ./data/nodeA -peers localhost:8081,localhost:8082 -faucet-key AdUl1LWR0NtSPlR6NktiYVptv2sKOwAZ8djfTt9u1Mk= > ./data/nodeA/node.log 2>&1 &
 NODE_A_PID=$!
 
 sleep 2

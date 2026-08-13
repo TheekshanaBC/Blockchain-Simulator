@@ -1,18 +1,17 @@
 package chain
 
 import (
-	"crypto/rand"
-	"encoding/binary"
 	"fmt"
 	"strings"
 	"time"
 	"valence/internal/block"
 	"valence/internal/ledger"
+	"valence/internal/wallet"
 )
 
-// CreateFaucetTx creates a system-approved FAUCET transaction.
-// This bypasses the sender signature check but enforces its own limits against the blockchain.
-func (c *Chain) CreateFaucetTx(recipient string, amount int64, pendingPool []block.Transaction) (block.Transaction, error) {
+// CreateFaucetTx creates a cryptographically signed faucet transaction.
+// It enforces limits against the blockchain and signs with the given wallet.
+func (c *Chain) CreateFaucetTx(recipient string, amount int64, faucetWallet *wallet.Wallet, sequence uint64, balance int64, pendingPool []block.Transaction) (block.Transaction, error) {
 	if strings.TrimSpace(recipient) == "" {
 		return block.Transaction{}, fmt.Errorf("recipient address cannot be empty")
 	}
@@ -25,6 +24,9 @@ func (c *Chain) CreateFaucetTx(recipient string, amount int64, pendingPool []blo
 	if amount > ledger.MaxFaucetRequest {
 		return block.Transaction{}, fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", ledger.MaxFaucetRequest)
 	}
+	if balance < amount {
+		return block.Transaction{}, fmt.Errorf("faucet is out of funds")
+	}
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -32,13 +34,13 @@ func (c *Chain) CreateFaucetTx(recipient string, amount int64, pendingPool []blo
 	var totalReceived int64 = 0
 	for _, b := range c.blocks {
 		for _, tx := range b.Transactions {
-			if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
+			if tx.Sender == faucetWallet.Address() && tx.Recipient == recipient {
 				totalReceived += tx.Amount
 			}
 		}
 	}
 	for _, tx := range pendingPool {
-		if tx.Sender == block.SystemAddressFaucet && tx.Recipient == recipient {
+		if tx.Sender == faucetWallet.Address() && tx.Recipient == recipient {
 			totalReceived += tx.Amount
 		}
 	}
@@ -47,23 +49,15 @@ func (c *Chain) CreateFaucetTx(recipient string, amount int64, pendingPool []blo
 		return block.Transaction{}, fmt.Errorf("lifetime faucet limit exceeded for address (max: %d, already received: %d)", ledger.MaxLifetimeFaucetPerAddress, totalReceived)
 	}
 
-	// Fix R4: On Windows, time.Now().UnixNano() has ~0.5–15ms clock granularity,
-	// meaning two rapid requests produce identical Timestamps and thus identical IDs.
-	// We inject a cryptographically random nonce into the Sequence field to guarantee
-	// uniqueness even within the same clock tick.
-	var nonceBuf [8]byte
-	if _, err := rand.Read(nonceBuf[:]); err != nil {
-		return block.Transaction{}, fmt.Errorf("failed to generate faucet nonce: %w", err)
-	}
-	nonce := binary.LittleEndian.Uint64(nonceBuf[:])
-
 	tx := block.Transaction{
-		Sender:    block.SystemAddressFaucet,
+		Sender:    faucetWallet.Address(),
 		Recipient: recipient,
 		Amount:    amount,
 		Timestamp: time.Now().UnixNano(),
-		Sequence:  nonce, // random nonce ensures unique ID regardless of clock granularity
+		Sequence:  sequence,
+		PublicKey: faucetWallet.PublicKey,
 	}
+	tx.Sign(faucetWallet.PrivateKey)
 	tx.ComputeID()
 
 	return tx, nil

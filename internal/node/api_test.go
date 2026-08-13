@@ -20,12 +20,24 @@ func setupTestNode(t *testing.T) *Node {
 		MinDifficulty:   1,
 		MaxDifficulty:   6,
 		MaxTxPerBlock:   10,
+		FaucetKey:       "AdUl1LWR0NtSPlR6NktiYVptv2sKOwAZ8djfTt9u1Mk=",
 	}
 	n, err := NewNode(cfg)
 	if err != nil {
 		t.Fatalf("Failed to create node: %v", err)
 	}
 	return n
+}
+
+var seqCache = make(map[*Node]uint64)
+
+func createTestFaucetTx(n *Node, recipient string, amount int64) block.Transaction {
+	seqCache[n]++
+	tx, err := n.Chain.CreateFaucetTx(recipient, amount, n.FaucetWallet, seqCache[n], 1_000_000_000*block.ElectronsPerVCN, nil)
+	if err != nil {
+		panic(err)
+	}
+	return tx
 }
 
 /*
@@ -95,7 +107,7 @@ func TestAPISubmitTx_ValidSignature(t *testing.T) {
 	n.setupAPI(mux)
 
 	// Fund the wallet so validation passes
-	fTx, _ := n.Chain.CreateFaucetTx(n.Wallet.Address(), 1000, nil)
+	fTx := createTestFaucetTx(n, n.Wallet.Address(), 1000)
 	n.Chain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner") // Mined into a block
 
 	tx := block.Transaction{
@@ -148,8 +160,8 @@ func TestAPIFaucet(t *testing.T) {
 		t.Errorf("Faucet transaction not added to mempool")
 	}
 	txs := n.Mempool.GetAll()
-	if txs[0].Sender != block.SystemAddressFaucet {
-		t.Errorf("Incorrect sender, got %s want %s", txs[0].Sender, block.SystemAddressFaucet)
+	if txs[0].Sender != n.FaucetWallet.Address() {
+		t.Errorf("Incorrect sender, got %s want %s", txs[0].Sender, n.FaucetWallet.Address())
 	}
 }
 
@@ -164,7 +176,7 @@ func TestAPIGossipTx_AlreadySeen(t *testing.T) {
 	n.setupAPI(mux)
 
 	// Fund the wallet so validation passes
-	fTx, _ := n.Chain.CreateFaucetTx(n.Wallet.Address(), 1000, nil)
+	fTx := createTestFaucetTx(n, n.Wallet.Address(), 1000)
 	n.Chain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	tx := block.Transaction{
@@ -279,7 +291,7 @@ func TestAPISubmitTx_SystemAddressForge(t *testing.T) {
 	n.setupAPI(mux)
 
 	tx := block.Transaction{
-		Sender:    block.SystemAddressFaucet,
+		Sender:    n.FaucetWallet.Address(),
 		Recipient: n.Wallet.Address(),
 		Amount:    100,
 	}
@@ -291,8 +303,8 @@ func TestAPISubmitTx_SystemAddressForge(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusForbidden {
-		t.Errorf("handler returned wrong status code for forged system tx: got %v want %v", status, http.StatusForbidden)
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("handler returned wrong status code for forged system tx: got %v want %v", status, http.StatusBadRequest)
 	}
 }
 
@@ -307,11 +319,13 @@ func TestAPIGossipTx_ValidFaucet(t *testing.T) {
 	n.setupAPI(mux)
 
 	tx := block.Transaction{
-		Sender:    block.SystemAddressFaucet,
+		Sender:    n.FaucetWallet.Address(),
 		Recipient: n.Wallet.Address(),
 		Amount:    100,
+		Sequence:  1,
 	}
 	tx.ComputeID()
+	tx.Sign(n.FaucetWallet.PrivateKey)
 
 	body, _ := json.Marshal(tx)
 	req, _ := http.NewRequest("POST", "/tx/gossip", bytes.NewBuffer(body))
@@ -357,9 +371,9 @@ func TestAPIMerkleProof(t *testing.T) {
 	n.setupAPI(mux)
 
 	// Create a block with multiple transactions
-	fTx1, _ := n.Chain.CreateFaucetTx("Alice", 100, nil)
-	fTx2, _ := n.Chain.CreateFaucetTx("Bob", 200, nil)
-	fTx3, _ := n.Chain.CreateFaucetTx("Charlie", 300, nil)
+	fTx1 := createTestFaucetTx(n, "Alice", 100)
+	fTx2 := createTestFaucetTx(n, "Bob", 200)
+	fTx3 := createTestFaucetTx(n, "Charlie", 300)
 	n.Chain.MineBlock(context.Background(), []block.Transaction{fTx1, fTx2, fTx3}, "Miner")
 
 	// 1. Get the proof for txIndex 1 (Bob's transaction)
@@ -423,7 +437,8 @@ func TestAPIPeers(t *testing.T) {
 
 	var peers []string
 	json.Unmarshal(rr.Body.Bytes(), &peers)
-	if len(peers) != 1 || peers[0] != "127.0.0.1:4000" {
+
+	if len(peers) != 1 || peers[0] != "127.0.0.1:4000" {
 		t.Errorf("Expected [127.0.0.1:4000], got %v", peers)
 	}
 }
@@ -434,7 +449,7 @@ func TestAPIBalances(t *testing.T) {
 	n.setupAPI(mux)
 
 	// Faucet gives 100 to Alice
-	fTx, _ := n.Chain.CreateFaucetTx("Alice", 100, nil)
+	fTx := createTestFaucetTx(n, "Alice", 100)
 	n.Chain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	req, _ := http.NewRequest("GET", "/balances/Alice", nil)
