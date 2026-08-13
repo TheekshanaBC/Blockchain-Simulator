@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"valence/internal/chain"
 	"valence/internal/gossip"
@@ -41,11 +42,12 @@ type Node struct {
 	FaucetWallet *wallet.Wallet
 	Mempool      *Mempool
 	PeerManager  *peer.PeerManager
-	Gossip      *gossip.Engine
-	Syncer      *chainsync.Syncer
-	Logger      *slog.Logger
-	server      *http.Server
-	stopChan    chan struct{}
+	Gossip       *gossip.Engine
+	Syncer       *chainsync.Syncer
+	Logger       *slog.Logger
+	server       *http.Server
+	stopChan     chan struct{}
+	faucetMu     sync.Mutex
 }
 
 func NewNode(cfg Config) (*Node, error) {
