@@ -21,7 +21,7 @@ func TestAPIGossipTx_FaucetLimitProtection(t *testing.T) {
 	n.setupAPI(mux)
 
 	tx := block.Transaction{
-		Sender:    block.SystemAddressFaucet,
+		Sender:    n.FaucetWallet.Address(),
 		Recipient: n.Wallet.Address(),
 		Amount:    2000 * block.ElectronsPerVCN, // Try to forge 2000 VCN (Limit is 1000)
 	}

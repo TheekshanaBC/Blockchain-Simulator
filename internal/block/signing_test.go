@@ -15,11 +15,6 @@ func TestVerify_SystemAddress(t *testing.T) {
 	if !tx1.Verify() {
 		t.Error("Verify failed for COINBASE system address")
 	}
-
-	tx2 := &Transaction{Sender: SystemAddressFaucet}
-	if !tx2.Verify() {
-		t.Error("Verify failed for FAUCET system address")
-	}
 }
 
 /*

@@ -63,7 +63,7 @@ This will launch three nodes on ports `8080`, `8081`, and `8082`. Each node stor
 ### Running a Node Manually
 
 ```bash
-go run ./cmd/valenced -port 3001 -data-dir ./data/node1 -peers localhost:3002,localhost:3003
+go run ./cmd/valenced -port 3001 -data-dir ./data/node1 -peers localhost:3002,localhost:3003 -faucet-key <base64_key>
 ```
 
 ### The Client CLI (`valence-cli`)
@@ -87,6 +87,7 @@ go run ./cmd/valence-cli -node http://localhost:8081 -wallet alice getbalance
 | `-difficulty` | `3` | Initial mining difficulty |
 | `-retarget-window` | `4` | Number of blocks between difficulty retargets |
 | `-target-block-time`| `10` | Target time per block in seconds |
+| `-faucet-key` | `""` | Base64-encoded private key to enable the Faucet on this node |
 
 ---
 

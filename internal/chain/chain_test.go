@@ -10,6 +10,22 @@ import (
 	"valence/internal/wallet"
 )
 
+var testFaucetWallet *wallet.Wallet
+var seqCache = make(map[*Chain]uint64)
+
+func init() {
+	testFaucetWallet, _ = wallet.WalletFromBase64("AdUl1LWR0NtSPlR6NktiYVptv2sKOwAZ8djfTt9u1Mk=")
+}
+
+func createTestFaucetTx(c *Chain, recipient string, amount int64) block.Transaction {
+	seqCache[c]++
+	tx, err := c.CreateFaucetTx(recipient, amount, testFaucetWallet, seqCache[c], 1_000_000_000*block.ElectronsPerVCN, nil)
+	if err != nil {
+		panic(err)
+	}
+	return tx
+}
+
 func createSignedTx(w *wallet.Wallet, recipient string, amount int64, sequence uint64) block.Transaction {
 	tx := block.Transaction{
 		Sender:    w.Address(),
@@ -37,7 +53,7 @@ func TestValidationAndTamperDetection(t *testing.T) {
 	addrAlice := wAlice.Address()
 	addrBob := wBob.Address()
 
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	fTx := createTestFaucetTx(myChain,addrAlice, 100)
 	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	tx2 := createSignedTx(wAlice, addrBob, 20, 1)
@@ -97,7 +113,7 @@ func TestAddTransaction(t *testing.T) {
 	addrAlice := wAlice.Address()
 
 	// Add money to Alice via FAUCET to test valid transfers later
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	fTx := createTestFaucetTx(myChain,addrAlice, 100)
 	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	// 1. Valid transaction
@@ -107,7 +123,7 @@ func TestAddTransaction(t *testing.T) {
 		t.Errorf("Expected valid transaction to be mined")
 	}
 // 2. Reject COINBASE sender
-	tx2 := createSignedTx(wAlice, "Alice", 100, 2)
+	tx2 := createSignedTx(wAlice, "Alice", 300, 2)
 	tx2.Sender = block.SystemAddressCoinbase // tamper to test rejection
 	b2, _ := myChain.MineBlock(context.Background(), []block.Transaction{tx2}, "Miner")
 	if len(b2.Transactions) > 1 {
@@ -133,7 +149,7 @@ func TestMineBlock(t *testing.T) {
 	/* Setup a wallet and create a faucet transaction to simulate mining a block with user transactions */
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	fTx := createTestFaucetTx(myChain,addrAlice, 100)
 	
 	/* Attempt to mine the block containing our test transaction */
 	_, err := myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
@@ -163,7 +179,7 @@ func TestValidate_InvalidLinks(t *testing.T) {
 	myChain := NewChain(1, 5, 8, 1, 10, 10)
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	fTx := createTestFaucetTx(myChain,addrAlice, 100)
 	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	// Tamper with Genesis block Hash
@@ -196,7 +212,7 @@ func TestValidate_ForgedSignature(t *testing.T) {
 	addrAlice := wAlice.Address()
 
 	// Give Alice some funds
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	fTx := createTestFaucetTx(myChain,addrAlice, 100)
 	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	// Alice sends to Bob
@@ -242,7 +258,7 @@ func TestChain_JSONSerialization(t *testing.T) {
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
 
-	fTx, _ := originalChain.CreateFaucetTx(addrAlice, 100, nil)
+	fTx := createTestFaucetTx(originalChain,addrAlice, 100)
 	originalChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	tx2 := createSignedTx(wAlice, "Bob", 20, 1)
@@ -284,7 +300,7 @@ func TestValidate_DifficultyMismatch(t *testing.T) {
 
 	// Mine 4 blocks to trigger a retarget at block 4
 	for i := 0; i < 4; i++ {
-		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10, nil)
+		fTx := createTestFaucetTx(myChain,addrAlice, 10)
 	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 	}
 
@@ -313,7 +329,7 @@ func TestValidate_TamperTimestampRetarget(t *testing.T) {
 
 	// Mine 4 blocks to trigger a retarget at block 4
 	for i := 0; i < 4; i++ {
-		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10, nil)
+		fTx := createTestFaucetTx(myChain,addrAlice, 10)
 	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 	}
 
@@ -358,7 +374,7 @@ func TestRetarget_ConvergesTowardTarget(t *testing.T) {
 
 	// mine 7 blocks (more than 2 retarget windows of size 3)
 	for i := 0; i < 7; i++ {
-		fTx, _ := myChain.CreateFaucetTx(addrAlice, 10, nil)
+		fTx := createTestFaucetTx(myChain,addrAlice, 10)
 	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 	}
 
@@ -380,7 +396,7 @@ func TestMaxTxPerBlock(t *testing.T) {
 
 	wAlice := wallet.NewWallet()
 	addrAlice := wAlice.Address()
-	fTx, _ := myChain.CreateFaucetTx(addrAlice, 100, nil)
+	fTx := createTestFaucetTx(myChain,addrAlice, 100)
 	myChain.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
 
 	/* Alice generates 5 transactions to exceed the MaxTxPerBlock limit of 2 */
@@ -517,8 +533,8 @@ func TestValidate_OversizedBlock(t *testing.T) {
 		Amount:    block.MiningReward,
 		Timestamp: time.Now().UnixNano(),
 	}
-	fTx1, _ := c.CreateFaucetTx("Alice", 100, nil)
-	fTx2, _ := c.CreateFaucetTx("Bob", 100, nil)
+	fTx1 := createTestFaucetTx(c,"Alice", 100)
+	fTx2 := createTestFaucetTx(c,"Bob", 100)
 	
 	newBlock := block.Block{
 		Height:       1,

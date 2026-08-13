@@ -11,7 +11,7 @@ import (
 
 func TestIntegration_TwoNodes(t *testing.T) {
 	// Setup Node 1
-	cfg1 := Config{Port: 0, DataDir: t.TempDir(), MaxTxPerBlock: 10}
+	cfg1 := Config{Port: 0, DataDir: t.TempDir(), MaxTxPerBlock: 10, FaucetKey: "AdUl1LWR0NtSPlR6NktiYVptv2sKOwAZ8djfTt9u1Mk="}
 	node1, err := NewNode(cfg1)
 	if err != nil {
 		t.Fatalf("Failed to create node1: %v", err)

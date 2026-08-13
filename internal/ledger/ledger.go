@@ -72,7 +72,7 @@ func CalculatePendingSequences(chain []*block.Block, pendingPool []block.Transac
 	return sequences
 }
 
-func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequences map[string]uint64, faucetReceived map[string]int64) error {
+func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequences map[string]uint64) error {
 	if tx.Amount <= 0 {
 		return errors.New("amount must be greater than 0")
 	}
@@ -90,14 +90,7 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 		return errors.New("cannot send to self")
 	}
 
-	if tx.Sender == block.SystemAddressFaucet {
-		if tx.Amount > MaxFaucetRequest {
-			return fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", MaxFaucetRequest)
-		}
-		if faucetReceived[tx.Recipient]+tx.Amount > MaxLifetimeFaucetPerAddress {
-			return fmt.Errorf("lifetime faucet limit exceeded for address (Max: %d)", MaxLifetimeFaucetPerAddress)
-		}
-	} else if !block.IsSystemAddress(tx.Sender) {
+	if !block.IsSystemAddress(tx.Sender) {
 		if !tx.Verify() {
 			return errors.New("invalid transaction signature")
 		}
@@ -119,30 +112,23 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 func ValidateTransactions(txs []block.Transaction, chain []*block.Block, pendingPool []block.Transaction) error {
 	balances := CalculateAvailableBalances(chain, pendingPool)
 	sequences := CalculatePendingSequences(chain, pendingPool)
-	faucetReceived := make(map[string]int64)
 	existingTxIDs := make(map[string]bool)
 
-	// Pre-populate faucetReceived and existingTxIDs from chain and pending pool
+	// Pre-populate existingTxIDs from chain and pending pool
 	for _, b := range chain {
 		for _, tx := range b.Transactions {
 			existingTxIDs[tx.ID] = true
-			if tx.Sender == block.SystemAddressFaucet {
-				faucetReceived[tx.Recipient] += tx.Amount
-			}
 		}
 	}
 	for _, tx := range pendingPool {
 		existingTxIDs[tx.ID] = true
-		if tx.Sender == block.SystemAddressFaucet {
-			faucetReceived[tx.Recipient] += tx.Amount
-		}
 	}
 
 	for _, tx := range txs {
 		if existingTxIDs[tx.ID] {
 			return fmt.Errorf("transaction %s already exists in the chain or pending pool", tx.ID)
 		}
-		if err := ValidateTransaction(tx, balances, sequences, faucetReceived); err != nil {
+		if err := ValidateTransaction(tx, balances, sequences); err != nil {
 			return err
 		}
 		existingTxIDs[tx.ID] = true
@@ -152,9 +138,6 @@ func ValidateTransactions(txs []block.Transaction, chain []*block.Block, pending
 			sequences[tx.Sender] = tx.Sequence
 		}
 		balances[tx.Recipient] += tx.Amount
-		if tx.Sender == block.SystemAddressFaucet {
-			faucetReceived[tx.Recipient] += tx.Amount
-		}
 	}
 	return nil
 }
@@ -163,15 +146,11 @@ func ValidateTransactions(txs []block.Transaction, chain []*block.Block, pending
 func FilterValidTransactions(pendingPool []block.Transaction, chain []*block.Block) []block.Transaction {
 	balances := CalculateAvailableBalances(chain, []block.Transaction{})
 	sequences := CalculatePendingSequences(chain, []block.Transaction{})
-	faucetReceived := make(map[string]int64)
 	existingTxIDs := make(map[string]bool)
 
 	for _, b := range chain {
 		for _, tx := range b.Transactions {
 			existingTxIDs[tx.ID] = true
-			if tx.Sender == block.SystemAddressFaucet {
-				faucetReceived[tx.Recipient] += tx.Amount
-			}
 		}
 	}
 
@@ -181,17 +160,8 @@ func FilterValidTransactions(pendingPool []block.Transaction, chain []*block.Blo
 			continue // Skip already mined transactions
 		}
 
-		if tx.Sender == block.SystemAddressFaucet {
-			if tx.Recipient == block.SystemAddressCoinbase {
-				continue
-			}
-			if err := ValidateTransaction(tx, balances, sequences, faucetReceived); err == nil {
-				faucetReceived[tx.Recipient] += tx.Amount
-				existingTxIDs[tx.ID] = true
-				validPool = append(validPool, tx)
-			}
-		} else if !block.IsSystemAddress(tx.Sender) {
-			if err := ValidateTransaction(tx, balances, sequences, faucetReceived); err == nil {
+		if !block.IsSystemAddress(tx.Sender) {
+			if err := ValidateTransaction(tx, balances, sequences); err == nil {
 				balances[tx.Sender] -= tx.Amount
 				balances[tx.Recipient] += tx.Amount
 				sequences[tx.Sender] = tx.Sequence

@@ -28,9 +28,8 @@ func ValidateBlockSlice(blocks []*block.Block, initialDifficulty, retargetWindow
 
 	balances := make(map[string]int64)
 	sequences := make(map[string]uint64)
-	faucetReceived := make(map[string]int64)
 
-	res := validateGenesisBlock(blocks[0], balances, sequences, faucetReceived)
+	res := validateGenesisBlock(blocks[0], balances, sequences)
 	if !res.IsValid {
 		return res
 	}
@@ -61,7 +60,7 @@ func ValidateBlockSlice(blocks []*block.Block, initialDifficulty, retargetWindow
 			return res
 		}
 
-		res = validateBlockTransactions(currentBlock, balances, sequences, faucetReceived, maxTxPerBlock)
+		res = validateBlockTransactions(currentBlock, balances, sequences, maxTxPerBlock)
 		if !res.IsValid {
 			return res
 		}
@@ -70,7 +69,7 @@ func ValidateBlockSlice(blocks []*block.Block, initialDifficulty, retargetWindow
 	return ValidationResult{true, -1, "Chain is Valid"}
 }
 
-func validateGenesisBlock(genesisBlock *block.Block, balances map[string]int64, sequences map[string]uint64, faucetReceived map[string]int64) ValidationResult {
+func validateGenesisBlock(genesisBlock *block.Block, balances map[string]int64, sequences map[string]uint64) ValidationResult {
 	expectedGenesisHash := block.NewGenesisBlock().Hash
 
 	if genesisBlock.Header.MerkleRoot != block.CalculateMerkleRoot(genesisBlock.Transactions) {
@@ -86,9 +85,7 @@ func validateGenesisBlock(genesisBlock *block.Block, balances map[string]int64, 
 	}
 
 	for _, tx := range genesisBlock.Transactions {
-		if tx.Sender == block.SystemAddressFaucet {
-			faucetReceived[tx.Recipient] += tx.Amount
-		} else if !block.IsSystemAddress(tx.Sender) {
+		if !block.IsSystemAddress(tx.Sender) {
 			balances[tx.Sender] -= tx.Amount
 			sequences[tx.Sender] = tx.Sequence
 		}
@@ -138,7 +135,7 @@ func validateBlockAgainstPrevious(currentBlock, previousBlock *block.Block, expe
 	return ValidationResult{true, -1, ""}
 }
 
-func validateBlockTransactions(currentBlock *block.Block, balances map[string]int64, sequences map[string]uint64, faucetReceived map[string]int64, maxTxPerBlock int) ValidationResult {
+func validateBlockTransactions(currentBlock *block.Block, balances map[string]int64, sequences map[string]uint64, maxTxPerBlock int) ValidationResult {
 	if len(currentBlock.Transactions) == 0 {
 		return ValidationResult{false, currentBlock.Height, "Block must contain at least one transaction (COINBASE)"}
 	}
@@ -162,14 +159,12 @@ func validateBlockTransactions(currentBlock *block.Block, balances map[string]in
 		}
 
 		// Delegate general validation to ledger
-		err := ledger.ValidateTransaction(tx, balances, sequences, faucetReceived)
+		err := ledger.ValidateTransaction(tx, balances, sequences)
 		if err != nil {
 			return ValidationResult{false, currentBlock.Height, err.Error()}
 		}
 
-		if tx.Sender == block.SystemAddressFaucet {
-			faucetReceived[tx.Recipient] += tx.Amount
-		} else if !block.IsSystemAddress(tx.Sender) {
+		if !block.IsSystemAddress(tx.Sender) {
 			sequences[tx.Sender] = tx.Sequence
 			balances[tx.Sender] -= tx.Amount
 		}
