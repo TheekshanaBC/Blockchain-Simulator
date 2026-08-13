@@ -188,6 +188,10 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 	// Re-use the existing Faucet Logic from internal/chain/faucet.go
 	electrons := req.Amount
 
+	// Lock the faucet strictly to prevent sequence collision between concurrent requests
+	n.faucetMu.Lock()
+	defer n.faucetMu.Unlock()
+
 	mempoolTxs := n.Mempool.GetAll()
 	blocks := n.Chain.GetBlocks()
 	sequences := ledger.CalculatePendingSequences(blocks, mempoolTxs)
