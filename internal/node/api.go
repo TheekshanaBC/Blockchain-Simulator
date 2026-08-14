@@ -17,6 +17,7 @@ func (n *Node) setupAPI(mux *http.ServeMux) {
 	mux.HandleFunc("POST /chain/blocks/{height}/verify-proof", n.handleVerifyMerkleProof)
 	mux.HandleFunc("GET /balances", n.handleBalances)
 	mux.HandleFunc("GET /balances/{address}", n.handleBalanceForAddress)
+	mux.HandleFunc("GET /history/{address}", n.handleHistoryForAddress)
 	mux.HandleFunc("GET /sequence/{address}", n.handleSequence)
 
 	// Transaction & Mempool endpoints (api_tx.go)
@@ -42,5 +43,20 @@ func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
 
 func respondError(w http.ResponseWriter, status int, message string) {
 	respondJSON(w, status, map[string]string{"error": message})
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 

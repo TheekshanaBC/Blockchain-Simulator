@@ -110,6 +110,41 @@ func (n *Node) handleBalanceForAddress(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GET /history/{address}
+func (n *Node) handleHistoryForAddress(w http.ResponseWriter, r *http.Request) {
+	address := r.PathValue("address")
+	if address == "" {
+		respondError(w, http.StatusBadRequest, "address is required")
+		return
+	}
+
+	blocks := n.Chain.GetBlocks()
+	var history []map[string]interface{}
+
+	// Traverse blocks in reverse order (newest first)
+	for i := len(blocks) - 1; i >= 0; i-- {
+		b := blocks[i]
+		for _, tx := range b.Transactions {
+			if tx.Sender == address || tx.Recipient == address {
+				history = append(history, map[string]interface{}{
+					"tx_id":     tx.ID,
+					"sender":    tx.Sender,
+					"recipient": tx.Recipient,
+					"amount":    tx.Amount,
+					"timestamp": tx.Timestamp,
+					"height":    b.Height,
+				})
+			}
+		}
+	}
+
+	if history == nil {
+		history = make([]map[string]interface{}, 0)
+	}
+
+	respondJSON(w, http.StatusOK, history)
+}
+
 // GET /sequence/{address}
 func (n *Node) handleSequence(w http.ResponseWriter, r *http.Request) {
 	address := r.PathValue("address")

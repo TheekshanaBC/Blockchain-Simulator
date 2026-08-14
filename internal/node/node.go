@@ -212,7 +212,7 @@ func (n *Node) Start() error {
 
 	n.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", n.Config.Port),
-		Handler: mux,
+		Handler: corsMiddleware(mux),
 	}
 
 	return n.server.ListenAndServe()
