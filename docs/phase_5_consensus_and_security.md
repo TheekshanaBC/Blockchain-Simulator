@@ -30,7 +30,7 @@ graph TD
 
 To ensure that blocks are mined at a consistent rate (Target Block Time), the network must dynamically adjust the Proof-of-Work difficulty based on the total hashing power of all active miners.
 
-The `CalculateNextDifficulty` function (`internal/chain/retarget.go`) runs every `RetargetWindow` blocks.
+The `expectedDifficultyAfterWindow` function (`internal/chain/difficulty.go`) runs every `RetargetWindow` blocks.
 
 ```mermaid
 flowchart LR

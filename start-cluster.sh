@@ -9,21 +9,21 @@ mkdir -p ./data/nodeA ./data/nodeB ./data/nodeC
 
 # Start Node A
 echo "Starting Node A on port 8080..."
-go run ./cmd/valenced -port 8080 -data-dir ./data/nodeA -peers localhost:8081,localhost:8082 -faucet-key AdUl1LWR0NtSPlR6NktiYVptv2sKOwAZ8djfTt9u1Mk= > ./data/nodeA/node.log 2>&1 &
+go run ./cmd/valenced -port 8080 -data-dir ./data/nodeA -peers https://blockchain-simulator-production.up.railway.app > ./data/nodeA/node.log 2>&1 &
 NODE_A_PID=$!
 
 sleep 2
 
 # Start Node B
 echo "Starting Node B on port 8081..."
-go run ./cmd/valenced -port 8081 -data-dir ./data/nodeB -peers localhost:8080,localhost:8082 > ./data/nodeB/node.log 2>&1 &
+go run ./cmd/valenced -port 8081 -data-dir ./data/nodeB -peers https://blockchain-simulator-production.up.railway.app,localhost:8080 > ./data/nodeB/node.log 2>&1 &
 NODE_B_PID=$!
 
 sleep 2
 
 # Start Node C
 echo "Starting Node C on port 8082..."
-go run ./cmd/valenced -port 8082 -data-dir ./data/nodeC -peers localhost:8080,localhost:8081 > ./data/nodeC/node.log 2>&1 &
+go run ./cmd/valenced -port 8082 -data-dir ./data/nodeC -peers https://blockchain-simulator-production.up.railway.app,localhost:8080 > ./data/nodeC/node.log 2>&1 &
 NODE_C_PID=$!
 
 echo "Cluster is running in the background!"

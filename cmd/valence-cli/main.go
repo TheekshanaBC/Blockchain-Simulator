@@ -23,7 +23,7 @@ func printJSON(data interface{}, err error) {
 }
 
 func main() {
-	nodeURL := flag.String("node", "http://localhost:3001", "Node URL")
+	nodeURL := flag.String("node", "http://localhost:8080", "Node URL")
 	keystorePath := flag.String("keystore", "./data/wallets/keys.json", "Path to keystore file")
 	walletName := flag.String("wallet", "primary", "Wallet name/index to use")
 	

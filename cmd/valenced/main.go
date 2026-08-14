@@ -23,7 +23,7 @@ func main() {
 	var minerAddress string
 	var maxTxPerBlock int
 
-	flag.IntVar(&port, "port", 3001, "Port to listen on")
+	flag.IntVar(&port, "port", 8080, "Port to listen on")
 	flag.StringVar(&peersStr, "peers", "", "Comma-separated list of peer addresses (e.g. localhost:3002)")
 	flag.StringVar(&dataDir, "data-dir", "./data/node1", "Directory to store node data")
 	flag.IntVar(&difficulty, "difficulty", 3, "Initial mining difficulty")

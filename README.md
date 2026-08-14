@@ -63,7 +63,7 @@ This will launch three nodes on ports `8080`, `8081`, and `8082`. Each node stor
 ### Running a Node Manually
 
 ```bash
-go run ./cmd/valenced -port 3001 -data-dir ./data/node1 -peers localhost:3002,localhost:3003 -faucet-key <base64_key>
+go run ./cmd/valenced -port 8080 -data-dir ./data/nodeA -peers localhost:8081,localhost:8082 -faucet-key <base64_key>
 ```
 
 ### The Client CLI (`valence-cli`)

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"github.com/lmittmann/tint"
 	"valence/internal/chain"
 	"valence/internal/gossip"
 	"valence/internal/peer"
@@ -52,7 +53,10 @@ type Node struct {
 
 func NewNode(cfg Config) (*Node, error) {
 	// Setup logger
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := slog.New(tint.NewHandler(os.Stdout, &tint.Options{
+		Level:      slog.LevelInfo,
+		TimeFormat: time.Kitchen,
+	}))
 
 	// Ensure data directory exists
 	if err := os.MkdirAll(cfg.DataDir, 0750); err != nil {
