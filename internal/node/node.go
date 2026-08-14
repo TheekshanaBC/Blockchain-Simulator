@@ -136,6 +136,12 @@ func NewNode(cfg Config) (*Node, error) {
 	engine := gossip.NewEngine(pm, cache, logger)
 	syncer := chainsync.NewSyncer(c, pm, logger)
 
+	engine.OnSyncRequired = func(peerAddr string) {
+		if err := syncer.PushChainToPeer(peerAddr); err != nil {
+			logger.Error("Failed to push chain to peer", "peer", peerAddr, "error", err)
+		}
+	}
+
 	return &Node{
 		Config:       cfg,
 		Chain:        c,

@@ -230,3 +230,33 @@ func (n *Node) handleVerifyMerkleProof(w http.ResponseWriter, r *http.Request) {
 		"valid": valid,
 	})
 }
+
+// POST /chain/sync
+func (n *Node) handlePushSync(w http.ResponseWriter, r *http.Request) {
+	var candidateChain []*block.Block
+	
+	// Increase limit for a full chain payload (e.g. up to 10MB)
+	r.Body = http.MaxBytesReader(w, r.Body, 10*1024*1024)
+	if err := json.NewDecoder(r.Body).Decode(&candidateChain); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	orphanedTxs, err := n.Chain.SwitchToChain(candidateChain)
+	if err != nil {
+		n.Logger.Warn("Push sync failed", "error", err)
+		respondError(w, http.StatusNotAcceptable, err.Error())
+		return
+	}
+
+	// Update mempool
+	if len(orphanedTxs) > 0 {
+		for _, tx := range orphanedTxs {
+			_ = n.Mempool.ValidateAndAdd(tx, n.Chain.GetBlocks())
+		}
+	}
+	n.SaveState()
+
+	n.Logger.Info("Push sync completed successfully", "new_height", n.Chain.Height())
+	respondJSON(w, http.StatusOK, map[string]string{"status": "sync_completed"})
+}

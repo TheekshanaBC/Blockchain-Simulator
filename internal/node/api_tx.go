@@ -96,14 +96,20 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if b.Height == myHeight+1 && b.Header.PrevHash != myHeadHash {
-		n.Logger.Warn("Fork detected", "peer_block", b.Hash, "my_head", myHeadHash)
-		go n.runSync()
-		respondJSON(w, http.StatusAccepted, map[string]string{"status": "sync_triggered"})
+		n.Logger.Warn("Fork detected, requesting push sync", "peer_block", b.Hash, "my_head", myHeadHash)
+		go n.runSync() // Keep fallback pull sync just in case
+		respondJSON(w, http.StatusConflict, map[string]interface{}{
+			"error": "sync_required",
+			"my_height": myHeight,
+		})
 		return
 	} else if b.Height > myHeight+1 {
-		n.Logger.Info("Received block in the future, triggering sync", "block_height", b.Height, "my_height", myHeight)
-		go n.runSync()
-		respondJSON(w, http.StatusAccepted, map[string]string{"status": "sync_triggered"})
+		n.Logger.Info("Received block in the future, requesting push sync", "block_height", b.Height, "my_height", myHeight)
+		go n.runSync() // Keep fallback pull sync just in case
+		respondJSON(w, http.StatusConflict, map[string]interface{}{
+			"error": "sync_required",
+			"my_height": myHeight,
+		})
 		return
 	} else if b.Height <= myHeight {
 		respondJSON(w, http.StatusOK, map[string]string{"status": "already_seen_or_stale"})

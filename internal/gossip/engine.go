@@ -13,10 +13,11 @@ import (
 
 // Engine is responsible for broadcasting blocks and transactions to the network.
 type Engine struct {
-	peerManager *peer.PeerManager
-	seenCache   *SeenCache
-	httpClient  *http.Client
-	logger      *slog.Logger
+	peerManager    *peer.PeerManager
+	seenCache      *SeenCache
+	httpClient     *http.Client
+	logger         *slog.Logger
+	OnSyncRequired func(peerAddr string)
 }
 
 // NewEngine creates a new Gossip Engine.
@@ -100,6 +101,13 @@ func (e *Engine) sendToPeer(peerAddr string, endpoint string, payload []byte) {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		// Success
 		e.peerManager.MarkSeen(peerAddr)
+	} else if resp.StatusCode == http.StatusConflict {
+		// Peer might be asking for a push sync
+		e.logger.Info("Peer requested sync via 409 Conflict", "peer", peerAddr)
+		if e.OnSyncRequired != nil {
+			// Run asynchronously to avoid blocking the gossip loop
+			go e.OnSyncRequired(peerAddr)
+		}
 	} else if resp.StatusCode >= 500 && resp.StatusCode < 600 {
 		e.logger.Warn("gossip request rejected by peer due to server error", "peer", peerAddr, "status", resp.StatusCode)
 		e.peerManager.MarkFailed(peerAddr)
