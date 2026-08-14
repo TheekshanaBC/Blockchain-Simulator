@@ -206,6 +206,20 @@ func (n *Node) Start() error {
 		}
 	}()
 
+	// Start mempool sync loop (pulling)
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				n.runMempoolSync()
+			case <-n.stopChan:
+				return
+			}
+		}
+	}()
+
 	// Setup HTTP endpoints
 	mux := http.NewServeMux()
 	n.setupAPI(mux)
@@ -356,5 +370,29 @@ func (n *Node) healthCheckPeers() {
 				n.PeerManager.MarkSeen(peerAddr)
 			}
 		}(pInfo.Address)
+	}
+}
+
+func (n *Node) runMempoolSync() {
+	peers := n.PeerManager.GetPeers()
+	for _, p := range peers {
+		txs, err := n.Syncer.SyncMempoolFromPeer(p)
+		if err != nil {
+			n.Logger.Debug("Failed to pull mempool", "peer", p, "error", err)
+			continue
+		}
+		
+		addedCount := 0
+		for _, tx := range txs {
+			if !n.Mempool.Has(tx.ID) {
+				if err := n.Mempool.ValidateAndAdd(tx, n.Chain.GetBlocks()); err == nil {
+					addedCount++
+				}
+			}
+		}
+		
+		if addedCount > 0 {
+			n.Logger.Info("Pulled mempool transactions", "peer", p, "count", addedCount, "mempool_size", n.Mempool.Size())
+		}
 	}
 }

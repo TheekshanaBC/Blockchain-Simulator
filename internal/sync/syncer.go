@@ -135,3 +135,24 @@ func (s *Syncer) getPeerHeight(peerAddr string) (int, string, *big.Int, error) {
 	return result.Height, result.Hash, work, nil
 }
 
+// SyncMempoolFromPeer fetches the unconfirmed transactions from a peer's mempool
+func (s *Syncer) SyncMempoolFromPeer(peerAddr string) ([]block.Transaction, error) {
+	url := fmt.Sprintf("http://%s/mempool", peerAddr)
+	resp, err := s.httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch mempool from peer: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("peer returned status %d", resp.StatusCode)
+	}
+
+	var txs []block.Transaction
+	if err := json.NewDecoder(resp.Body).Decode(&txs); err != nil {
+		return nil, fmt.Errorf("failed to decode mempool txs: %w", err)
+	}
+
+	return txs, nil
+}
+

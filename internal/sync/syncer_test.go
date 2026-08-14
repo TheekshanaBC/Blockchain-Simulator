@@ -18,7 +18,7 @@ func setupTestChain() *chain.Chain {
 	return chain.NewChain(1, 5, 10, 1, 10, 10)
 }
 
-func setupSyncerWithMockPeer(t *testing.T, localChain *chain.Chain, handler http.HandlerFunc) (*Syncer, *httptest.Server) {
+func setupSyncerWithMockPeer(localChain *chain.Chain, handler http.HandlerFunc) (*Syncer, *httptest.Server) {
 	server := httptest.NewServer(handler)
 	
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
@@ -69,7 +69,7 @@ func TestSyncFromBestPeer_AlreadyAtTip(t *testing.T) {
 		t.Errorf("Unexpected request to %s", r.URL.Path)
 	}
 
-	syncer, server := setupSyncerWithMockPeer(t, localChain, handler)
+	syncer, server := setupSyncerWithMockPeer(localChain, handler)
 	defer server.Close()
 
 	_, txs, err := syncer.SyncFromBestPeer()
@@ -123,7 +123,7 @@ func TestSyncFromBestPeer_SyncsTaller(t *testing.T) {
 		t.Errorf("Unexpected request to %s", r.URL.Path)
 	}
 
-	syncer, server := setupSyncerWithMockPeer(t, localChain, handler)
+	syncer, server := setupSyncerWithMockPeer(localChain, handler)
 	defer server.Close()
 
 	_, _, err := syncer.SyncFromBestPeer()
@@ -162,7 +162,7 @@ func TestSyncFromBestPeer_InvalidChain(t *testing.T) {
 		}
 	}
 
-	syncer, server := setupSyncerWithMockPeer(t, localChain, handler)
+	syncer, server := setupSyncerWithMockPeer(localChain, handler)
 	defer server.Close()
 
 	_, _, err := syncer.SyncFromBestPeer()
@@ -245,7 +245,7 @@ func TestSyncFromBestPeer_SyncsHeaviest(t *testing.T) {
 		}
 	}
 
-	syncer, server := setupSyncerWithMockPeer(t, localChain, handler)
+	syncer, server := setupSyncerWithMockPeer(localChain, handler)
 	defer server.Close()
 
 	_, _, err := syncer.SyncFromBestPeer()
