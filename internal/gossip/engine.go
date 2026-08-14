@@ -79,8 +79,8 @@ func (e *Engine) broadcast(endpoint string, payload []byte) {
 }
 
 func (e *Engine) sendToPeer(peerAddr string, endpoint string, payload []byte) {
-	// Construct the full URL. peerAddr doesn't have "http://" prefixed if it was normalized.
-	url := fmt.Sprintf("http://%s%s", peerAddr, endpoint)
+	// Construct the full URL. peerAddr already includes the scheme (http:// or https://)
+	url := fmt.Sprintf("%s%s", peerAddr, endpoint)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
 	if err != nil {

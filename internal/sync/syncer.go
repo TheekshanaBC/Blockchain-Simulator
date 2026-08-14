@@ -79,7 +79,7 @@ func (s *Syncer) SyncFromPeer(peerAddr string) (bool, []block.Transaction, error
 	s.logger.Info("Starting chain sync (full download)", "peer", peerAddr, "our_work", ourWork.String(), "peer_work", peerWork.String(), "peer_height", peerHeight)
 
 	// Fetch the entire candidate chain
-	url := fmt.Sprintf("http://%s/chain?limit=100000", peerAddr)
+	url := fmt.Sprintf("%s/chain?limit=100000", peerAddr)
 	resp, err := s.httpClient.Get(url)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to fetch chain from peer: %w", err)
@@ -108,7 +108,7 @@ func (s *Syncer) SyncFromPeer(peerAddr string) (bool, []block.Transaction, error
 }
 
 func (s *Syncer) getPeerHeight(peerAddr string) (int, string, *big.Int, error) {
-	url := fmt.Sprintf("http://%s/chain/height", peerAddr)
+	url := fmt.Sprintf("%s/chain/height", peerAddr)
 	resp, err := s.httpClient.Get(url)
 	if err != nil {
 		return 0, "", nil, err
@@ -138,7 +138,7 @@ func (s *Syncer) getPeerHeight(peerAddr string) (int, string, *big.Int, error) {
 
 // SyncMempoolFromPeer fetches the unconfirmed transactions from a peer's mempool
 func (s *Syncer) SyncMempoolFromPeer(peerAddr string) ([]block.Transaction, error) {
-	url := fmt.Sprintf("http://%s/mempool", peerAddr)
+	url := fmt.Sprintf("%s/mempool", peerAddr)
 	resp, err := s.httpClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch mempool from peer: %w", err)
@@ -167,7 +167,7 @@ func (s *Syncer) PushChainToPeer(peerAddr string) error {
 		return fmt.Errorf("failed to marshal chain for push sync: %w", err)
 	}
 
-	url := fmt.Sprintf("http://%s/chain/sync", peerAddr)
+	url := fmt.Sprintf("%s/chain/sync", peerAddr)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
 	if err != nil {
 		return fmt.Errorf("failed to create push sync request: %w", err)
