@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -156,3 +157,34 @@ func (s *Syncer) SyncMempoolFromPeer(peerAddr string) ([]block.Transaction, erro
 	return txs, nil
 }
 
+// PushChainToPeer pushes the current node's entire chain to a peer that is behind.
+func (s *Syncer) PushChainToPeer(peerAddr string) error {
+	s.logger.Info("Pushing chain to peer", "peer", peerAddr, "height", s.chain.Height())
+
+	blocks := s.chain.GetBlocks()
+	payload, err := json.Marshal(blocks)
+	if err != nil {
+		return fmt.Errorf("failed to marshal chain for push sync: %w", err)
+	}
+
+	url := fmt.Sprintf("http://%s/chain/sync", peerAddr)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
+	if err != nil {
+		return fmt.Errorf("failed to create push sync request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		s.peerMgr.MarkFailed(peerAddr)
+		return fmt.Errorf("failed to send push sync request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("peer rejected push sync, status: %d", resp.StatusCode)
+	}
+
+	s.logger.Info("Successfully pushed chain to peer", "peer", peerAddr)
+	return nil
+}
