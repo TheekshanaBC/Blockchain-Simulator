@@ -6,16 +6,25 @@ import (
 	"time"
 )
 
-// normalizeAddress strips http:// and https:// prefixes to ensure consistent peer tracking
+// normalizeAddress ensures consistent peer tracking by standardizing on a scheme.
+// It defaults to http:// if no scheme is provided, and preserves https://.
 func normalizeAddress(addr string) string {
+	addr = strings.TrimSpace(addr)
+	isHttps := strings.HasPrefix(addr, "https://")
+	
 	addr = strings.TrimPrefix(addr, "http://")
 	addr = strings.TrimPrefix(addr, "https://")
+	
 	// Fix R5: Use HasPrefix to avoid corrupting hostnames that contain "localhost:" as a substring
 	// (e.g. "mylocalhost:3001" should not become "my127.0.0.1:3001")
 	if strings.HasPrefix(addr, "localhost:") {
 		addr = "127.0.0.1:" + addr[len("localhost:"):]
 	}
-	return strings.TrimSpace(addr)
+	
+	if isHttps {
+		return "https://" + addr
+	}
+	return "http://" + addr
 }
 
 type PeerInfo struct {
