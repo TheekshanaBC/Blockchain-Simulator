@@ -119,10 +119,3 @@ func (m *Mempool) Size() int {
 	return len(m.txs)
 }
 
-// Clear removes all transactions from the mempool.
-func (m *Mempool) Clear() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.txs = make(map[string]block.Transaction)
-}

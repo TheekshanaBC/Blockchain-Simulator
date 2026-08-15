@@ -81,15 +81,6 @@ func (pm *PeerManager) AddPeer(address string) bool {
 	return true
 }
 
-// RemovePeer permanently removes a peer from the manager.
-func (pm *PeerManager) RemovePeer(address string) {
-	address = normalizeAddress(address)
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
-
-	delete(pm.peers, address)
-}
-
 // GetPeers returns a list of healthy peer addresses.
 func (pm *PeerManager) GetPeers() []string {
 	pm.mu.RLock()

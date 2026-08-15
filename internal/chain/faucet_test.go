@@ -75,7 +75,7 @@ func TestCreateFaucetTx_LifetimeLimitExceeded(t *testing.T) {
 			t.Fatalf("Failed to create faucet tx: %v", err)
 		}
 		c.MineBlock(context.Background(), []block.Transaction{fTx}, "Miner")
-		// No sleep needed: R4 fix ensures faucet IDs are unique via crypto/rand nonce
+		// Faucet transaction IDs are deterministic and unique per sequence number
 	}
 
 	/* 2. After reaching the lifetime limit of 5000 VCN, any subsequent request must be rejected by the system */

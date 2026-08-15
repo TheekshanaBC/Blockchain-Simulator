@@ -82,6 +82,11 @@ func (n *Node) handleGossipTx(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /block/gossip
+// Handles incoming blocks broadcast from peers with fork detection:
+// 1. If height == myHeight+1 but prevHash != myHeadHash: A fork occurred at the tip -> return 409 Conflict and trigger sync.
+// 2. If height > myHeight+1: We missed intermediate blocks (we are behind) -> return 409 Conflict and trigger sync.
+// 3. If height <= myHeight: Stale or already accepted block -> return 200 OK (no action needed).
+// 4. If height == myHeight+1 and prevHash == myHeadHash: Next sequential block -> validate and append via AddBlock.
 func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 	var b block.Block
 	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)

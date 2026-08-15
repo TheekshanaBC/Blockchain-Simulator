@@ -62,8 +62,8 @@ func TestCalculateMerkleRoot_Even(t *testing.T) {
 
 /*
 TestCalculateMerkleRoot_Odd tests the Merkle Root calculation for an odd number
-of transactions (e.g., 3). It ensures that the last transaction's hash is duplicated
-to pair it up before the final hashing step.
+of transactions (e.g., 3). It ensures that the odd leaf hash is promoted
+unchanged to the next level (CVE-2012-2459 fix) before the final hashing step.
 */
 func TestCalculateMerkleRoot_Odd(t *testing.T) {
 	txs := []Transaction{
