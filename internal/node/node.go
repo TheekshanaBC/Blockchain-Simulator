@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"github.com/lmittmann/tint"
 	"valence/internal/chain"
@@ -48,7 +49,9 @@ type Node struct {
 	Logger       *slog.Logger
 	server       *http.Server
 	stopChan     chan struct{}
+	syncTrigger  chan struct{}
 	faucetMu     sync.Mutex
+	isMining     atomic.Bool
 }
 
 func NewNode(cfg Config) (*Node, error) {
@@ -153,6 +156,7 @@ func NewNode(cfg Config) (*Node, error) {
 		Syncer:      syncer,
 		Logger:      logger,
 		stopChan:    make(chan struct{}),
+		syncTrigger: make(chan struct{}, 1),
 	}, nil
 }
 
@@ -191,6 +195,8 @@ func (n *Node) Start() error {
 		for {
 			select {
 			case <-ticker.C:
+				n.runSync()
+			case <-n.syncTrigger:
 				n.runSync()
 			case <-n.stopChan:
 				return
@@ -231,8 +237,12 @@ func (n *Node) Start() error {
 	n.setupAPI(mux)
 
 	n.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", n.Config.Port),
-		Handler: corsMiddleware(mux),
+		Addr:              fmt.Sprintf(":%d", n.Config.Port),
+		Handler:           corsMiddleware(mux),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      11 * time.Minute,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	return n.server.ListenAndServe()
@@ -264,6 +274,15 @@ func (n *Node) SaveState() {
 	chainFile := fmt.Sprintf("%s/chain.json", n.Config.DataDir)
 	if err := storage.SaveChain(n.Chain, chainFile); err != nil {
 		n.Logger.Error("Failed to save chain state", "error", err)
+	}
+}
+
+// triggerSync signals the background sync loop to perform a sync immediately,
+// debouncing multiple concurrent requests.
+func (n *Node) triggerSync() {
+	select {
+	case n.syncTrigger <- struct{}{}:
+	default:
 	}
 }
 

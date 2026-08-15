@@ -87,17 +87,19 @@ func (c *Chain) SwitchToChain(newBlocks []*block.Block) ([]block.Transaction, er
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// 1. Check cumulative work
+	// 1. Validate FIRST — this ensures every block's difficulty is bound to
+	// [MinDifficulty, MaxDifficulty] via the retarget schedule, so the
+	// CumulativeWork call below can never be fed an attacker-controlled exponent.
+	result := ValidateBlockSlice(newBlocks, c.InitialDifficulty, c.RetargetWindow, c.TargetBlockTimeSec, c.MinDifficulty, c.MaxDifficulty, c.MaxTxPerBlock)
+	if !result.IsValid {
+		return nil, fmt.Errorf("candidate chain invalid: %s", result.Reason)
+	}
+
+	// 2. Check cumulative work (safe now — all difficulties are validated)
 	currentWork := CumulativeWork(c.blocks)
 	newWork := CumulativeWork(newBlocks)
 	if newWork.Cmp(currentWork) <= 0 {
 		return nil, fmt.Errorf("candidate chain does not have more cumulative work than current chain")
-	}
-
-	// 2. Validate the entire new chain from genesis
-	result := ValidateBlockSlice(newBlocks, c.InitialDifficulty, c.RetargetWindow, c.TargetBlockTimeSec, c.MinDifficulty, c.MaxDifficulty, c.MaxTxPerBlock)
-	if !result.IsValid {
-		return nil, fmt.Errorf("candidate chain invalid: %s", result.Reason)
 	}
 
 	// 3. Find orphaned blocks and transactions

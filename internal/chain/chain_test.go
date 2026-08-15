@@ -561,3 +561,88 @@ func TestValidate_OversizedBlock(t *testing.T) {
 		t.Errorf("Expected error for oversized block, got: %v", err)
 	}
 }
+
+/*
+TestSwitchToChain_RejectsInflatedDifficultyBeforeWork is a regression test for
+the CPU/memory DoS vulnerability where CumulativeWork was called with
+attacker-controlled block.Header.Difficulty values before validation.
+
+A block carrying difficulty=1_000_000_000 would cause big.Int.Exp(16, 1e9)
+— a ~500 MB allocation — before ValidateBlockSlice ever ran.
+
+After the fix, ValidateBlockSlice runs first and rejects the bogus difficulty
+(it doesn't match the retarget schedule), so BlockWork is never called with
+the giant exponent.
+*/
+func TestSwitchToChain_RejectsInflatedDifficultyBeforeWork(t *testing.T) {
+	c := NewChain(1, 2, 10, 1, 6, 10)
+
+	// Build a fake chain where block 1 claims an absurd difficulty.
+	// This would cause 16^1_000_000_000 if work is computed before validation.
+	genesis := c.GetBlocks()[0]
+	maliciousBlock := &block.Block{
+		Height: 1,
+		Header: block.BlockHeader{
+			PrevHash:   genesis.Hash,
+			Difficulty: 1_000_000_000, // attacker-supplied, way above MaxDifficulty=6
+			Timestamp:  genesis.Header.Timestamp + 1,
+		},
+		Transactions: []block.Transaction{
+			{Sender: block.SystemAddressCoinbase, Recipient: "Attacker", Amount: block.MiningReward},
+		},
+	}
+	maliciousBlock.Header.MerkleRoot = block.CalculateMerkleRoot(maliciousBlock.Transactions)
+	// Give it a valid-looking hash (no real PoW needed — validation rejects it
+	// on difficulty mismatch before the PoW check matters).
+	maliciousBlock.Hash = maliciousBlock.CalculateHash()
+
+	_, err := c.SwitchToChain([]*block.Block{genesis, maliciousBlock})
+	if err == nil {
+		t.Fatal("Expected SwitchToChain to reject a chain with inflated difficulty, but it accepted it")
+	}
+	// Validation must be the reason — not a "lower cumulative work" reason,
+	// which would only be possible if CumulativeWork ran first on the bad input.
+	if !strings.Contains(err.Error(), "candidate chain invalid") {
+		t.Errorf("Expected rejection reason to be validation failure, got: %v", err)
+	}
+}
+
+/*
+TestSwitchToChain_ValidChainStillAccepted verifies that the validate-before-work
+reorder does not break the normal happy path: a legitimately heavier chain
+must still be accepted.
+*/
+func TestSwitchToChain_ValidChainStillAccepted(t *testing.T) {
+	c := NewChain(1, 2, 10, 1, 6, 10)
+	baseTime := c.GetBlocks()[0].Header.Timestamp
+
+	// Build a competing chain: 2 blocks, both at difficulty=1 with correct PoW.
+	other := NewChain(1, 2, 10, 1, 6, 10)
+	for i := 1; i <= 2; i++ {
+		b := block.Block{
+			Height: i,
+			Header: block.BlockHeader{
+				PrevHash:   other.GetLastBlock().Hash,
+				Difficulty: 1,
+				Timestamp:  baseTime + int64(i)*10*1_000_000_000,
+			},
+			Transactions: []block.Transaction{
+				{Sender: block.SystemAddressCoinbase, Recipient: "Miner", Amount: block.MiningReward},
+			},
+		}
+		b.Header.MerkleRoot = block.CalculateMerkleRoot(b.Transactions)
+		b.Mine(context.Background(), 1)
+		if err := other.AddBlock(b); err != nil {
+			t.Fatalf("setup: AddBlock height %d failed: %v", i, err)
+		}
+	}
+
+	_, err := c.SwitchToChain(other.GetBlocks())
+	if err != nil {
+		t.Fatalf("SwitchToChain rejected a valid heavier chain: %v", err)
+	}
+	if c.Height() != 2 {
+		t.Errorf("Expected chain height 2 after switch, got %d", c.Height())
+	}
+}
+
