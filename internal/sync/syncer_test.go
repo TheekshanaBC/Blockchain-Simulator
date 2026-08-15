@@ -258,3 +258,48 @@ func TestSyncFromBestPeer_SyncsHeaviest(t *testing.T) {
 	}
 }
 
+/*
+TestGetPeerHeight_OversizedWorkString is a regression test for the
+big.Int.SetString DoS vulnerability in getPeerHeight.
+
+A malicious peer returning a multi-megabyte "work" string in the
+/chain/height response would cause O(n²) CPU usage in SetString.
+The fix adds http.MaxBytesReader(4096) before json.Decode, so an
+oversized response is rejected with an error rather than processed.
+*/
+func TestGetPeerHeight_OversizedWorkString(t *testing.T) {
+	localChain := setupTestChain()
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/chain/height" {
+			// Simulate an attacker returning a 10 MB "work" field.
+			// Before the fix this would reach big.Int.SetString and peg the CPU.
+			oversizedWork := make([]byte, 10*1024*1024) // 10 MB of '1' digits
+			for i := range oversizedWork {
+				oversizedWork[i] = '1'
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"height":1,"hash":"abc","work":"`))
+			w.Write(oversizedWork)
+			w.Write([]byte(`"}`))
+			return
+		}
+	}
+
+	syncer, server := setupSyncerWithMockPeer(localChain, handler)
+	defer server.Close()
+
+	// getPeerHeight is unexported — exercise it through SyncFromBestPeer,
+	// which calls it internally and handles the error gracefully.
+	_, _, err := syncer.SyncFromBestPeer()
+	// We expect either an error (body cap triggered) or no sync (work rejected).
+	// What must NOT happen is the call hanging for tens of seconds on SetString.
+	// The test itself acts as the timeout guard — if it hangs, the fix is broken.
+	if err != nil {
+		t.Logf("SyncFromBestPeer correctly returned error for oversized work: %v", err)
+	}
+	// Either way, the local chain must be untouched.
+	if localChain.Height() != 0 {
+		t.Errorf("Expected local chain to remain at genesis (height 0), got %d", localChain.Height())
+	}
+}

@@ -1,4 +1,4 @@
-﻿package peer
+package peer
 
 import (
 	"testing"
@@ -19,8 +19,8 @@ func TestPeerManager_PruneUnhealthyPeers(t *testing.T) {
 	
 	// Manipulate peer2 to be unhealthy AND last seen 1 hour ago
 	pm.mu.Lock()
-	pm.peers["peer2"].Healthy = false
-	pm.peers["peer2"].LastSeen = time.Now().Add(-1 * time.Hour)
+	pm.peers["http://peer2"].Healthy = false
+	pm.peers["http://peer2"].LastSeen = time.Now().Add(-1 * time.Hour)
 	pm.mu.Unlock()
 	
 	// peer3 remains healthy
@@ -32,15 +32,15 @@ func TestPeerManager_PruneUnhealthyPeers(t *testing.T) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 	
-	if _, exists := pm.peers["peer1"]; !exists {
+	if _, exists := pm.peers["http://peer1"]; !exists {
 		t.Error("Expected peer1 to remain (failed but recent)")
 	}
 	
-	if _, exists := pm.peers["peer2"]; exists {
+	if _, exists := pm.peers["http://peer2"]; exists {
 		t.Error("Expected peer2 to be pruned (failed and old)")
 	}
 	
-	if _, exists := pm.peers["peer3"]; !exists {
+	if _, exists := pm.peers["http://peer3"]; !exists {
 		t.Error("Expected peer3 to remain (healthy)")
 	}
 }

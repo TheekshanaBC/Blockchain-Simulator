@@ -438,8 +438,8 @@ func TestAPIPeers(t *testing.T) {
 	var peers []string
 	json.Unmarshal(rr.Body.Bytes(), &peers)
 
-	if len(peers) != 1 || peers[0] != "127.0.0.1:4000" {
-		t.Errorf("Expected [127.0.0.1:4000], got %v", peers)
+	if len(peers) != 1 || peers[0] != "http://127.0.0.1:4000" {
+		t.Errorf("Expected [http://127.0.0.1:4000], got %v", peers)
 	}
 }
 

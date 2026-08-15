@@ -119,6 +119,12 @@ func (s *Syncer) getPeerHeight(peerAddr string) (int, string, *big.Int, error) {
 		return 0, "", nil, fmt.Errorf("peer returned status %d", resp.StatusCode)
 	}
 
+	// Cap the response body to prevent a malicious peer from returning a
+	// multi-megabyte "work" string that would cause O(n²) CPU burn in
+	// big.Int.SetString. 4 KB is orders of magnitude more than any legitimate
+	// /chain/height response needs.
+	resp.Body = http.MaxBytesReader(nil, resp.Body, 4096)
+
 	var result struct {
 		Height int    `json:"height"`
 		Hash   string `json:"hash"`
