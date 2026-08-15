@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"github.com/lmittmann/tint"
 	"valence/internal/chain"
@@ -49,6 +50,7 @@ type Node struct {
 	server       *http.Server
 	stopChan     chan struct{}
 	faucetMu     sync.Mutex
+	isMining     atomic.Bool
 }
 
 func NewNode(cfg Config) (*Node, error) {
@@ -231,8 +233,12 @@ func (n *Node) Start() error {
 	n.setupAPI(mux)
 
 	n.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", n.Config.Port),
-		Handler: corsMiddleware(mux),
+		Addr:              fmt.Sprintf(":%d", n.Config.Port),
+		Handler:           corsMiddleware(mux),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      11 * time.Minute,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	return n.server.ListenAndServe()

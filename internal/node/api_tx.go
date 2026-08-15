@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 	"valence/internal/block"
 	"valence/internal/ledger"
 )
@@ -141,11 +142,20 @@ func (n *Node) handleGossipBlock(w http.ResponseWriter, r *http.Request) {
 
 // POST /mine
 func (n *Node) handleMine(w http.ResponseWriter, r *http.Request) {
+	if !n.isMining.CompareAndSwap(false, true) {
+		respondError(w, http.StatusConflict, "mining already in progress")
+		return
+	}
+	defer n.isMining.Store(false)
+
 	txs := n.Mempool.GetAll()
 	
-	newBlock, err := n.Chain.MineBlock(context.Background(), txs, n.Config.MinerAddress)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	newBlock, err := n.Chain.MineBlock(ctx, txs, n.Config.MinerAddress)
 	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	

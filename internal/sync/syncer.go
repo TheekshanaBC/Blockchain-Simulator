@@ -90,6 +90,11 @@ func (s *Syncer) SyncFromPeer(peerAddr string) (bool, []block.Transaction, error
 		return false, nil, fmt.Errorf("peer returned status %d", resp.StatusCode)
 	}
 
+	// Cap the response body to match the server-side limit in handlePushSync
+	// (10 MB). Without this a malicious peer can serve a multi-gigabyte body
+	// for /chain and OOM the syncing node before any block validation runs.
+	resp.Body = http.MaxBytesReader(nil, resp.Body, 10*1024*1024)
+
 	var candidateChain []*block.Block
 	if err := json.NewDecoder(resp.Body).Decode(&candidateChain); err != nil {
 		return false, nil, fmt.Errorf("failed to decode candidate chain: %w", err)
@@ -154,6 +159,11 @@ func (s *Syncer) SyncMempoolFromPeer(peerAddr string) ([]block.Transaction, erro
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("peer returned status %d", resp.StatusCode)
 	}
+
+	// Cap the response body — a malicious peer could otherwise serve a
+	// gigabyte mempool payload and OOM the node. 5 MB is generous for any
+	// realistic mempool size (MaxTxPerBlock * max transactions in flight).
+	resp.Body = http.MaxBytesReader(nil, resp.Body, 5*1024*1024)
 
 	var txs []block.Transaction
 	if err := json.NewDecoder(resp.Body).Decode(&txs); err != nil {
