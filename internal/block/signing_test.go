@@ -7,7 +7,7 @@ import (
 
 /*
 TestVerify_SystemAddress ensures that system-generated transactions,
-specifically those from COINBASE or FAUCET addresses, bypass cryptographic
+specifically those from COINBASE address (VALENCE_COINBASE), bypass cryptographic
 signature verification and immediately return true.
 */
 func TestVerify_SystemAddress(t *testing.T) {

@@ -16,6 +16,9 @@ func expectedDifficultyAfterWindow(blocks []*block.Block, nextHeight, N int, tar
 	var firstBlockIndex int
 	var expectedIntervals int
 
+	// In window 1, start measuring from block 1 (N-1 intervals) rather than genesis (block 0),
+	// because genesis has a static/hardcoded timestamp that does not reflect real mining time.
+	// For all subsequent windows, measure across the full N blocks.
 	if windowIndex == 1 {
 		firstBlockIndex = 1
 		expectedIntervals = N - 1

@@ -21,14 +21,17 @@ func NewSeenCache(ttl time.Duration) *SeenCache {
 	}
 }
 
-// Add marks an item as seen.
+// Add marks an item as seen directly.
+// Note: This is primarily intended for testing and debugging. In production code,
+// AddIfNotSeen should be used for atomic check-and-add operations.
 func (c *SeenCache) Add(id string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.items[id] = time.Now()
 }
 
-// Has checks if an item has been seen. It does not update the timestamp.
+// Has checks if an item has been seen without updating its timestamp.
+// Note: Primarily used for testing/verification.
 func (c *SeenCache) Has(id string) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

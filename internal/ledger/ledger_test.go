@@ -83,7 +83,7 @@ func TestValidateTransaction(t *testing.T) {
 /*
 TestCalculateBalances verifies that iterating through the blockchain correctly
 tallies the balances for all users based on their incoming and outgoing transactions.
-It also ensures that FAUCET and COINBASE special senders do not get negative balances.
+It also ensures that the COINBASE system sender does not have a negative balance tracked.
 */
 func TestCalculateBalances(t *testing.T) {
 	chain := []*block.Block{
@@ -117,7 +117,7 @@ func TestCalculateBalances(t *testing.T) {
 		t.Errorf("Expected Miner balance 50, got %d", balances["Miner"])
 	}
 
-	// FAUCET and COINBASE should not have balances tracked negatively
+	// COINBASE should not have balances tracked negatively
 	if val, exists := balances[block.SystemAddressCoinbase]; exists && val < 0 {
 		t.Errorf("COINBASE should not have a negative balance")
 	}
@@ -139,7 +139,7 @@ func TestCalculateAvailableBalances(t *testing.T) {
 
 	pendingPool := []block.Transaction{
 		{Sender: "Alice", Recipient: "Bob", Amount: 40},
-		{Sender: "FAUCET", Recipient: "Bob", Amount: 1000}, // FAUCET shouldn't be deducted
+		{Sender: "FAUCET", Recipient: "Bob", Amount: 1000},
 	}
 
 	available := CalculateAvailableBalances(chain, pendingPool)

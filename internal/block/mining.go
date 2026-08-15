@@ -19,7 +19,9 @@ func (b *Block) Mine(ctx context.Context, difficulty int) {
 	b.Header.MerkleRoot = CalculateMerkleRoot(b.Transactions)
 	target := strings.Repeat("0", difficulty)
 
-	// add coinbase transaction for reward miner
+	// Ensure the block has a coinbase transaction.
+	// Note: chain.MineBlock normally prepends a coinbase transaction with the actual miner's address.
+	// This fallback creates a placeholder coinbase if Mine() is invoked directly without one (e.g. in tests/benchmarks).
 	if len(b.Transactions) == 0 || b.Transactions[0].Sender != SystemAddressCoinbase {
 		coinbaseTx := Transaction{Sender: SystemAddressCoinbase, Recipient: "Miner", Amount: MiningReward, Signature: []byte("0"), Timestamp: time.Now().UnixNano()}
 		coinbaseTx.ComputeID()
@@ -99,6 +101,8 @@ func (b *Block) Mine(ctx context.Context, difficulty int) {
 		}
 
 		innerCancel()
+		// If all uint32 nonces (0 to 4,294,967,295) are exhausted without finding a valid hash,
+		// increment extraNonce in the coinbase signature to alter the Merkle root and start over.
 		extraNonce++
 		b.Transactions[0].Signature = strconv.AppendInt(nil, int64(extraNonce), 10)
 		b.Header.Nonce = 0

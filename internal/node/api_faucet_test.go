@@ -10,10 +10,9 @@ import (
 )
 
 /*
-TestAPIGossipTx_FaucetLimitProtection ensures that even if a malicious node 
-bypasses the /faucet API and directly gossips a forged FAUCET transaction 
-to the /tx/gossip endpoint, the core Ledger validation catches it and 
-blocks it if the requested amount exceeds the limits (1000 VCN).
+TestAPIGossipTx_FaucetLimitProtection ensures that if an unsigned or forged transaction
+claiming to be from the Faucet wallet is gossiped to the /tx/gossip endpoint,
+the core ledger validation rejects it with HTTP 400 Bad Request.
 */
 func TestAPIGossipTx_FaucetLimitProtection(t *testing.T) {
 	n := setupTestNode(t)

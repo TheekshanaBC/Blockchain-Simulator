@@ -84,6 +84,8 @@ func validateGenesisBlock(genesisBlock *block.Block, balances map[string]int64, 
 		return ValidationResult{false, 0, "Genesis Stored Hash Mismatch"}
 	}
 
+	// Genesis transactions are system allocations (e.g. coinbase & faucet pre-allocation).
+	// They bypass standard transaction signature validation and initialize initial account balances directly.
 	for _, tx := range genesisBlock.Transactions {
 		if !block.IsSystemAddress(tx.Sender) {
 			balances[tx.Sender] -= tx.Amount

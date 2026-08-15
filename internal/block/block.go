@@ -55,8 +55,9 @@ func NewGenesisBlock() *Block {
 		},
 		Height: 0,
 		// Note: The genesis block rewards the "Genesis" address, which has no corresponding
-		// private key. This ensures the initial 50 VCN are permanently locked (inflation burn).
-		// It also funds the Development Faucet with 1,000,000,000 VCN.
+		// private key. This permanently locks the initial 50 VCN.
+		// It also pre-allocates 1,000,000,000 VCN to the predefined Development Faucet wallet address
+		// (derived from the faucet private key).
 		Transactions: []Transaction{
 			{Sender: SystemAddressCoinbase, Recipient: "Genesis", Amount: 50 * ElectronsPerVCN, Signature: []byte("0")},
 			{Sender: SystemAddressCoinbase, Recipient: "b2be6b76fa3f8e9d88de9128285f73b1deb13e8e1bd44df24e5423fce0171607", Amount: 1_000_000_000 * ElectronsPerVCN, Signature: []byte("0")},
