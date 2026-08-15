@@ -72,6 +72,10 @@ func LoadFromKeystore(filename string, name string) (*Wallet, error) {
 		return nil, fmt.Errorf("wallet '%s' not found", name)
 	}
 
+	if len(data.PrivateKey) != ed25519.SeedSize {
+		return nil, fmt.Errorf("wallet '%s' has invalid seed length: expected %d, got %d", name, ed25519.SeedSize, len(data.PrivateKey))
+	}
+
 	privKey := ed25519.NewKeyFromSeed(data.PrivateKey)
 	pubKey := privKey.Public().(ed25519.PublicKey)
 
@@ -90,6 +94,10 @@ func GetAllWallets(filename string) (map[string]*Wallet, error) {
 
 	wallets := make(map[string]*Wallet)
 	for name, data := range keystore {
+		if len(data.PrivateKey) != ed25519.SeedSize {
+			// Skip corrupt wallets so the node can still start with the healthy ones
+			continue
+		}
 		privKey := ed25519.NewKeyFromSeed(data.PrivateKey)
 		pubKey := privKey.Public().(ed25519.PublicKey)
 		wallets[name] = &Wallet{
