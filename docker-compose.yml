@@ -1,6 +1,8 @@
 services:
   node-a:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.local
     container_name: valence_node_a
     ports:
       - "8080:8080"
@@ -14,7 +16,9 @@ services:
     restart: unless-stopped
 
   node-b:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.local
     container_name: valence_node_b
     ports:
       - "8081:8081"
@@ -30,7 +34,9 @@ services:
     restart: unless-stopped
 
   node-c:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.local
     container_name: valence_node_c
     ports:
       - "8082:8082"
