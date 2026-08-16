@@ -1,0 +1,46 @@
+services:
+  node-a:
+    build: .
+    container_name: valence_node_a
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/nodeA:/app/data/nodeA
+    command: >
+      -port 8080
+      -data-dir /app/data/nodeA
+      -announce-addr http://node-a:8080
+      -peers https://blockchain-simulator-production.up.railway.app
+    restart: unless-stopped
+
+  node-b:
+    build: .
+    container_name: valence_node_b
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./data/nodeB:/app/data/nodeB
+    command: >
+      -port 8081
+      -data-dir /app/data/nodeB
+      -announce-addr http://node-b:8081
+      -peers https://blockchain-simulator-production.up.railway.app,http://node-a:8080
+    depends_on:
+      - node-a
+    restart: unless-stopped
+
+  node-c:
+    build: .
+    container_name: valence_node_c
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./data/nodeC:/app/data/nodeC
+    command: >
+      -port 8082
+      -data-dir /app/data/nodeC
+      -announce-addr http://node-c:8082
+      -peers https://blockchain-simulator-production.up.railway.app,http://node-a:8080
+    depends_on:
+      - node-a
+    restart: unless-stopped
