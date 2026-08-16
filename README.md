@@ -60,32 +60,40 @@ go run ./cmd/valenced -port 8080 -data-dir ./data/nodeA -peers localhost:8081 -f
 
 ---
 
-## 💻 The Universal CLI: Performing a Transaction
+## 💻 The Universal CLI: Interactive & Scriptable
 
-Valence comes with a powerful command-line interface. Here is the complete end-to-end workflow to perform a transaction on your local cluster:
+Valence comes with a powerful, dual-mode command-line interface.
+
+### Interactive Mode (Recommended)
+To launch the beautiful, menu-driven interactive CLI, simply run:
+```bash
+go run ./cmd/valence-cli
+```
+This will launch the interactive UI where you can easily:
+- Manage wallets and send VCN
+- Connect to local or cloud nodes on the fly
+- Mine blocks and view the mempool
+
+### Scripting Mode
+You can also use the CLI in a non-interactive way by passing commands directly. This is perfect for scripts or automation:
 
 ```bash
 # 1. Create two wallets (Sender and Recipient)
-go run ./cmd/valence-cli wallet create -name alice
-go run ./cmd/valence-cli wallet create -name bob
+go run ./cmd/valence-cli createwallet
+# (When prompted in interactive mode, create 'alice' and 'bob')
+# Or set active wallet using interactive mode.
 
-# 2. Get some free VCN for Alice from Node A's Faucet
+# 2. Get some free VCN from the Node's Faucet
 go run ./cmd/valence-cli -node http://localhost:8080 -wallet alice faucet 100
 
-# 3. Mine a block on Node A to confirm the faucet transaction
+# 3. Mine a block to confirm the faucet transaction
 go run ./cmd/valence-cli -node http://localhost:8080 generate
 
-# 4. Verify Alice's balance
+# 4. Verify the balance
 go run ./cmd/valence-cli -node http://localhost:8080 -wallet alice getbalance
 
-# 5. Send 25 VCN from Alice to Bob via Node B (gossip in action!)
-go run ./cmd/valence-cli -node http://localhost:8081 -wallet alice send -to bob -amount 25
-
-# 6. Mine another block (on any node) to confirm the transfer
-go run ./cmd/valence-cli -node http://localhost:8082 generate
-
-# 7. Check Bob's balance!
-go run ./cmd/valence-cli -node http://localhost:8080 -wallet bob getbalance
+# 5. Send 25 VCN to another address
+go run ./cmd/valence-cli -node http://localhost:8081 -wallet alice sendtoaddress <bob_address> 25
 ```
 > **📖 Note:** See the [CLI Guide](docs/cli_guide.md) for a full breakdown of all available commands.
 
