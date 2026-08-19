@@ -111,6 +111,13 @@ func TestHandleSubmitTx(t *testing.T) {
 			return
 		}
 		
+		if r.URL.Path == "/fee" {
+			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(http.StatusOK)
+			rw.Write([]byte(`{"fee": 150}`))
+			return
+		}
+		
 		if r.URL.Path == "/tx/submit" {
 			rw.Header().Set("Content-Type", "application/json")
 			rw.WriteHeader(http.StatusAccepted)

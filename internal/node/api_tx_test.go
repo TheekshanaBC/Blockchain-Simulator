@@ -333,3 +333,47 @@ func TestAPIMerkleProof(t *testing.T) {
 		t.Errorf("expected proof to be verified as valid")
 	}
 }
+
+/*
+TestAPIDynamicFee verifies that the /fee endpoint dynamically calculates
+the fee based on the mempool size.
+*/
+func TestAPIDynamicFee(t *testing.T) {
+	n := setupTestNode(t)
+	mux := http.NewServeMux()
+	n.setupAPI(mux)
+
+	// 1. Empty mempool
+	req, _ := http.NewRequest("GET", "/fee", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Fatalf("handler returned wrong status code for fee: got %v want %v", status, http.StatusOK)
+	}
+
+	var feeResp map[string]int64
+	json.Unmarshal(rr.Body.Bytes(), &feeResp)
+	if feeResp["fee"] != block.BaseFee {
+		t.Errorf("expected fee %d for empty mempool, got %d", block.BaseFee, feeResp["fee"])
+	}
+
+	// 2. Add some transactions
+	for i := 0; i < 5; i++ {
+		tx := block.Transaction{
+			ID: "tx" + string(rune(i)),
+			Sender: "Sender", Recipient: "Recipient", Amount: 10,
+		}
+		n.Mempool.Add(tx)
+	}
+
+	req, _ = http.NewRequest("GET", "/fee", nil)
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	json.Unmarshal(rr.Body.Bytes(), &feeResp)
+	expectedFee := block.BaseFee + 5*block.FeeMultiplier
+	if feeResp["fee"] != expectedFee {
+		t.Errorf("expected fee %d for 5 txs, got %d", expectedFee, feeResp["fee"])
+	}
+}

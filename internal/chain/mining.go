@@ -23,17 +23,6 @@ func (c *Chain) MineBlock(ctx context.Context, txs []block.Transaction, minerAdd
 	// Re-validate and filter
 	validTxs := ledger.FilterValidTransactions(txs, c.blocks)
 	
-	// Add Coinbase transaction
-	coinbaseTx := block.Transaction{
-		Sender:    block.SystemAddressCoinbase,
-		Recipient: minerAddress,
-		Amount:    block.MiningReward,
-		Timestamp: time.Now().UnixNano(),
-	}
-	coinbaseTx.ComputeID()
-	
-	finalTxs := []block.Transaction{coinbaseTx}
-	
 	maxToAdd := 0
 	if c.MaxTxPerBlock > 1 {
 		maxToAdd = c.MaxTxPerBlock - 1
@@ -41,6 +30,22 @@ func (c *Chain) MineBlock(ctx context.Context, txs []block.Transaction, minerAdd
 	if len(validTxs) < maxToAdd {
 		maxToAdd = len(validTxs)
 	}
+
+	var totalFees int64 = 0
+	for _, tx := range validTxs[:maxToAdd] {
+		totalFees += tx.Fee
+	}
+	
+	// Add Coinbase transaction
+	coinbaseTx := block.Transaction{
+		Sender:    block.SystemAddressCoinbase,
+		Recipient: minerAddress,
+		Amount:    block.MiningReward + totalFees,
+		Timestamp: time.Now().UnixNano(),
+	}
+	coinbaseTx.ComputeID()
+	
+	finalTxs := []block.Transaction{coinbaseTx}
 	finalTxs = append(finalTxs, validTxs[:maxToAdd]...)
 	
 	if len(c.blocks) == 0 {

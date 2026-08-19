@@ -28,6 +28,7 @@ func (n *Node) setupAPI(mux *http.ServeMux) {
 	mux.HandleFunc("POST /mine", n.handleMine)
 	mux.HandleFunc("POST /faucet", n.handleFaucet)
 	mux.HandleFunc("GET /mempool", n.handleGetMempool)
+	mux.HandleFunc("GET /fee", n.handleGetFee)
 
 	// Peer endpoints (api_peers.go)
 	mux.HandleFunc("GET /peers", n.handleGetPeers)

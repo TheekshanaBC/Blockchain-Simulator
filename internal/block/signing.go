@@ -17,7 +17,7 @@ func DoubleHashBytes(data []byte) []byte {
 
 // returns double sha256 hash of the transaction data(without signature)
 func (tx *Transaction) Hash() []byte {
-	record := fmt.Sprintf("%d:%s|%d:%s|%d|%d|%d", len(tx.Sender), tx.Sender, len(tx.Recipient), tx.Recipient, tx.Amount, tx.Sequence, tx.Timestamp)
+	record := fmt.Sprintf("%d:%s|%d:%s|%d|%d|%d|%d", len(tx.Sender), tx.Sender, len(tx.Recipient), tx.Recipient, tx.Amount, tx.Fee, tx.Sequence, tx.Timestamp)
 	return DoubleHashBytes([]byte(record))
 }
 

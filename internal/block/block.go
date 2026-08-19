@@ -9,6 +9,7 @@ type Transaction struct {
 	Sender    string `json:"sender"`
 	Recipient string `json:"recipient"`
 	Amount    int64  `json:"amount"`
+	Fee       int64  `json:"fee"`
 	Sequence  uint64 `json:"sequence"`
 	PublicKey []byte `json:"public_key"`
 	Signature []byte `json:"signature"`
@@ -39,6 +40,12 @@ const (
 
 // ElectronsPerVCN is the number of electrons in 1 VCN (1 billion)
 const ElectronsPerVCN int64 = 1_000_000_000
+
+// BaseFee is the minimum fee for a transaction
+const BaseFee int64 = 100
+
+// FeeMultiplier is the additional fee per transaction in the mempool
+const FeeMultiplier int64 = 10
 
 func IsSystemAddress(addr string) bool {
 	return addr == SystemAddressCoinbase

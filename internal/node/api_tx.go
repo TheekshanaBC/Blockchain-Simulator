@@ -40,9 +40,10 @@ func (n *Node) handleSubmitTx(w http.ResponseWriter, r *http.Request) {
 	n.Logger.Info("TX received and added to mempool", "tx_id", tx.ID, "mempool_size", n.Mempool.Size())
 	n.Gossip.BroadcastTx(tx)
 
-	respondJSON(w, http.StatusAccepted, map[string]string{
+	respondJSON(w, http.StatusAccepted, map[string]interface{}{
 		"status": "accepted",
 		"tx_id":  tx.ID,
+		"fee":    tx.Fee,
 	})
 }
 
@@ -243,4 +244,13 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 // GET /mempool
 func (n *Node) handleGetMempool(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, n.Mempool.GetAll())
+}
+
+// GET /fee
+func (n *Node) handleGetFee(w http.ResponseWriter, r *http.Request) {
+	mempoolSize := n.Mempool.Size()
+	recommendedFee := block.BaseFee + int64(mempoolSize)*block.FeeMultiplier
+	respondJSON(w, http.StatusOK, map[string]int64{
+		"fee": recommendedFee,
+	})
 }

@@ -23,7 +23,7 @@ func CalculateBalances(chain []*block.Block) map[string]int64 {
 			}
 
 			if !block.IsSystemAddress(tx.Sender) {
-				balances[tx.Sender] -= tx.Amount
+				balances[tx.Sender] -= (tx.Amount + tx.Fee)
 			}
 			balances[tx.Recipient] += tx.Amount
 		}
@@ -38,7 +38,7 @@ func CalculateAvailableBalances(chain []*block.Block, pendingPool []block.Transa
 	// deduct the pending pool transactions to prevent double spending
 	for _, tx := range pendingPool {
 		if !block.IsSystemAddress(tx.Sender) {
-			balances[tx.Sender] -= tx.Amount
+			balances[tx.Sender] -= (tx.Amount + tx.Fee)
 		}
 	}
 	return balances
@@ -76,6 +76,9 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 	if tx.Amount <= 0 {
 		return errors.New("amount must be greater than 0")
 	}
+	if tx.Fee < 0 {
+		return errors.New("fee cannot be negative")
+	}
 	if tx.Amount > MaxTransactionAmount {
 		return errors.New("amount exceeds maximum allowed transaction size")
 	}
@@ -101,8 +104,8 @@ func ValidateTransaction(tx block.Transaction, balances map[string]int64, sequen
 			return fmt.Errorf("invalid sequence number: expected %d, got %d", expectedSeq, tx.Sequence)
 		}
 
-		if balances[tx.Sender] < tx.Amount {
-			return fmt.Errorf("insufficient funds: need %d, but have %d", tx.Amount, balances[tx.Sender])
+		if balances[tx.Sender] < (tx.Amount + tx.Fee) {
+			return fmt.Errorf("insufficient funds: need %d, but have %d", tx.Amount+tx.Fee, balances[tx.Sender])
 		}
 	}
 	return nil
@@ -134,7 +137,7 @@ func ValidateTransactions(txs []block.Transaction, chain []*block.Block, pending
 		existingTxIDs[tx.ID] = true
 		// Update state for subsequent transactions in this batch
 		if !block.IsSystemAddress(tx.Sender) {
-			balances[tx.Sender] -= tx.Amount
+			balances[tx.Sender] -= (tx.Amount + tx.Fee)
 			sequences[tx.Sender] = tx.Sequence
 		}
 		balances[tx.Recipient] += tx.Amount
@@ -162,7 +165,7 @@ func FilterValidTransactions(pendingPool []block.Transaction, chain []*block.Blo
 
 		if !block.IsSystemAddress(tx.Sender) {
 			if err := ValidateTransaction(tx, balances, sequences); err == nil {
-				balances[tx.Sender] -= tx.Amount
+				balances[tx.Sender] -= (tx.Amount + tx.Fee)
 				balances[tx.Recipient] += tx.Amount
 				sequences[tx.Sender] = tx.Sequence
 				existingTxIDs[tx.ID] = true

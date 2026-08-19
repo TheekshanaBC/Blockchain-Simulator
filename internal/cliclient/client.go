@@ -109,10 +109,25 @@ func HandleSubmitTx(nodeURL, keystoreFile, walletName, toAddr string, amount int
 		return nil, fmt.Errorf("error parsing sequence response: %v", err)
 	}
 
+	// Fetch dynamic fee from node
+	feeResp, err := httpClient.Get(nodeURL + "/fee")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching fee: %v", err)
+	}
+	defer feeResp.Body.Close()
+
+	var feeData struct {
+		Fee int64 `json:"fee"`
+	}
+	if err := json.NewDecoder(feeResp.Body).Decode(&feeData); err != nil {
+		return nil, fmt.Errorf("error parsing fee response: %v", err)
+	}
+
 	tx := block.Transaction{
 		Sender:    w.Address(),
 		Recipient: toAddr,
 		Amount:    amount,
+		Fee:       feeData.Fee,
 		Sequence:  seqData.NextSequence,
 		Timestamp: time.Now().UnixNano(),
 	}

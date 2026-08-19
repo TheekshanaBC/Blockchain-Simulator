@@ -30,6 +30,7 @@ func createSignedTx(w *wallet.Wallet, recipient string, amount int64, sequence u
 		Recipient: recipient,
 		Amount:    amount,
 		Sequence:  sequence,
+		Fee:       10, // Default fee for tests
 		PublicKey: w.PublicKey,
 	}
 	tx.ComputeID()
@@ -77,6 +78,9 @@ func TestAddTransaction(t *testing.T) {
 	b, _ := myChain.MineBlock(context.Background(), []block.Transaction{tx1}, "Miner")
 	if len(b.Transactions) != 2 {
 		t.Errorf("Expected valid transaction to be mined")
+	}
+	if b.Transactions[0].Amount != block.MiningReward + tx1.Fee {
+		t.Errorf("Expected coinbase amount %d, got %d", block.MiningReward + tx1.Fee, b.Transactions[0].Amount)
 	}
 	// 2. Reject COINBASE sender
 	tx2 := createSignedTx(wAlice, "Alice", 300, 2)

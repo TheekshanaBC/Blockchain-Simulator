@@ -78,6 +78,22 @@ func TestValidateTransaction(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected an error for negative amount, but got nil")
 	}
+
+	// Negative fee transaction
+	negFeeTx := createTx("Bob", 10)
+	negFeeTx.Fee = -5
+	err = ValidateTransaction(negFeeTx, balances, sequences)
+	if err == nil {
+		t.Errorf("Expected an error for negative fee, but got nil")
+	}
+
+	// Insufficient funds due to fee
+	insufFeeTx := createTx("Bob", 95)
+	insufFeeTx.Fee = 10
+	err = ValidateTransaction(insufFeeTx, balances, sequences)
+	if err == nil {
+		t.Errorf("Expected an error for insufficient funds with fee, but got nil")
+	}
 }
 
 /*
@@ -95,8 +111,8 @@ func TestCalculateBalances(t *testing.T) {
 		},
 		{
 			Transactions: []block.Transaction{
-				{Sender: "Alice", Recipient: "Bob", Amount: 30},
-				{Sender: "Bob", Recipient: "Charlie", Amount: 10},
+				{Sender: "Alice", Recipient: "Bob", Amount: 30, Fee: 5},
+				{Sender: "Bob", Recipient: "Charlie", Amount: 10, Fee: 2},
 				{Sender: "Dave", Recipient: "Eve", Amount: 0}, // Zero amount, should be skipped
 			},
 		},
@@ -104,11 +120,11 @@ func TestCalculateBalances(t *testing.T) {
 
 	balances := CalculateBalances(chain)
 
-	if balances["Alice"] != 70 {
-		t.Errorf("Expected Alice balance 70, got %d", balances["Alice"])
+	if balances["Alice"] != 65 {
+		t.Errorf("Expected Alice balance 65, got %d", balances["Alice"])
 	}
-	if balances["Bob"] != 20 {
-		t.Errorf("Expected Bob balance 20, got %d", balances["Bob"])
+	if balances["Bob"] != 18 {
+		t.Errorf("Expected Bob balance 18, got %d", balances["Bob"])
 	}
 	if balances["Charlie"] != 10 {
 		t.Errorf("Expected Charlie balance 10, got %d", balances["Charlie"])

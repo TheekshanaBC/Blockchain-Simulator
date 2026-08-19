@@ -88,7 +88,7 @@ func validateGenesisBlock(genesisBlock *block.Block, balances map[string]int64, 
 	// They bypass standard transaction signature validation and initialize initial account balances directly.
 	for _, tx := range genesisBlock.Transactions {
 		if !block.IsSystemAddress(tx.Sender) {
-			balances[tx.Sender] -= tx.Amount
+			balances[tx.Sender] -= (tx.Amount + tx.Fee)
 			sequences[tx.Sender] = tx.Sequence
 		}
 		balances[tx.Recipient] += tx.Amount
@@ -145,14 +145,20 @@ func validateBlockTransactions(currentBlock *block.Block, balances map[string]in
 		return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Block exceeds maximum allowed transactions (%d > %d)", len(currentBlock.Transactions), maxTxPerBlock)}
 	}
 
+	var totalFees int64 = 0
+	for i := 1; i < len(currentBlock.Transactions); i++ {
+		totalFees += currentBlock.Transactions[i].Fee
+	}
+
 	for i, tx := range currentBlock.Transactions {
 		// Enforce strict COINBASE rules
 		if i == 0 {
 			if tx.Sender != block.SystemAddressCoinbase {
 				return ValidationResult{false, currentBlock.Height, "First transaction must be COINBASE"}
 			}
-			if tx.Amount != block.MiningReward {
-				return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Invalid COINBASE reward: expected %d, got %d", block.MiningReward, tx.Amount)}
+			expectedReward := block.MiningReward + totalFees
+			if tx.Amount != expectedReward {
+				return ValidationResult{false, currentBlock.Height, fmt.Sprintf("Invalid COINBASE reward: expected %d, got %d", expectedReward, tx.Amount)}
 			}
 		} else {
 			if tx.Sender == block.SystemAddressCoinbase {
@@ -168,7 +174,7 @@ func validateBlockTransactions(currentBlock *block.Block, balances map[string]in
 
 		if !block.IsSystemAddress(tx.Sender) {
 			sequences[tx.Sender] = tx.Sequence
-			balances[tx.Sender] -= tx.Amount
+			balances[tx.Sender] -= (tx.Amount + tx.Fee)
 		}
 		balances[tx.Recipient] += tx.Amount
 	}
