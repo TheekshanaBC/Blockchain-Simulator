@@ -131,6 +131,7 @@ func (n *Node) handleHistoryForAddress(w http.ResponseWriter, r *http.Request) {
 					"sender":    tx.Sender,
 					"recipient": tx.Recipient,
 					"amount":    tx.Amount,
+					"fee":       tx.Fee,
 					"timestamp": tx.Timestamp,
 					"height":    b.Height,
 				})
