@@ -17,7 +17,7 @@ func init() {
 
 func createTestFaucetTx(c *Chain, recipient string, amount int64) block.Transaction {
 	seqCache[c]++
-	tx, err := c.CreateFaucetTx(recipient, amount, testFaucetWallet, seqCache[c], 1_000_000_000*block.ElectronsPerVCN, nil)
+	tx, err := c.CreateFaucetTx(recipient, amount, 0, testFaucetWallet, seqCache[c], 1_000_000_000*block.ElectronsPerVCN, nil)
 	if err != nil {
 		panic(err)
 	}

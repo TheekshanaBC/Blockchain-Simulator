@@ -11,7 +11,7 @@ import (
 
 // CreateFaucetTx creates a cryptographically signed faucet transaction.
 // It enforces limits against the blockchain and signs with the given wallet.
-func (c *Chain) CreateFaucetTx(recipient string, amount int64, faucetWallet *wallet.Wallet, sequence uint64, balance int64, pendingPool []block.Transaction) (block.Transaction, error) {
+func (c *Chain) CreateFaucetTx(recipient string, amount int64, fee int64, faucetWallet *wallet.Wallet, sequence uint64, balance int64, pendingPool []block.Transaction) (block.Transaction, error) {
 	if strings.TrimSpace(recipient) == "" {
 		return block.Transaction{}, fmt.Errorf("recipient address cannot be empty")
 	}
@@ -24,7 +24,7 @@ func (c *Chain) CreateFaucetTx(recipient string, amount int64, faucetWallet *wal
 	if amount > ledger.MaxFaucetRequest {
 		return block.Transaction{}, fmt.Errorf("faucet request exceeds maximum allowed limit per request (%d)", ledger.MaxFaucetRequest)
 	}
-	if balance < amount {
+	if balance < amount + fee {
 		return block.Transaction{}, fmt.Errorf("faucet is out of funds")
 	}
 
@@ -53,6 +53,7 @@ func (c *Chain) CreateFaucetTx(recipient string, amount int64, faucetWallet *wal
 		Sender:    faucetWallet.Address(),
 		Recipient: recipient,
 		Amount:    amount,
+		Fee:       fee,
 		Timestamp: time.Now().UnixNano(),
 		Sequence:  sequence,
 		PublicKey: faucetWallet.PublicKey,

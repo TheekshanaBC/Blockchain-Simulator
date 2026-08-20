@@ -32,7 +32,7 @@ var seqCache = make(map[*Node]uint64)
 
 func createTestFaucetTx(n *Node, recipient string, amount int64) block.Transaction {
 	seqCache[n]++
-	tx, err := n.Chain.CreateFaucetTx(recipient, amount, n.FaucetWallet, seqCache[n], 1_000_000_000*block.ElectronsPerVCN, nil)
+	tx, err := n.Chain.CreateFaucetTx(recipient, amount, 0, n.FaucetWallet, seqCache[n], 1_000_000_000*block.ElectronsPerVCN, nil)
 	if err != nil {
 		panic(err)
 	}

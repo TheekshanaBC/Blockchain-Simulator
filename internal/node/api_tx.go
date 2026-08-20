@@ -222,7 +222,11 @@ func (n *Node) handleFaucet(w http.ResponseWriter, r *http.Request) {
 	faucetSeq := sequences[n.FaucetWallet.Address()] + 1
 	faucetBal := balances[n.FaucetWallet.Address()]
 
-	tx, err := n.Chain.CreateFaucetTx(req.Address, electrons, n.FaucetWallet, faucetSeq, faucetBal, mempoolTxs)
+	// Calculate fee for faucet tx based on mempool size
+	mempoolSize := n.Mempool.Size()
+	fee := block.BaseFee + int64(mempoolSize)*block.FeeMultiplier
+
+	tx, err := n.Chain.CreateFaucetTx(req.Address, electrons, fee, n.FaucetWallet, faucetSeq, faucetBal, mempoolTxs)
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
