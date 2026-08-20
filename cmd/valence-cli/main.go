@@ -54,6 +54,82 @@ func printJSON(data interface{}, err error) {
 	fmt.Println(Green + string(b) + Reset)
 }
 
+func formatVCN(electrons float64) string {
+	val := electrons / float64(block.ElectronsPerVCN)
+	// format to up to 9 decimals, dropping trailing zeros
+	str := strconv.FormatFloat(val, 'f', -1, 64)
+	if !strings.Contains(str, ".") {
+		str += ".0000"
+	} else {
+		// pad to at least 4 decimals for neatness if needed
+		parts := strings.Split(str, ".")
+		if len(parts[1]) < 4 {
+			str += strings.Repeat("0", 4-len(parts[1]))
+		}
+	}
+	return str
+}
+
+func printBalance(res interface{}, err error) {
+	if err != nil {
+		printError(err)
+		return
+	}
+	m, ok := res.(map[string]interface{})
+	if !ok {
+		printJSON(res, nil)
+		return
+	}
+	bal, _ := m["balance"].(float64)
+	addr, _ := m["address"].(string)
+	fmt.Printf(Green+"Address: %s\nBalance: %s VCN\n"+Reset, addr, formatVCN(bal))
+}
+
+func printTxResult(res interface{}, err error) {
+	if err != nil {
+		printError(err)
+		return
+	}
+	m, ok := res.(map[string]interface{})
+	if !ok {
+		printJSON(res, nil)
+		return
+	}
+	status, _ := m["status"].(string)
+	txID, _ := m["tx_id"].(string)
+	if txID != "" {
+		fmt.Printf(Green+"Transaction successful! (Status: %s)\nTX ID: %s\n"+Reset, status, txID)
+	} else {
+		printJSON(res, nil)
+	}
+}
+
+func printMempool(res interface{}, err error) {
+	if err != nil {
+		printError(err)
+		return
+	}
+	arr, ok := res.([]interface{})
+	if !ok || len(arr) == 0 {
+		fmt.Println(Yellow + "Mempool is empty." + Reset)
+		return
+	}
+	fmt.Printf(Cyan+"Mempool contains %d transaction(s):\n"+Reset, len(arr))
+	for i, item := range arr {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		txID, _ := m["id"].(string)
+		amt, _ := m["amount"].(float64)
+		fee, _ := m["fee"].(float64)
+		sender, _ := m["sender"].(string)
+		recipient, _ := m["recipient"].(string)
+		fmt.Printf(Green+" %d. ID: %s\n    From: %s\n    To:   %s\n    Amt:  %s VCN | Fee: %.0f electrons\n"+Reset, 
+			i+1, txID, sender, recipient, formatVCN(amt), fee)
+	}
+}
+
 func main() {
 	nodeURL := flag.String("node", "http://localhost:8080", "Node URL")
 	keystorePath := flag.String("keystore", "./data/wallets/keys.json", "Path to keystore file")
@@ -94,6 +170,27 @@ func main() {
 
 	flag.Parse()
 
+	// Auto-select wallet if using default "primary" and it doesn't exist
+	if *walletName == "primary" {
+		wallets, err := wallet.GetAllWallets(*keystorePath)
+		if err == nil {
+			if _, exists := wallets["primary"]; !exists {
+				if len(wallets) > 0 {
+					var names []string
+					for name := range wallets {
+						names = append(names, name)
+					}
+					sort.Strings(names)
+					*walletName = names[0] // Pick the first available wallet
+				} else {
+					*walletName = "None (Please create a wallet)"
+				}
+			}
+		} else {
+			*walletName = "None (Please create a wallet)"
+		}
+	}
+
 	if flag.NArg() < 1 {
 		runInteractiveMode(*nodeURL, *keystorePath, *walletName)
 		return
@@ -126,7 +223,7 @@ func runInteractiveMode(nodeURL, keystorePath, walletName string) {
 		fmt.Println("  1. Create New Wallet")
 		fmt.Println("  2. Set Active Wallet")
 		fmt.Println("  3. Get Balance")
-		fmt.Println("  4. Send VLC")
+		fmt.Println("  4. Send VCN")
 		fmt.Println("  5. Request Faucet")
 		fmt.Println(Yellow + "\n \u26CF\uFE0F  Blockchain & Mining:" + Reset)
 		fmt.Println("  6. View Mempool")
@@ -212,7 +309,7 @@ func runInteractiveMode(nodeURL, keystorePath, walletName string) {
 			fmt.Print("Enter recipient address: ")
 			addr, _ := reader.ReadString('\n')
 			addr = strings.TrimSpace(addr)
-			fmt.Print("Enter amount (VLC): ")
+			fmt.Print("Enter amount (VCN): ")
 			amt, _ := reader.ReadString('\n')
 			amt = strings.TrimSpace(amt)
 			if addr == "" || amt == "" {
@@ -220,10 +317,34 @@ func runInteractiveMode(nodeURL, keystorePath, walletName string) {
 				pause(reader)
 				continue
 			}
-			runCommand("sendtoaddress", []string{addr, amt}, nodeURL, keystorePath, walletName)
+			
+			// Fetch dynamic fee to display in confirmation
+			res, err := cliclient.HandleGet(nodeURL, "/fee")
+			var fee int64 = 0
+			if err == nil {
+				if m, ok := res.(map[string]interface{}); ok {
+					if f, ok := m["fee"].(float64); ok {
+						fee = int64(f)
+					}
+				}
+			}
+
+			fmt.Printf(Yellow+"\nConfirm transaction:\n"+Reset)
+			fmt.Printf("  To:      %s\n", addr)
+			fmt.Printf("  Amount:  %s VCN\n", amt)
+			fmt.Printf("  Fee:     %d electrons\n", fee)
+			fmt.Print(Bold + "\nProceed? [Y/n]: " + Reset)
+			
+			confirm, _ := reader.ReadString('\n')
+			confirm = strings.TrimSpace(strings.ToLower(confirm))
+			if confirm == "y" || confirm == "yes" || confirm == "" {
+				runCommand("sendtoaddress", []string{addr, amt}, nodeURL, keystorePath, walletName)
+			} else {
+				fmt.Println(Yellow + "Transaction cancelled." + Reset)
+			}
 			pause(reader)
 		case "5":
-			fmt.Print("Enter amount (VLC): ")
+			fmt.Print("Enter amount (VCN): ")
 			amt, _ := reader.ReadString('\n')
 			amt = strings.TrimSpace(amt)
 			if amt == "" {
@@ -330,7 +451,7 @@ func runCommand(command string, args []string, nodeURL, keystorePath, walletName
 			addr = w.Address()
 		}
 		res, err := cliclient.HandleGet(nodeURL, "/balances/"+addr)
-		printJSON(res, err)
+		printBalance(res, err)
 
 	case "sendtoaddress":
 		if len(args) < 2 {
@@ -346,11 +467,11 @@ func runCommand(command string, args []string, nodeURL, keystorePath, walletName
 		}
 		amountInt := int64(math.Round(amountFloat * float64(block.ElectronsPerVCN)))
 		res, err := cliclient.HandleSubmitTx(nodeURL, keystorePath, walletName, toAddr, amountInt)
-		printJSON(res, err)
+		printTxResult(res, err)
 
 	case "getmempoolinfo":
 		res, err := cliclient.HandleGet(nodeURL, "/mempool")
-		printJSON(res, err)
+		printMempool(res, err)
 
 	case "faucet":
 		if len(args) < 1 {
@@ -365,7 +486,7 @@ func runCommand(command string, args []string, nodeURL, keystorePath, walletName
 		}
 		amountInt := int64(math.Round(amountFloat * float64(block.ElectronsPerVCN)))
 		res, err := cliclient.HandleFaucet(nodeURL, keystorePath, walletName, amountInt)
-		printJSON(res, err)
+		printTxResult(res, err)
 
 	case "getnetworkinfo", "getblockchaininfo":
 		res, err := cliclient.HandleGet(nodeURL, "/status")
